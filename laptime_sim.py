@@ -1,14 +1,14 @@
-# -*- coding: utf-8 -*-
-"""
-Spyder Editor
-
-This is a temporary script file.
-"""
-
 
 import numpy as np 
 import pandas
+import json
+from plotly.subplots import make_subplots
+import plotly.io as pio
 
+# import utm
+import matplotlib.pyplot as plt
+
+gravity = 9.81
 
 #Racechrono csv.v2 Headers
 rc_header = dict(
@@ -19,9 +19,11 @@ rc_header = dict(
         a_lon = 'Longitudinal acceleration (m/s2)',
         )
 
-gravity = 9.81
+def magnitude(vector):
+    return np.sqrt(vector ** 2)   
 
 mag = lambda v: np.sum(v**2, 1)**0.5
+
 dot = lambda u, v: np.einsum('ij,ij->i',u,v)
 
 class Track:
@@ -168,8 +170,7 @@ def simulate(car, track, position):
         else:
             acc_lon = 0
             v_b[i] =  min( v0 ,  v_max[::-1][i])
-        
-        
+      
     
     v_b = v_b[::-1] #flip te matrix
     
@@ -197,60 +198,38 @@ def return_dataframe(df, results):
     return df
 
 #%% main scripts
-
-if __name__ == '__main__':
-
-    import json
-
-    ##ggv diagram /performance envelope parameters
-    
-# =============================================================================
-#     # Peugeot 205 GTi RFS
-#     with open('./cars/Peugeot_205RFS.json', 'r') as fp:
-#         race_car = Car(json.load(fp))
-#      #overloading default functions with cars specific functions
-#     from power_curve_205 import force_engine, gear
-#     race_car.force_engine = force_engine                    
-#     race_car.get_gear = gear
-#     
-#     # Peugeot 205 logged data for comparison graph
-#     filename_log = './logged_data/JJ_205RFS/session_zandvoort_circuit_20130604_1504_v2.csv'
-#     fastest_lap = 50
-# =============================================================================
-    
-    
+def main():
     # BMW Z3M Viperwizard
     with open('./cars/BMW_Z3M.json', 'r') as fp:
         race_car = Car(json.load(fp))
     # BMW logged data for comparison graphs
-    filename_log = './logged_data/NO_BMWZ3M/session_zandvoort_circuit_20190930_2045_v2.csv'
+    filename_log = './session_zandvoort_circuit_20190930_2045_v2.csv'
     fastest_lap = 1
 
-    
+
     # read starting positions from file
     nr_iterations = 0
     optimization_results = []
     try:
-
         df_track = pandas.read_csv(race_car.name+'_Zandvoort_simulated.csv')
         race_line = df_track['Optimized line'].values
-    except:
+    except Exception:
         df_track = pandas.read_csv('./tracks/20191030_Circuit_Zandvoort.csv')
         race_line = df_track.initial_position.values
-    
-    
-    
+
+
+
     track = Track(np.c_[df_track.outer_x.values, df_track.outer_y.values, df_track.outer_z.values],
                             np.c_[df_track.inner_x.values, df_track.inner_y.values, df_track.inner_z.values])
-    
-    
+
+
     results = simulate(race_car, track, race_line)
     print('{} - Simulated laptime = {:02.0f}:{:05.02f}'.format(race_car.name, results.laptime%3600//60, results.laptime%60))
 
     optimize_yn = input('Start line optimization? [y/N]')
     optimize_results = []
     try:
-        while optimize_yn == 'y' or optimize_yn == 'Y':
+        while optimize_yn in ['y', 'Y']:
             new_race_line = track.new_line(results.race_line)
             results_temp = simulate(race_car, track, new_race_line)
             nr_iterations += 1
@@ -264,126 +243,30 @@ if __name__ == '__main__':
         optimize_results = np.array(optimize_results)
 
 
-
-
-
-
 #%% save results
     df_track = return_dataframe(df_track, results)
     df_track.to_csv(race_car.name+'_Zandvoort_simulated.csv', index = None, header=True)
 
-
-#%% prep data
-    
-    #discard all data without lap #
-    df_logged = pandas.read_csv(filename_log, skiprows = 10)
-    df_logged = df_logged[df_logged['Lap #']>0]
-    df_logged[rc_header['speed']] *= 3.6
     results.speed *= 3.6  #convert speed from m/s to km/h
 
-    title = '{} - Simulated laptime = {:02.0f}:{:05.02f}'.format(race_car.name, results.laptime%3600//60, results.laptime%60)
-    print(title)
-
-#%% Plot results using plotly
-    from plotly.subplots import make_subplots
-
-    import utm
-    import plotly.io as pio
-    pio.renderers.default = 'iframe'
-
-    try:
-        import matplotlib.pyplot as plt
-        plt.plot(optimize_results.T[0], optimize_results.T[1], '-')
-    except:
-        pass
-
-    
-
-    
-    fig = make_subplots(rows=5, cols=1, vertical_spacing=0.025,
-                        specs=[[{"secondary_y": True}],[{}],[{}],[{}],[{}]],
-                        subplot_titles=(
-                                "Speed & delta T",
-                                "Track Layout and racing line",
-                                "Lateral/longitudinal GG-diagram", 
-                                "Lateral GV-diagram",
-                                "Longitudinal GV-diagram", 
-                                ),
-                        )
-    fig.update_layout(showlegend=False,
-                      height=4000,
-                      title_text = title,
-                      title_font_size = 30
-                      )
-
-                    
-    row = 2; 
-    col = 1
-
-    fig.add_scatter(name='Track Outside', x=df_track.outer_x, y=df_track.outer_y, text=results.s, line_color='black', row=row, col=col)
-    fig.add_scatter(name='Track Inside', x=df_track.inner_x, y=df_track.inner_y, text=results.s, line_color='black', row=row, col=col)
-#    fig.add_scatter(x=df_track.initial_x, y=df_track.initial_y, line_color='black', line_dash='dash', row=row,col=col)
-    fig.add_scatter(name='Simulated optimal raceline', x=track.line[:,0],y=track.line[:,1], text=results.speed, hovertemplate='Speed:%{text:.2f}km/h', mode='lines+markers', row=row,col=col)
-    fig.update_xaxes(showticklabels=False, zeroline=False, row=row, col=col)
-    fig.update_yaxes(showticklabels=False, zeroline=False, scaleanchor = "x2", scaleratio = 1, row=row, col=col)
-
-                  
-    # Lateral/longitudinal GG-diagram
-    row += 1
-    fig.add_scatter(name='Logged accelerations', x=df_logged[rc_header['a_lat']], y=df_logged[rc_header['a_lon']], row=row,col=col)
-    fig.add_scatter(name='Simulated accelerations', x=results.a_lat, y=results.a_lon, row=row,col=col)
-    fig.update_xaxes(title_text='Lateral acceleration [m/s²]',row=row,col=col)
-    fig.update_yaxes(title_text='Longitudinal acceleration [m/s²]',row=row,col=col)
-
-    # Lateral gv-diagram
-    row += 1
-    fig.add_scatter(name='Logged accelerations', x=df_logged[rc_header['a_lat']], y=df_logged[rc_header['speed']], row=row,col=col)
-    fig.add_scatter(name='Simulated accelerations', x=results.a_lat, y=results.speed, row=row,col=col)
-    fig.update_xaxes(title_text='Lateral acceleration [m/s²]',matches='x3',row=row,col=col)
-    fig.update_yaxes(title_text='Speed [km/hr]',row=row,col=col)
-
-     # Longitudinal gv-diagram
-    row += 1
-    fig.add_scatter(x=df_logged[rc_header['a_lon']], y=df_logged[rc_header['speed']], row=row,col=col)
-    fig.add_scatter(x=results.a_lon, y=results.speed, row=row,col=col)
-    fig.update_xaxes(title_text='Longitudinal acceleration [m/s²]',row=row,col=col)
-    fig.update_yaxes(title_text='Speed [km/hr]',matches='y5',row=row,col=col)
-#     ax3.set_ylabel('Velocity [m/s]')
-
-    #discard all data except fastest lap
-    df_logged = df_logged[df_logged['Lap #']==fastest_lap]
-    df_logged[rc_header['distance']] -= df_logged[rc_header['distance']].values[0]
-    df_logged[rc_header['distance']] *= results.s[-1] / df_logged[rc_header['distance']].iloc[-1]
-    df_logged[rc_header['time']] -= df_logged[rc_header['time']].values[0]
-         
-    
-    t1 = results.t
-    t2 = df_logged[rc_header['time']].values
-    t1 = np.interp(df_logged[rc_header['distance']], results.s, t1)
+    print(f'{race_car.name} - Simulated laptime = {results.laptime%3600//60:02.0f}:{results.laptime%60:05.02f}')
 
 
-    #plot speed
-    row = 1
-    fig.add_scatter(x=df_logged[rc_header['distance']], y=np.gradient(t2-t1), fill='tozeroy', row=row,col=col, secondary_y=True)
-    fig.add_scatter(name='Simulated optimal raceline', x=results.s, y=results.speed, hovertemplate='Speed:%{y:.2f}km/h', row=row,col=col)
-#    fig.add_trace(go.Scatter(x=results.s, y=results.v_max*3.6),row=row,col=col)
-    fig.add_scatter(name='Racechrono GPS log', x=df_logged[rc_header['distance']], y=df_logged[rc_header['speed']], hovertemplate='Speed:%{y:.2f}km/h', row=row,col=col)
-    fig.update_xaxes(title_text='Distance [m]',row=row,col=col)
-    fig.update_yaxes(title_text='Speed [km/hr]', row=row,col=col, secondary_y=False)
-    fig.update_yaxes(title_text='Delta T', range=[-0.03, 0.2], row=row,col=col, secondary_y=True)
+if __name__ == '__main__':
+    main()
 
-    #Gears
-    fig.add_scatter(name='Gear', x=results.s, y=results.gear,hovertemplate='Gear:%{y:i}', row=row,col=col)
+    ##ggv diagram /performance envelope parameters
 
-    row = 2; 
-
-    [x_logged_utm, y_logged_utm] = utm.from_latlon( df_logged['Latitude (deg)'].values, df_logged['Longitude (deg)'].values)[:2]
-    fig.add_scatter(name='Racechrono GPS log', 
-                    x=x_logged_utm, y=y_logged_utm, 
-                    line_color='black', 
-                    text=df_logged[rc_header['speed']], 
-                    hovertemplate='Speed:%{text:.2f}km/h', 
-                    line_dash='dot', 
-                    mode='lines+markers',  
-                    row=row,col=col)
-    fig.show()
+# =============================================================================
+#     # Peugeot 205 GTi RFS
+#     with open('./cars/Peugeot_205RFS.json', 'r') as fp:
+#         race_car = Car(json.load(fp))
+#      #overloading default functions with cars specific functions
+#     from power_curve_205 import force_engine, gear
+#     race_car.force_engine = force_engine                    
+#     race_car.get_gear = gear
+#     
+#     # Peugeot 205 logged data for comparison graph
+#     filename_log = './logged_data/JJ_205RFS/session_zandvoort_circuit_20130604_1504_v2.csv'
+#     fastest_lap = 50
+# =============================================================================

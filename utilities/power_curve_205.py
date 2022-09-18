@@ -6,7 +6,6 @@ Created on Mon Oct 14 16:52:24 2019
 """
 
 import numpy as np
-#from scipy.interpolate import interpn
 import matplotlib.pyplot as plt
  
 
