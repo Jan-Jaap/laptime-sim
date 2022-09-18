@@ -1,6 +1,7 @@
 
+import datetime
 import numpy as np 
-import pandas
+import pandas as pd
 import json
 from plotly.subplots import make_subplots
 import plotly.io as pio
@@ -8,7 +9,15 @@ import plotly.io as pio
 # import utm
 import matplotlib.pyplot as plt
 
+from dotdict import DotDict
+
+
+
 gravity = 9.81
+
+FILENAME_CAR_PROPERTIES = './cars/BMW_Z3M.json'
+# filename_log = './session_zandvoort_circuit_20190930_2045_v2.csv'
+FILENAME_TRACK = './tracks/20191030_Circuit_Zandvoort.csv'
 
 #Racechrono csv.v2 Headers
 rc_header = dict(
@@ -19,12 +28,11 @@ rc_header = dict(
         a_lon = 'Longitudinal acceleration (m/s2)',
         )
 
-def magnitude(vector):
-    return np.sqrt(vector ** 2)   
+def mag(vector):
+    return np.sum(vector**2, 1)**0.5
 
-mag = lambda v: np.sum(v**2, 1)**0.5
-
-dot = lambda u, v: np.einsum('ij,ij->i',u,v)
+def dot(u, v):
+    return np.einsum('ij,ij->i',u,v)
 
 class Track:
     new_line_parameters = []
@@ -51,7 +59,7 @@ class Track:
 #        start = np.random.randint(3000, 3400)
         length = np.random.randint(1, 50)
         deviation = np.random.randn() / 10
-        
+
         self.new_line_parameters = dict(start=start, length=length, deviation=deviation)        
         
         line_adjust = (1 - np.cos(np.linspace(0, 2*np.pi, length))) * deviation
@@ -71,7 +79,6 @@ class Car(dict):
         super(Car, self).__init__(*args, **kwargs)
         self.__dict__ = self
 
-#    @profile
     def get_max_acc(self,v, acc_lat):
         '''maximum possible acceleration (flooring)'''
         acc_lon_max = self.acc_limit / self.acc_grip_max * (self.acc_grip_max**2 - acc_lat**2)**0.5   #grip circle (no downforce accounted for)
@@ -82,7 +89,6 @@ class Car(dict):
     def force_engine(self, v):
         return self.P_engine / v   #tractive force (limited by engine power)
 
-#    @profile        
     def get_min_acc(self,v, acc_lat):
         '''maximum possible deceleration (braking)'''
         n = self.trail_braking / 50
@@ -95,14 +101,10 @@ class Car(dict):
         return v*0
 
    
-class Results(dict):
-    def __init__(self, *args, **kwargs):
-        super(Results, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-    
+def laptime_str(seconds):
+    return "{:02.0f}:{:06.03f}".format(seconds%3600//60, seconds%60)
 
-    
-#@profile
+
 def simulate(car, track, position):
 
     track.calc_line(position)
@@ -130,7 +132,6 @@ def simulate(car, track, position):
     car_axis = lambda x: np.c_[dot(x, Tt), dot(x, Bt), dot(x, Nt)]
     k_car = car_axis(Nk)          #curvature projected in car frame [lon, lat, z]
     g_car = car_axis(np.array([0, 0, gravity])[None,:])   #direction of gravity in car frame [lon, lat, z]
-
     
     k_car = k_car[:,1]
     k_car = np.sign(k_car) * np.abs(k_car).clip(1e-3)
@@ -139,8 +140,7 @@ def simulate(car, track, position):
 
     v_a = np.zeros(len(v_max))+1  #simulated speed maximum acceleration (+1 to avoid devision by zero)
     v_b = np.zeros(len(v_max))+1  #simulated speed maximum braking
-    
-  
+      
     for i in range(-100,len(v_max)):  #negative index to simulate running start....
         j = i-1 #index to previous timestep
 
@@ -174,7 +174,7 @@ def simulate(car, track, position):
     
     v_b = v_b[::-1] #flip te matrix
     
-    results = Results()
+    results = DotDict()
     results.speed = np.fmin(v_a, v_b)
     results.dt = 2 *  track.ds / (results.speed + np.roll(results.speed,1) ) 
     results.t = results.dt.cumsum()
@@ -199,24 +199,20 @@ def return_dataframe(df, results):
 
 #%% main scripts
 def main():
-    # BMW Z3M Viperwizard
-    with open('./cars/BMW_Z3M.json', 'r') as fp:
+
+
+    with open(FILENAME_CAR_PROPERTIES, 'r') as fp:
         race_car = Car(json.load(fp))
-    # BMW logged data for comparison graphs
-    filename_log = './session_zandvoort_circuit_20190930_2045_v2.csv'
-    fastest_lap = 1
 
-
-    # read starting positions from file
+    filename_results = f'./simulated/{race_car.name}_Zandvoort_simulated.csv'
     nr_iterations = 0
-    optimization_results = []
-    try:
-        df_track = pandas.read_csv(race_car.name+'_Zandvoort_simulated.csv')
-        race_line = df_track['Optimized line'].values
-    except Exception:
-        df_track = pandas.read_csv('./tracks/20191030_Circuit_Zandvoort.csv')
-        race_line = df_track.initial_position.values
 
+    try:
+        df_track = pd.read_csv(filename_results)
+        race_line = df_track['Optimized line'].values
+    except FileNotFoundError:
+        df_track = pd.read_csv(FILENAME_TRACK)
+        race_line = df_track.initial_position.values
 
 
     track = Track(np.c_[df_track.outer_x.values, df_track.outer_y.values, df_track.outer_z.values],
@@ -224,28 +220,28 @@ def main():
 
 
     results = simulate(race_car, track, race_line)
-    print('{} - Simulated laptime = {:02.0f}:{:05.02f}'.format(race_car.name, results.laptime%3600//60, results.laptime%60))
+    print(f'{race_car.name} - Simulated laptime = {laptime_str(results.laptime)}')
 
     optimize_yn = input('Start line optimization? [y/N]')
-    optimize_results = []
+    
     try:
         while optimize_yn in ['y', 'Y']:
             new_race_line = track.new_line(results.race_line)
             results_temp = simulate(race_car, track, new_race_line)
             nr_iterations += 1
-            if results_temp.laptime < results.laptime:
+            laptime_improvement = results.laptime - results_temp.laptime
+            if laptime_improvement > 0:
                 results = results_temp
-#                print('Simulated laptime = {:02.0f}:{:06.03f}'.format(results.laptime%3600//60, results.laptime%60))
-#                print(results.new_line_parameters)
-                optimize_results.append([nr_iterations, results.laptime])
+
+                print(f"Laptime = {laptime_str(results.laptime)}  (iteration:{nr_iterations})")
+
     except KeyboardInterrupt:
         print('Interrupted by CTRL+C, saving progress')
-        optimize_results = np.array(optimize_results)
 
 
 #%% save results
     df_track = return_dataframe(df_track, results)
-    df_track.to_csv(race_car.name+'_Zandvoort_simulated.csv', index = None, header=True)
+    df_track.to_csv(filename_results, index = None, header=True)
 
     results.speed *= 3.6  #convert speed from m/s to km/h
 
@@ -254,19 +250,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-    ##ggv diagram /performance envelope parameters
-
-# =============================================================================
-#     # Peugeot 205 GTi RFS
-#     with open('./cars/Peugeot_205RFS.json', 'r') as fp:
-#         race_car = Car(json.load(fp))
-#      #overloading default functions with cars specific functions
-#     from power_curve_205 import force_engine, gear
-#     race_car.force_engine = force_engine                    
-#     race_car.get_gear = gear
-#     
-#     # Peugeot 205 logged data for comparison graph
-#     filename_log = './logged_data/JJ_205RFS/session_zandvoort_circuit_20130604_1504_v2.csv'
-#     fastest_lap = 50
-# =============================================================================
