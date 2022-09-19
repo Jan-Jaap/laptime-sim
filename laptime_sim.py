@@ -1,15 +1,11 @@
 
-import datetime
 import numpy as np 
 import pandas as pd
 import json
-from plotly.subplots import make_subplots
-import plotly.io as pio
 
-# import utm
-import matplotlib.pyplot as plt
-
-from dotdict import DotDict
+from track_sim.track import Track
+from track_sim.car import Car
+from utilities.dotdict import DotDict
 
 
 
@@ -17,7 +13,7 @@ gravity = 9.81
 
 FILENAME_CAR_PROPERTIES = './cars/BMW_Z3M.json'
 # filename_log = './session_zandvoort_circuit_20190930_2045_v2.csv'
-FILENAME_TRACK = './tracks/20191030_Circuit_Zandvoort.csv'
+FILENAME_TRACK = './tracks/20191030_Circuit_Zandvoort copy.csv'
 
 #Racechrono csv.v2 Headers
 rc_header = dict(
@@ -28,84 +24,20 @@ rc_header = dict(
         a_lon = 'Longitudinal acceleration (m/s2)',
         )
 
+
 def mag(vector):
     return np.sum(vector**2, 1)**0.5
+
 
 def dot(u, v):
     return np.einsum('ij,ij->i',u,v)
 
-class Track:
-    new_line_parameters = []
-    def __init__(self, outside, inside):
-        self.width = np.sum((inside[:,:2] - outside[:,:2])**2, 1) ** 0.5
-        self.slope =  (inside[:,2] - outside[:,2]) / self.width
-        self.outside = outside
-        self.inside = inside
-        return
-    
-    def calc_line(self, position=None):
-
-        if position is None:
-            position = self.position
-        position = np.clip(position, a_min = 0.1, a_max = 0.9)
-        
-        self.line = self.outside + (self.inside - self.outside) * position[:,None]  
-        self.ds = mag(np.diff(self.line.T,1 ,prepend=np.c_[self.line[-1]]).T)     #distance from previous
-        self.s = self.ds.cumsum() - self.ds[0]
-        return
-
-    def new_line(self, position):
-        start = np.random.randint(0, len(self.width))
-#        start = np.random.randint(3000, 3400)
-        length = np.random.randint(1, 50)
-        deviation = np.random.randn() / 10
-
-        self.new_line_parameters = dict(start=start, length=length, deviation=deviation)        
-        
-        line_adjust = (1 - np.cos(np.linspace(0, 2*np.pi, length))) * deviation
-
-        new_line = self.width * 0
-        new_line[:length] += line_adjust
-        new_line = np.roll(new_line, start)
-        new_line /= self.width
-
-        position = position + new_line
-        return position
-
-class Car(dict):
-    trail_braking = 100
-    
-    def __init__(self, *args, **kwargs):
-        super(Car, self).__init__(*args, **kwargs)
-        self.__dict__ = self
-
-    def get_max_acc(self,v, acc_lat):
-        '''maximum possible acceleration (flooring)'''
-        acc_lon_max = self.acc_limit / self.acc_grip_max * (self.acc_grip_max**2 - acc_lat**2)**0.5   #grip circle (no downforce accounted for)
-        acc_lon = (self.force_engine(v) - (v**2 * self.c_drag) ) / self.mass                        
-        acc_lon -=  self.c_roll * gravity                               #rolling resistance
-        return min(acc_lon_max, acc_lon)
-
-    def force_engine(self, v):
-        return self.P_engine / v   #tractive force (limited by engine power)
-
-    def get_min_acc(self,v, acc_lat):
-        '''maximum possible deceleration (braking)'''
-        n = self.trail_braking / 50
-        acc_lon = self.dec_limit * (1 - (np.abs(acc_lat) / self.acc_grip_max)**n)**(1/n)
-        acc_lon +=  v**2 * self.c_drag / self.mass
-        acc_lon +=  self.c_roll * gravity #rolling resistance
-        return acc_lon
-
-    def get_gear(self, v):
-        return v*0
-
-   
+ 
 def laptime_str(seconds):
     return "{:02.0f}:{:06.03f}".format(seconds%3600//60, seconds%60)
 
 
-def simulate(car, track, position):
+def simulate(car: Car, track: Track, position):
 
     track.calc_line(position)
     
@@ -209,21 +141,29 @@ def main():
 
     try:
         df_track = pd.read_csv(filename_results)
-        race_line = df_track['Optimized line'].values
     except FileNotFoundError:
         df_track = pd.read_csv(FILENAME_TRACK)
-        race_line = df_track.initial_position.values
 
+    track = Track(
+        df_track[['outer_x','outer_y','outer_z']].values,
+        df_track[['inner_x','inner_y','inner_z']].values,
+        )
 
-    track = Track(np.c_[df_track.outer_x.values, df_track.outer_y.values, df_track.outer_z.values],
-                            np.c_[df_track.inner_x.values, df_track.inner_y.values, df_track.inner_z.values])
+    if 'Optimized line' in df_track.columns:
+        race_line = df_track['Optimized line'].values
+    elif 'initial_position' in df_track.columns:
+        race_line = df_track['initial_position'].values
+    else:
+        df_track['Optimized line'] = 0.5
+        race_line = df_track['Optimized line']
+
 
 
     results = simulate(race_car, track, race_line)
     print(f'{race_car.name} - Simulated laptime = {laptime_str(results.laptime)}')
 
     optimize_yn = input('Start line optimization? [y/N]')
-    
+
     try:
         while optimize_yn in ['y', 'Y']:
             new_race_line = track.new_line(results.race_line)
