@@ -1,0 +1,5 @@
+name: laptime_sim
+dependencies:
+  - numpy
+  - pandas
+  - streamlit
