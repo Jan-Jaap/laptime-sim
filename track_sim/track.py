@@ -1,9 +1,14 @@
 from dataclasses import dataclass
 import numpy as np
+from track_sim.car import Car
 
 
 def mag(vector):
     return np.sum(vector**2, 1)**0.5
+
+
+def dot(u, v):
+    return np.einsum('ij,ij->i',u,v)
 
 
 @dataclass
@@ -12,7 +17,7 @@ class Track:
     outside: np.ndarray
     inside: np.ndarray
     min_clearance: float = 0.1
-    new_line_parameters: np.ndarray = None  
+    initial_position: np.ndarray = None
 
     @property
     def width(self):
@@ -22,27 +27,25 @@ class Track:
     def slope(self):
         return (self.inside[:,2] - self.outside[:,2]) / self.width
 
-
-    def calc_line(self, position=None):
-
+    def get_line_coordinates(self, position: np.ndarray = None) -> np.ndarray:
         if position is None:
-            position = self.position
-        position = np.clip(position, a_min = 0.1, a_max = 0.9)    
-            
-        self.line = self.outside + (self.inside - self.outside) * position[:,None]  
-        self.ds = mag(np.diff(self.line.T,1 ,prepend=np.c_[self.line[-1]]).T)     #distance from previous
-       
-        self.s = self.ds.cumsum() - self.ds[0]
-        return
+            position = self.initial_position
+
+        return self.outside + (self.inside - self.outside) * np.expand_dims(position, axis=1)
+
+    def calc_line(self, position):
+
+        line = self.get_line_coordinates(position)
+        
+        ds = mag(np.diff(line.T,1 ,prepend=np.c_[line[-1]]).T)     #distance from previous
+        s = ds.cumsum() - ds[0]
+        return line, ds, s
 
     def new_line(self, position):
         start = np.random.randint(0, len(self.width))
-#        start = np.random.randint(3000, 3400)
         length = np.random.randint(1, 50)
         deviation = np.random.randn() / 10
-
-        self.new_line_parameters = dict(start=start, length=length, deviation=deviation)        
-        
+       
         line_adjust = (1 - np.cos(np.linspace(0, 2*np.pi, length))) * deviation
 
         new_line = self.width * 0
@@ -51,45 +54,88 @@ class Track:
         new_line /= self.width
 
         position = position + new_line
-        return position
+        return np.clip(position, 0, 1)
+
+    def race(self, car: Car, position: np.ndarray = None, verbose: bool = False):
+
+        line, ds, s = self.calc_line(position)
+
+        # Calculate the first and second derivative of the points
+        dX = np.gradient(line, axis=0)
+        ddX = np.gradient(dX, axis=0)
+
+        k = mag(np.cross(dX, ddX))/mag(dX)**3# magnitude of curvature
+
+        T = dX / mag(dX)[:,None]      #unit tangent (direction of travel)
+        B = np.cross(dX, ddX)   #binormal
+        B = B / mag(B)[:,None]          #unit binormal
+        N = np.cross(B, T)      #unit normal vector
+        Nk = N * k[:,None]# direction of curvature  (normal vector with magnitude 1/R)
+        Tt = T# car and track share tangent vector. We're not flying
+
+        #Rotate Tt 90deg CW in xy-plane
+        Bt = Tt[:,[1, 0, 2]]
+        Bt[:,1] *= -1
+        Bt[:,2] = self.slope         #align Bt with the track and normalize
+        Bt = Bt / mag(Bt)[:,None]
+        Nt = np.cross(Bt, Tt)
+
+        car_axis = lambda x: np.c_[dot(x, Tt), dot(x, Bt), dot(x, Nt)]
+        k_car = car_axis(Nk)          #curvature projected in car frame [lon, lat, z]
+        g_car = car_axis(np.array([0, 0, 9.81])[None,:])   #direction of gravity in car frame [lon, lat, z]
+
+        k_car = k_car[:,1]
+        k_car = np.sign(k_car) * np.abs(k_car).clip(1e-3)
+
+        v_max = np.abs((car.acc_grip_max - np.sign(k_car) * g_car[:,1]) / k_car)**0.5
+
+        v_a = np.zeros(len(v_max))+1  #simulated speed maximum acceleration (+1 to avoid devision by zero)
+        v_b = np.zeros(len(v_max))+1  #simulated speed maximum braking
+
+        for i in range(-100,len(v_max)):  #negative index to simulate running start....
+            j = i-1 #index to previous timestep
+
+            ## max possible speed accelerating out of corners
+            if v_a[j] < v_max[j]:     #check if previous speed was lower than max
+
+                acc_lat = v_a[j]**2 * k_car[j] + g_car[j,1]                  #calc lateral acceleration based on
+                acc_lon = car.get_max_acc(v_a[j], acc_lat)
+                acc_lon -= g_car[j,0]
+                v1 =  (v_a[j]**2 + 2*acc_lon * ds[i])**0.5
+                v_a[i] = min( v1 ,  v_max[i])
+            else:                   #if corner speed was maximal, all grip is used for lateral acceleration (=cornering)
+                acc_lon = 0         #no grip available for longitudinal acceleration
+                v_a[i] = min( v_a[j] ,  v_max[i])  #speed remains the same
 
 
-# class Track:
-#     new_line_parameters = []
-#     def __init__(self, outside, inside):
-#         self.width = np.sum((inside[:,:2] - outside[:,:2])**2, 1) ** 0.5
-#         self.slope =  (inside[:,2] - outside[:,2]) / self.width
-#         self.outside = outside
-#         self.inside = inside
-#         self.min_clearance = 0.1
-#         return
-    
-#     def calc_line(self, position=None):
+            ## max possible speed braking into corners (backwards lap)
+            v0 = v_b[j]
+            if v0 < v_max[::-1][j]:
 
-#         if position is None:
-#             position = self.position
-#         position = np.clip(position, a_min = self.min_clearance, a_max = 1-self.min_clearance)
-        
-#         self.line = self.outside + (self.inside - self.outside) * position[:,None]  
-#         self.ds = mag(np.diff(self.line.T,1 ,prepend=np.c_[self.line[-1]]).T)     #distance from previous
-       
-#         self.s = self.ds.cumsum() - self.ds[0]
-#         return
+                acc_lat = v0**2 * k_car[::-1][j] + g_car[::-1][j,1] 
+                acc_lon = car.get_min_acc(v0, acc_lat)
+                acc_lon += g_car[::-1][j,0]
+                v1 =  (v0**2 + 2*acc_lon * ds[::-1][i])**0.5
+                v_b[i] =   min(v1 ,  v_max[::-1][i])
 
-#     def new_line(self, position):
-#         start = np.random.randint(0, len(self.width))
-# #        start = np.random.randint(3000, 3400)
-#         length = np.random.randint(1, 50)
-#         deviation = np.random.randn() / 10
+            else:
+                acc_lon = 0
+                v_b[i] =  min( v0 ,  v_max[::-1][i])
 
-#         self.new_line_parameters = dict(start=start, length=length, deviation=deviation)        
-        
-#         line_adjust = (1 - np.cos(np.linspace(0, 2*np.pi, length))) * deviation
 
-#         new_line = self.width * 0
-#         new_line[:length] += line_adjust
-#         new_line = np.roll(new_line, start)
-#         new_line /= self.width
+        v_b = v_b[::-1] #flip te matrix
+        speed = np.fmin(v_a, v_b)
+        dt = 2 *  ds / (speed + np.roll(speed,1) )
+        t = dt.cumsum()
 
-#         position = position + new_line
-#         return position
+        return dict(
+            line = line,
+            speed=speed, 
+            dt=dt, time=t, 
+            a_lat=-(speed**2) * Nk[:, 1], 
+            a_lon=np.gradient(speed, s) * speed, 
+            distance=s, 
+            laptime=t[-1], v_max=v_max, 
+            race_line_position=position, 
+            gear=car.get_gear(speed),
+        ) if verbose else t[-1]
