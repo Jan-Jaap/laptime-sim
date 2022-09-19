@@ -4,12 +4,13 @@ import json, os, time
 
 from track_sim.track import Track
 from track_sim.car import Car
-from utilities.dotdict import DotDict
+import track_sim.streamlit_ui as ui
+
+import threading
 
 FILENAME_CAR_PROPERTIES = './cars/Peugeot_205RFS.json'
 FILENAME_TRACK = './tracks/20191030_Circuit_Zandvoort copy.csv'
 RESULTS_PATH = './simulated/'
-
 #Racechrono csv.v2 Headers
 rc_header = dict(
         speed  = 'Speed (m/s)',
@@ -35,14 +36,18 @@ def return_dataframe(df, results):
     df['Timestamp'] = results.time
     return df
 
+
+def thread_target(iterations, seconds):
+    for i in range(iterations):
+        print(f"thread_target ({i})")
+        time.sleep(seconds)
+    print('=== END (Refresh or CTRL-C) ===')
+
 #%% main scripts
 def main():
 
     with open(FILENAME_CAR_PROPERTIES, 'r') as fp:
         race_car = Car(json.load(fp))
-    
-    if not os.path.exists(RESULTS_PATH):
-        os.makedirs(RESULTS_PATH)
 
     filename_results = f'{RESULTS_PATH}{race_car.name}_Zandvoort_simulated.csv'
 
@@ -59,48 +64,17 @@ def main():
             best_known_raceline = df_track['Race line'].values
         break
     
+
     track = Track(
-        name = 'Zandvoort',
-        outside = df_track.filter(regex="outer_").values,
-        inside = df_track.filter(regex="inner_").values,
-        initial_position=best_known_raceline
+        name                = "Zandvoort",
+        outside             = df_track.filter(regex="outer_").values,
+        inside              = df_track.filter(regex="inner_").values,
+        initial_position    = best_known_raceline
         )
 
     laptime = track.race(race_car, best_known_raceline)
-    print(f'{race_car.name} - Simulated laptime = {laptime_str(laptime)}')
-
-    nr_iterations = 0
-    optimize_yn = input('Start line optimization? [y/N]')
-    start_time = time.time()
-
-    try:
-        while optimize_yn in ['y', 'Y']:
-            new_race_line = track.new_line(best_known_raceline)
-            new_laptime = track.race(race_car, new_race_line)
-
-            nr_iterations += 1
-
-            if new_laptime < laptime:
-                laptime = new_laptime
-                best_known_raceline = new_race_line
-
-                if time.time() - start_time > 3:
-                    start_time = time.time()
-                    print(f"Laptime = {laptime_str(laptime)}  (iteration:{nr_iterations})")
-
-    except KeyboardInterrupt:
-        print('Interrupted by CTRL+C, saving progress')
-
-
-#%% save results
-
-
-    results = track.race(race_car, best_known_raceline, verbose=True)
-    results['speed'] *= 3.6  #convert speed from m/s to km/h
-
-    return_dataframe(df_track, DotDict(results)).to_csv(filename_results, index = None, header=True)
-    print(f'{race_car.name} - Simulated laptime = {laptime_str(laptime)}')
-
+    ui.write(f'{race_car.name} - Simulated laptime = {laptime_str(laptime)}')
+    ui.plot_track(track, track.get_line_coordinates(best_known_raceline))
 
 if __name__ == '__main__':
     main()

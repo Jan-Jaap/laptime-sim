@@ -1,6 +1,8 @@
 from utilities.dotdict import DotDict
 import numpy as np
 
+
+
 class Car(DotDict):
     trail_braking = 100
     

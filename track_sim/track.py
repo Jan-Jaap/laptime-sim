@@ -13,12 +13,20 @@ def dot(u, v):
 
 @dataclass
 class Track:
-    
+    name: str
     outside: np.ndarray
     inside: np.ndarray
-    min_clearance: float = 0.1
+    min_clearance: float = 0.85
     initial_position: np.ndarray = None
 
+    @property
+    def clearance_left(self):
+      return self.min_clearance
+
+    @property
+    def clearance_right(self):
+     return self.width - self.min_clearance
+        
     @property
     def width(self):
         return np.sum((self.inside[:,:2] - self.outside[:,:2])**2, 1) ** 0.5
@@ -27,14 +35,32 @@ class Track:
     def slope(self):
         return (self.inside[:,2] - self.outside[:,2]) / self.width
 
+    @property
+    def outside_x(self):
+        return self.outside[:,0]
+    @property
+    def outside_y(self):
+        return self.outside[:,1]
+    @property
+    def inside_x(self):
+        return self.inside[:,0]
+    @property
+    def inside_y(self):
+        return self.inside[:,1]
+    
+
     def get_line_coordinates(self, position: np.ndarray = None) -> np.ndarray:
         if position is None:
             position = self.initial_position
 
+        width = self.width
+        position = np.clip(position * width, a_min=self.clearance_left, a_max= self.clearance_right) / width
+
+
+
         return self.outside + (self.inside - self.outside) * np.expand_dims(position, axis=1)
 
     def calc_line(self, position):
-
         line = self.get_line_coordinates(position)
         
         ds = mag(np.diff(line.T,1 ,prepend=np.c_[line[-1]]).T)     #distance from previous
@@ -43,17 +69,16 @@ class Track:
 
     def new_line(self, position):
         start = np.random.randint(0, len(self.width))
-        length = np.random.randint(1, 50)
+        length = np.random.randint(1, 60)
         deviation = np.random.randn() / 10
        
-        line_adjust = (1 - np.cos(np.linspace(0, 2*np.pi, length))) * deviation
+        line_adjust = (1 - np.cos(np.linspace(0, 2*np.pi, length))) 
 
         new_line = self.width * 0
-        new_line[:length] += line_adjust
+        new_line[:length] += line_adjust * deviation
         new_line = np.roll(new_line, start)
-        new_line /= self.width
 
-        position = position + new_line
+        position = position + new_line / self.width
         return np.clip(position, 0, 1)
 
     def race(self, car: Car, position: np.ndarray = None, verbose: bool = False):
@@ -64,14 +89,14 @@ class Track:
         dX = np.gradient(line, axis=0)
         ddX = np.gradient(dX, axis=0)
 
-        k = mag(np.cross(dX, ddX))/mag(dX)**3# magnitude of curvature
+        k = mag(np.cross(dX, ddX))/mag(dX)**3   # magnitude of curvature
 
-        T = dX / mag(dX)[:,None]      #unit tangent (direction of travel)
-        B = np.cross(dX, ddX)   #binormal
-        B = B / mag(B)[:,None]          #unit binormal
-        N = np.cross(B, T)      #unit normal vector
-        Nk = N * k[:,None]# direction of curvature  (normal vector with magnitude 1/R)
-        Tt = T# car and track share tangent vector. We're not flying
+        T = dX / mag(dX)[:,None]        # unit tangent (direction of travel)
+        B = np.cross(dX, ddX)           # binormal
+        B = B / mag(B)[:,None]          # unit binormal
+        N = np.cross(B, T)              # unit normal vector
+        Nk = N * k[:,None]              # direction of curvature  (normal vector with magnitude 1/R)
+        Tt = T                          # car and track share tangent vector. We're not flying
 
         #Rotate Tt 90deg CW in xy-plane
         Bt = Tt[:,[1, 0, 2]]
