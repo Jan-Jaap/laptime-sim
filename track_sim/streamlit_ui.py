@@ -5,6 +5,16 @@ from threading import Thread
 from streamlit.runtime.scriptrunner import add_script_run_ctx
 from streamlit.runtime.scriptrunner.script_run_context import get_script_run_ctx
 
+
+
+def page_config():
+    st.set_page_config(
+        page_title='HSR Webracing',
+        layout='wide',
+
+        )
+    
+
 def plot_track(track, line=None):
 
     fig = go.Figure()

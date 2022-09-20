@@ -38,11 +38,14 @@ def thread_target(iterations, seconds):
 
 #%% main scripts
 def main():
+    ui.page_config()
 
     try:
         df_track = pd.read_csv(filename_results)
+        laptime = df_track.Timestamp.iloc[-1]
     except FileNotFoundError:
         df_track = pd.read_csv(filename_track)
+        laptime=None
 
     for column in ['Race line','Optimized line','initial_position']:
         if column in df_track.columns:
@@ -53,6 +56,7 @@ def main():
         break
     
 
+
     track = Track(
         name                = NAME_TRACK,
         outside             = df_track.filter(regex="outer_").values,
@@ -60,8 +64,8 @@ def main():
         # initial_position    = best_known_raceline
         )
 
-    # laptime = track.race(race_car, best_known_raceline)
-    # ui.write(f'{race_car.name} - Simulated laptime = {laptime_str(laptime)}')
+
+    ui.write(f'{NAME_CAR} - Simulated laptime = {laptime_str(laptime)}')
     ui.plot_track(track, track.get_line_coordinates(best_known_raceline))
 
 if __name__ == '__main__':

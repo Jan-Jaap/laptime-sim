@@ -92,9 +92,11 @@ def main():
                     print(f"Laptime = {laptime_str(laptime)}  (iteration:{nr_iterations})")
                     timer1.reset()
             
-            # if timer2.elapsed_time > 60:
-            #     results = track.race(race_car, best_known_raceline, verbose=True)
-            #     return_dataframe(df_track, DotDict(results)).to_csv(filename_results, index = None, header=True)
+            if timer2.elapsed_time > 10:
+                results = track.race(race_car, best_known_raceline, verbose=True)
+                return_dataframe(df_track, results).to_csv(filename_results, index = None, header=True)
+                print(f'intermediate results saved to {filename_results=}')
+                timer2.reset()
                 
     except KeyboardInterrupt:
         print('Interrupted by CTRL+C, saving progress')
@@ -102,15 +104,12 @@ def main():
 
 #%% save results
 
-
-    results = track.race(race_car, best_known_raceline, verbose=True)
-
-    
     if not os.path.exists(RESULTS_PATH):
         os.makedirs(RESULTS_PATH)
 
-
+    results = track.race(race_car, best_known_raceline, verbose=True)
     return_dataframe(df_track, results).to_csv(filename_results, index = None, header=True)
+    
     print(f'{race_car.name} - Simulated laptime = {laptime_str(laptime)}')
 
 
