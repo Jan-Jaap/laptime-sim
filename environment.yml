@@ -3,4 +3,4 @@ dependencies:
   - numpy
   - pandas
   - streamlit
-  - bokeh
+  - plotly

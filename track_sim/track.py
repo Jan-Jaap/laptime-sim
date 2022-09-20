@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import numpy as np
 from track_sim.car import Car
-
+import pandas as pd
 
 def mag(vector):
     return np.sum(vector**2, 1)**0.5
@@ -55,9 +55,6 @@ class Track:
 
         width = self.width
         position = np.clip(position * width, a_min=self.clearance_left, a_max= self.clearance_right) / width
-
-
-
         return self.outside + (self.inside - self.outside) * np.expand_dims(position, axis=1)
 
     def calc_line(self, position):
@@ -83,7 +80,7 @@ class Track:
 
     def race(self, car: Car, position: np.ndarray = None, verbose: bool = False):
 
-        line, ds, s = self.calc_line(position)
+        line, ds, distance = self.calc_line(position)
 
         # Calculate the first and second derivative of the points
         dX = np.gradient(line, axis=0)
@@ -151,16 +148,12 @@ class Track:
         v_b = v_b[::-1] #flip te matrix
         speed = np.fmin(v_a, v_b)
         dt = 2 *  ds / (speed + np.roll(speed,1) )
-        t = dt.cumsum()
+        time = dt.cumsum()
+        a_lat = -(speed**2) * Nk[:, 1]
+        a_lon = np.gradient(speed, distance) * speed
 
-        return dict(
-            line = line,
-            speed=speed, 
-            dt=dt, time=t, 
-            a_lat=-(speed**2) * Nk[:, 1], 
-            a_lon=np.gradient(speed, s) * speed, 
-            distance=s, 
-            laptime=t[-1], v_max=v_max, 
-            race_line_position=position, 
-            gear=car.get_gear(speed),
-        ) if verbose else t[-1]
+
+        return pd.DataFrame(
+            data = np.column_stack((position, distance, line[:,:2], speed, dt, time, a_lat, a_lon )),
+            columns=(('race_line_position', 'distance', 'line_x', 'line_y', 'speed', 'dt', 'time', 'a_lat', 'a_lon' ))
+            ) if verbose else time[-1]

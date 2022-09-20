@@ -1,14 +1,19 @@
 
 import pandas as pd
-import json, os, time
+import json, os
 
 from track_sim.track import Track
 from track_sim.car import Car
 from utilities.dotdict import DotDict
+from utilities.timer import Timer
 
-FILENAME_CAR_PROPERTIES = './cars/Peugeot_205RFS.json'
-FILENAME_TRACK = './tracks/20191030_Circuit_Zandvoort copy.csv'
+NAME_CAR = "BMW_Z3M"
+NAME_TRACK = "20191030_Circuit_Zandvoort"
 RESULTS_PATH = './simulated/'
+
+filename_car_properties = f"./cars/{NAME_CAR}.json"
+filename_track = f"./tracks/{NAME_TRACK}.csv"
+filename_results = f'{RESULTS_PATH}{NAME_CAR}_{NAME_TRACK}_simulated.csv'
 
 #Racechrono csv.v2 Headers
 rc_header = dict(
@@ -26,9 +31,10 @@ def laptime_str(seconds):
 
 def return_dataframe(df, results):
     df['Distance (m)']=results.distance
-    df['line_x']=results.line[:,0]
-    df['line_y']=results.line[:,1]
+    df['line_x']=results.line_x
+    df['line_y']=results.line_y
     df['Speed (m/s)'] = results.speed
+    df['Speed (km/h)'] = results.speed * 3.6
     df['Longitudinal acceleration (m/s2)'] = results.a_lon
     df['Lateral acceleration (m/s2)'] = results.a_lat
     df['Race line'] = results.race_line_position
@@ -38,18 +44,13 @@ def return_dataframe(df, results):
 #%% main scripts
 def main():
 
-    with open(FILENAME_CAR_PROPERTIES, 'r') as fp:
+    with open(filename_car_properties, 'r') as fp:
         race_car = Car(json.load(fp))
-    
-    if not os.path.exists(RESULTS_PATH):
-        os.makedirs(RESULTS_PATH)
-
-    filename_results = f'{RESULTS_PATH}{race_car.name}_Zandvoort_simulated.csv'
 
     try:
         df_track = pd.read_csv(filename_results)
     except FileNotFoundError:
-        df_track = pd.read_csv(FILENAME_TRACK)
+        df_track = pd.read_csv(filename_track)
 
     for column in ['Race line','Optimized line','initial_position']:
         if column in df_track.columns:
@@ -60,21 +61,24 @@ def main():
         break
     
     track = Track(
-        name = 'Zandvoort',
+        name = NAME_TRACK,
         outside = df_track.filter(regex="outer_").values,
         inside = df_track.filter(regex="inner_").values,
-        initial_position=best_known_raceline
+        # initial_position=best_known_raceline
         )
 
     laptime = track.race(race_car, best_known_raceline)
     print(f'{race_car.name} - Simulated laptime = {laptime_str(laptime)}')
 
     nr_iterations = 0
-    optimize_yn = input('Start line optimization? [y/N]')
-    start_time = time.time()
+    # optimize_yn = input('Start line optimization? [y/N]')
+
+    timer1 = Timer()
+    timer2 = Timer()
 
     try:
-        while optimize_yn in ['y', 'Y']:
+        # while optimize_yn in ['y', 'Y']:
+        while True:
             new_race_line = track.new_line(best_known_raceline)
             new_laptime = track.race(race_car, new_race_line)
 
@@ -84,10 +88,14 @@ def main():
                 laptime = new_laptime
                 best_known_raceline = new_race_line
 
-                if time.time() - start_time > 3:
-                    start_time = time.time()
+                if timer1.elapsed_time > 3:
                     print(f"Laptime = {laptime_str(laptime)}  (iteration:{nr_iterations})")
-
+                    timer1.reset()
+            
+            # if timer2.elapsed_time > 60:
+            #     results = track.race(race_car, best_known_raceline, verbose=True)
+            #     return_dataframe(df_track, DotDict(results)).to_csv(filename_results, index = None, header=True)
+                
     except KeyboardInterrupt:
         print('Interrupted by CTRL+C, saving progress')
 
@@ -96,9 +104,13 @@ def main():
 
 
     results = track.race(race_car, best_known_raceline, verbose=True)
-    results['speed'] *= 3.6  #convert speed from m/s to km/h
 
-    return_dataframe(df_track, DotDict(results)).to_csv(filename_results, index = None, header=True)
+    
+    if not os.path.exists(RESULTS_PATH):
+        os.makedirs(RESULTS_PATH)
+
+
+    return_dataframe(df_track, results).to_csv(filename_results, index = None, header=True)
     print(f'{race_car.name} - Simulated laptime = {laptime_str(laptime)}')
 
 
