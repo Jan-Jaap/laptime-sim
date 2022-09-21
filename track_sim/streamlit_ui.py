@@ -6,7 +6,6 @@ from streamlit.runtime.scriptrunner import add_script_run_ctx
 from streamlit.runtime.scriptrunner.script_run_context import get_script_run_ctx
 
 
-
 def page_config():
     st.set_page_config(
         page_title='HSR Webracing',
@@ -30,11 +29,14 @@ def plot_track(track, line=None):
 
     st.plotly_chart(fig, use_container_width=True)
 
+
 def write(str):
     st.write(str)
 
+
 def input(str):
     return st.checkbox(str)
+
 
 def run_thread(thread: Thread):
 
@@ -44,3 +46,7 @@ def run_thread(thread: Thread):
     elif thread is not None:
         print(f'{get_script_run_ctx()} should stop')
         thread.should_stop = True
+
+
+def upload_results():
+    return st.file_uploader('Upload results file', 'csv')

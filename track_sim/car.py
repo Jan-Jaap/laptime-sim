@@ -21,7 +21,8 @@ class Car(DotDict):
         return acc_lon
 
     def force_engine(self, v):
-        return self.P_engine / v   #tractive force (limited by engine power)
+        P_engine = self.P_engine / 1.3410 * 1000  # from hp to Watt
+        return P_engine / v   #tractive force (limited by engine power)
 
     def get_gear(self, v):
         return v*0

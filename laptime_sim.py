@@ -8,7 +8,7 @@ from utilities.dotdict import DotDict
 from utilities.timer import Timer
 
 NAME_CAR = "Peugeot_205RFS"
-NAME_TRACK = "20191030_Circuit_Zandvoort"
+NAME_TRACK = "20191220_spa"
 RESULTS_PATH = './simulated/'
 
 filename_car_properties = f"./cars/{NAME_CAR}.json"

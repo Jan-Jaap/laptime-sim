@@ -1,17 +1,13 @@
 
 import pandas as pd
-import time
 
 from track_sim.track import Track
 import track_sim.streamlit_ui as ui
-
 
 NAME_CAR = "Peugeot_205RFS"
 NAME_TRACK = "20191030_Circuit_Zandvoort"
 RESULTS_PATH = './simulated/'
 
-# filename_car_properties = f"./cars/{NAME_CAR}.json"
-# filename_track = f"./tracks/{NAME_TRACK}.csv"
 filename_results = f'{RESULTS_PATH}{NAME_CAR}_{NAME_TRACK}_simulated.csv'
 
 def laptime_str(seconds):
@@ -22,6 +18,7 @@ def laptime_str(seconds):
 def main():
     ui.page_config()
 
+    filename_results = ui.upload_results()
     df_track = pd.read_csv(filename_results)
     laptime = df_track.Timestamp.iloc[-1]
 
