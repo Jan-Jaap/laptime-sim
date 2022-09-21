@@ -7,7 +7,7 @@ from track_sim.car import Car
 from utilities.dotdict import DotDict
 from utilities.timer import Timer
 
-NAME_CAR = "BMW_Z3M"
+NAME_CAR = "Peugeot_205RFS"
 NAME_TRACK = "20191030_Circuit_Zandvoort"
 RESULTS_PATH = './simulated/'
 
@@ -15,19 +15,8 @@ filename_car_properties = f"./cars/{NAME_CAR}.json"
 filename_track = f"./tracks/{NAME_TRACK}.csv"
 filename_results = f'{RESULTS_PATH}{NAME_CAR}_{NAME_TRACK}_simulated.csv'
 
-#Racechrono csv.v2 Headers
-rc_header = dict(
-        speed  = 'Speed (m/s)',
-        distance = 'Distance (m)',
-        time = 'Time (s)',
-        a_lat = 'Lateral acceleration (m/s2)',
-        a_lon = 'Longitudinal acceleration (m/s2)',
-        )
- 
-
 def laptime_str(seconds):
     return "{:02.0f}:{:06.03f}".format(seconds%3600//60, seconds%60)
-
 
 def return_dataframe(df, results):
     df['Distance (m)']=results.distance
@@ -62,22 +51,20 @@ def main():
     
     track = Track(
         name = NAME_TRACK,
-        outside = df_track.filter(regex="outer_").values,
-        inside = df_track.filter(regex="inner_").values,
-        # initial_position=best_known_raceline
+        border_left     = df_track.filter(regex="outer_").values,
+        border_right    = df_track.filter(regex="inner_").values,
+        min_clearance   = 0.85,
         )
 
     laptime = track.race(race_car, best_known_raceline)
     print(f'{race_car.name} - Simulated laptime = {laptime_str(laptime)}')
 
     nr_iterations = 0
-    # optimize_yn = input('Start line optimization? [y/N]')
 
     timer1 = Timer()
     timer2 = Timer()
 
     try:
-        # while optimize_yn in ['y', 'Y']:
         while True:
             new_race_line = track.new_line(best_known_raceline)
             new_laptime = track.race(race_car, new_race_line)

@@ -14,52 +14,40 @@ def dot(u, v):
 @dataclass
 class Track:
     name: str
-    outside: np.ndarray
-    inside: np.ndarray
-    min_clearance: float = 0.85
-    initial_position: np.ndarray = None
+    border_left: np.ndarray
+    border_right: np.ndarray
+    min_clearance: float = 0
+    
+    # initial_position: np.ndarray = None
+    
+    def __post_init__(self):
+        self.position_clearance = self.min_clearance / self.width
 
-    @property
-    def clearance_left(self):
-      return self.min_clearance
-
-    @property
-    def clearance_right(self):
-     return self.width - self.min_clearance
-        
     @property
     def width(self):
-        return np.sum((self.inside[:,:2] - self.outside[:,:2])**2, 1) ** 0.5
-
+        return np.sum((self.border_right[:,:2] - self.border_left[:,:2])**2, 1) ** 0.5
     @property
     def slope(self):
-        return (self.inside[:,2] - self.outside[:,2]) / self.width
-
+        return (self.border_right[:,2] - self.border_left[:,2]) / self.width
     @property
     def outside_x(self):
-        return self.outside[:,0]
+        return self.border_left[:,0]
     @property
     def outside_y(self):
-        return self.outside[:,1]
+        return self.border_left[:,1]
     @property
     def inside_x(self):
-        return self.inside[:,0]
+        return self.border_right[:,0]
     @property
     def inside_y(self):
-        return self.inside[:,1]
+        return self.border_right[:,1]
     
-
     def get_line_coordinates(self, position: np.ndarray = None) -> np.ndarray:
-        if position is None:
-            position = self.initial_position
-
-        width = self.width
-        position = np.clip(position * width, a_min=self.clearance_left, a_max= self.clearance_right) / width
-        return self.outside + (self.inside - self.outside) * np.expand_dims(position, axis=1)
+        return self.border_left + (self.border_right - self.border_left) * np.expand_dims(position, axis=1)
 
     def calc_line(self, position):
+        position = np.clip(position, a_min=self.position_clearance, a_max=1-self.position_clearance)
         line = self.get_line_coordinates(position)
-        
         ds = mag(np.diff(line.T,1 ,prepend=np.c_[line[-1]]).T)     #distance from previous
         s = ds.cumsum() - ds[0]
         return line, ds, s
@@ -76,7 +64,7 @@ class Track:
         new_line = np.roll(new_line, start)
 
         position = position + new_line / self.width
-        return np.clip(position, 0, 1)
+        return np.clip(position, self.position_clearance, 1 - self.position_clearance)
 
     def race(self, car: Car, position: np.ndarray = None, verbose: bool = False):
 
