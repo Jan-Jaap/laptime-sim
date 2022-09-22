@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+
+from utilities.dotdict import DotDict
 import numpy as np
-from track_sim.car import Car
 import pandas as pd
+import json
 
 def mag(vector):
     return np.sum(vector**2, 1)**0.5
@@ -11,14 +13,38 @@ def dot(u, v):
     return np.einsum('ij,ij->i',u,v)
 
 
+class Car(DotDict):
+    trail_braking = 100
+    
+    def get_max_acc(self,v, acc_lat):
+        '''maximum possible acceleration (flooring)'''
+        acc_lon_max = self.acc_limit / self.acc_grip_max * (self.acc_grip_max**2 - acc_lat**2)**0.5   #grip circle (no downforce accounted for)
+        acc_lon = (self.force_engine(v) - (v**2 * self.c_drag) ) / self.mass                        
+        acc_lon -=  self.c_roll * 9.81                               #rolling resistance
+        return min(acc_lon_max, acc_lon)
+
+    def get_min_acc(self,v, acc_lat):
+        '''maximum possible deceleration (braking)'''
+        n = self.trail_braking / 50
+        acc_lon = self.dec_limit * (1 - (np.abs(acc_lat) / self.acc_grip_max)**n)**(1/n)
+        acc_lon +=  v**2 * self.c_drag / self.mass
+        acc_lon +=  self.c_roll * 9.81 #rolling resistance
+        return acc_lon
+
+    def force_engine(self, v):
+        P_engine = self.P_engine / 1.3410 * 1000  # from hp to Watt
+        return P_engine / v   #tractive force (limited by engine power)
+
+    def get_gear(self, v):
+        return v*0
+
+
 @dataclass
 class Track:
     name: str
     border_left: np.ndarray
     border_right: np.ndarray
     min_clearance: float = 0
-    
-    # initial_position: np.ndarray = None
     
     def __post_init__(self):
         self.position_clearance = self.min_clearance / self.width
@@ -30,16 +56,16 @@ class Track:
     def slope(self):
         return (self.border_right[:,2] - self.border_left[:,2]) / self.width
     @property
-    def outside_x(self):
+    def left_x(self):
         return self.border_left[:,0]
     @property
-    def outside_y(self):
+    def left_y(self):
         return self.border_left[:,1]
     @property
-    def inside_x(self):
+    def right_x(self):
         return self.border_right[:,0]
     @property
-    def inside_y(self):
+    def right_y(self):
         return self.border_right[:,1]
     
     def get_line_coordinates(self, position: np.ndarray = None) -> np.ndarray:
@@ -52,18 +78,23 @@ class Track:
         s = ds.cumsum() - ds[0]
         return line, ds, s
 
+    def get_curvature(self, position):
+        line, _, _ = self.calc_line(position)
+        dX = np.gradient(line, axis=0)
+        ddX = np.gradient(dX, axis=0)
+        return mag(np.cross(dX, ddX))/mag(dX)**3 
+
     def new_line(self, position):
-        start = np.random.randint(0, len(self.width))
+        start = np.random.randint(0, len(position))
         length = np.random.randint(1, 60)
         deviation = np.random.randn() / 10
        
-        line_adjust = (1 - np.cos(np.linspace(0, 2*np.pi, length))) 
-
+        line_adjust = 1 - np.cos(np.linspace(0, 2*np.pi, length))
         new_line = self.width * 0
-        new_line[:length] += line_adjust * deviation
+        new_line[:length] = line_adjust * deviation
         new_line = np.roll(new_line, start)
-
         position = position + new_line / self.width
+
         return np.clip(position, self.position_clearance, 1 - self.position_clearance)
 
     def race(self, car: Car, position: np.ndarray = None, verbose: bool = False):

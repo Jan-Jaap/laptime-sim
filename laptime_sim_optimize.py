@@ -2,13 +2,11 @@
 import pandas as pd
 import json, os
 
-from track_sim.track import Track
-from track_sim.car import Car
-from utilities.dotdict import DotDict
+from track_sim.sim import Car, Track
 from utilities.timer import Timer
 
 NAME_CAR = "Peugeot_205RFS"
-NAME_TRACK = "20191220_spa"
+NAME_TRACK = "20191211_Bilsterberg"
 RESULTS_PATH = './simulated/'
 
 filename_car_properties = f"./cars/{NAME_CAR}.json"
