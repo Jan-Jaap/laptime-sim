@@ -167,7 +167,7 @@ class Track:
         speed = np.fmin(v_a, v_b)
         dt = 2 *  ds / (speed + np.roll(speed,1) )
         time = dt.cumsum()
-        a_lat = -(speed**2) * Nk[:, 1]
+        a_lat = -(speed**2) * Nk[:, 0]
         a_lon = np.gradient(speed, distance) * speed
 
 
