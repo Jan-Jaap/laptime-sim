@@ -66,9 +66,17 @@ class Track:
     @property
     def right_y(self):
         return self.border_right[:,1]
-    
+            
     def get_line_coordinates(self, position: np.ndarray = None) -> np.ndarray:
         return self.border_left + (self.border_right - self.border_left) * np.expand_dims(position, axis=1)
+
+    def get_track_borders(self):
+        # return pd.DataFrame([[self.left_x, self.left_y, self.right_x, self.right_y]], columns=['left_x','left_y','right_x','right_y'])
+
+        return pd.DataFrame(
+            data = np.column_stack([self.left_x, self.left_y, self.right_x, self.right_y]),
+            columns=['left_x','left_y','right_x','right_y'],
+            )
 
     def calc_line(self, position):
         position = np.clip(position, a_min=self.position_clearance, a_max=1-self.position_clearance)
@@ -162,7 +170,6 @@ class Track:
                 acc_lon = 0
                 v_b[i] =  min( v0 ,  v_max[::-1][i])
 
-
         v_b = v_b[::-1] #flip te matrix
         speed = np.fmin(v_a, v_b)
         dt = 2 *  ds / (speed + np.roll(speed,1) )
@@ -172,6 +179,6 @@ class Track:
 
 
         return pd.DataFrame(
-            data = np.column_stack((position, distance, line[:,:2], speed, dt, time, a_lat, a_lon )),
-            columns=(('race_line_position', 'distance', 'line_x', 'line_y', 'speed', 'dt', 'time', 'a_lat', 'a_lon' ))
+            data = np.column_stack((position, distance, line[:,:2], speed, time, a_lat, a_lon )),
+            columns=(('race_line_position', 'distance', 'line_x', 'line_y', 'speed', 'time', 'a_lat', 'a_lon' ))
             ) if verbose else time[-1]

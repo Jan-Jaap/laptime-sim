@@ -13,20 +13,23 @@ filename_car_properties = f"./cars/{NAME_CAR}.json"
 filename_track = f"./tracks/{NAME_TRACK}.csv"
 filename_results = f'{RESULTS_PATH}{NAME_CAR}_{NAME_TRACK}_simulated.csv'
 
+OUTPUT_COLUMNS_NAMES = dict(
+    distance = 'Distance (m)',
+    line_x = 'line_x',
+    line_y='line_y',
+    speed='Speed (m/s)',
+    a_lon='Longitudinal acceleration (m/s2)',
+    a_lat='Lateral acceleration (m/s2)',
+    race_line_position='Race line',
+    time='Timestamp',
+)
+
+
 def laptime_str(seconds):
     return "{:02.0f}:{:06.03f}".format(seconds%3600//60, seconds%60)
 
-def return_dataframe(df, results):
-    df['Distance (m)']=results.distance
-    df['line_x']=results.line_x
-    df['line_y']=results.line_y
-    df['Speed (m/s)'] = results.speed
-    df['Speed (km/h)'] = results.speed * 3.6
-    df['Longitudinal acceleration (m/s2)'] = results.a_lon
-    df['Lateral acceleration (m/s2)'] = results.a_lat
-    df['Race line'] = results.race_line_position
-    df['Timestamp'] = results.time
-    return df
+def update_dataframe(df, results):
+    return  df.drop(columns=results.columns, errors='ignore').join(results)
 
 #%% main scripts
 def main():
@@ -79,7 +82,7 @@ def main():
             
             if timer2.elapsed_time > 10:
                 results = track.race(race_car, best_known_raceline, verbose=True)
-                return_dataframe(df_track, results).to_csv(filename_results, index = None, header=True)
+                update_dataframe(df_track, results).to_csv(filename_results, index = None, header=True)
                 print(f'intermediate results saved to {filename_results=}')
                 timer2.reset()
                 
@@ -93,7 +96,8 @@ def main():
         os.makedirs(RESULTS_PATH)
 
     results = track.race(race_car, best_known_raceline, verbose=True)
-    return_dataframe(df_track, results).to_csv(filename_results, index = None, header=True)
+    
+    update_dataframe(df_track,  results.rename(columns = OUTPUT_COLUMNS_NAMES)).to_csv(filename_results, index = None, header=True)
     
     print(f'{race_car.name} - Simulated laptime = {laptime_str(laptime)}')
 

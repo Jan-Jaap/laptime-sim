@@ -25,12 +25,10 @@ def main():
                 best_known_raceline = df_track[column].values
                 race_line = track.get_line_coordinates(best_known_raceline)
             else:
-                # df_track['Race line'] = 0.5
-                # race_line = track.get_line_coordinates(df_track['Race line'])
                 race_line = None
             break
         
-        ui.plot_track_plotly(track, race_line)
+        ui.plot_track(track, race_line)
 
 if __name__ == '__main__':
     main()
