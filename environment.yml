@@ -4,3 +4,5 @@ dependencies:
   - pandas
   - streamlit
   - plotly
+  - matplotlib
+  
