@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from utilities.dotdict import DotDict
 import numpy as np
 import pandas as pd
-import json
 
 def mag(vector):
     return np.sum(vector**2, 1)**0.5
@@ -14,7 +13,7 @@ def dot(u, v):
 
 
 class Car(DotDict):
-    trail_braking = 100
+    trail_braking = 70
     
     def get_max_acc(self,v, acc_lat):
         '''maximum possible acceleration (flooring)'''

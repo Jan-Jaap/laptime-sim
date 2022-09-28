@@ -6,7 +6,7 @@ import track_sim.streamlit_ui as ui
 def main():
     ui.page_config()
 
-    if filename_results := ui.upload_results():
+    if filename_results := ui.upload_track():
 
         df_track = pd.read_csv(filename_results)
 
@@ -30,7 +30,7 @@ def main():
                 race_line = None
             break
         
-        ui.plot_track(track, race_line)
+        ui.plot_track_plotly(track, race_line)
 
 if __name__ == '__main__':
     main()
