@@ -3,17 +3,30 @@ import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
 
+import geopandas as gpd
+from streamlit_folium import st_folium
 
-def display_track():
-    match st.radio('select filetype', options=['tracks', 'simulation results']):
-        case 'tracks':
+
+def select_track():
+    match st.radio('select filetype', options=['csv tracks', 'geojson tracks', 'simulation results']):
+        case 'csv tracks':
             dir = './tracks/'
+            endswith = '.csv'
         case  'simulation results':
             dir = './simulated/'
+            endswith = '.csv'
+        case 'geojson tracks':
+            dir = './tracks/'
+            endswith = '.geojson'
 
-    if filename_track := st.radio(label='select track', options=[s for s in sorted(os.listdir(dir)) if s.endswith('.csv')]):
 
-        df_track = pd.read_csv(dir+filename_track)
+    if filename_track := st.radio(label='select track', options=[s for s in sorted(os.listdir(dir)) if s.endswith(endswith)]):
+        return dir + filename_track
+    return None
+
+def display_track_csv(filename_track):
+
+        df_track = pd.read_csv(filename_track)
 
         if 'Timestamp' in df_track.columns:
             laptime = df_track.Timestamp.iloc[-1]
@@ -39,6 +52,14 @@ def display_track():
         st.plotly_chart(fig, use_container_width=True)
 
 
+def display_track_geojson(filename):
+    gdf = gpd.read_file(filename)
+    st_data = st_folium(gdf.explore(style_kwds=dict(color="black")),  width = 725)
+
+    with st.expander("Expand to see data returned to Python"):
+        st_data
+
+
 if __name__ == '__main__':
     st.set_page_config(
     page_title='HSR Webracing',
@@ -48,4 +69,9 @@ if __name__ == '__main__':
 
     with tab1:
         st.header('Race track display')
-        display_track()
+        if file:=select_track():
+            if file.endswith('.csv'):
+                display_track_csv(file)
+            if file.endswith('.geojson'):
+                display_track_geojson(file)
+                    
