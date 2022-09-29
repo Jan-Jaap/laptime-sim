@@ -9,7 +9,7 @@ PATH_TRACKS     = './tracks/'
 PATH_CARS       = './cars/'
 
 NAME_CAR = "Peugeot_205RFS"
-NAME_TRACK = "20191211_Bilsterberg"
+NAME_TRACK = "20191030_Circuit_Zandvoort"
 
 OUTPUT_COLUMNS_NAMES = dict(
     distance = 'Distance (m)',
@@ -34,7 +34,6 @@ def save_results(df, results):
     df.drop(columns=results.columns, errors='ignore').join(results).to_csv(filename_results, index = None, header=True)
 
 
-#%% main scripts
 def main():
 
     with open(filename_car_properties, 'r') as fp:
@@ -94,8 +93,6 @@ def main():
     except KeyboardInterrupt:
         print('Interrupted by CTRL+C, saving progress')
 
-
-#%% save results
 
     if not os.path.exists(PATH_RESULTS_):
         os.makedirs(PATH_RESULTS_)
