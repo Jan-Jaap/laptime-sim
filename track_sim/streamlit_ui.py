@@ -13,9 +13,7 @@ from track_sim.sim import Track
 def page_config():
     st.set_page_config(
         page_title='HSR Webracing',
-        layout='wide',
-
-        )
+        layout='wide')
 
 def plot_track_plotly(track: Track, line=None):
 
