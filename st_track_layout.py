@@ -24,16 +24,15 @@ def select_track():
         return dir + filename_track
     return None
 
-def display_track_csv(df_track):
+def display_track(df):
 
-
-        if 'Timestamp' in df_track.columns:
-            laptime = df_track.Timestamp.iloc[-1]
+        if 'Timestamp' in df.columns:
+            laptime = df.Timestamp.iloc[-1]
             st.write(f'Simulated laptime = {laptime%3600//60:02.0f}:{laptime%60:06.03f}')
   
-        border_left         = df_track.filter(regex="outer_").values
-        border_right        = df_track.filter(regex="inner_").values
-        race_line           = df_track.filter(regex="line_").values
+        border_left         = df.filter(regex="outer_").values
+        border_right        = df.filter(regex="inner_").values
+        race_line           = df.filter(regex="line_").values
         
         MODE = 'lines'
         fig = go.Figure()
@@ -51,10 +50,8 @@ def display_track_csv(df_track):
         st.plotly_chart(fig, use_container_width=True)
 
 
-def display_track_geojson(filename):
-    gdf = gpd.read_file(filename)
+def display_track_geojson(gdf):
     st_data = st_folium(gdf.explore(style_kwds=dict(color="black")),  width = 725)
-
     with st.expander("Expand to see data returned to Python"):
         st_data
 
@@ -64,17 +61,12 @@ if __name__ == '__main__':
     page_title='HSR Webracing',
     layout='wide')
 
-    tab1, tab2 = st.tabs(['Display track','Optimize raceline'])
-
-    with tab1:
-        st.header('Race track display')
-        if file:=select_track():
-            if file.endswith('.csv'):
-                df_track = pd.read_csv(file)
-                display_track_csv(df_track)
-            if file.endswith('.geojson'):
-                display_track_geojson(file)
-            
-    with tab2:
-        pass
-    
+    st.header('Race track display')
+    if file_name:=select_track():
+        if file_name.endswith('.csv'):
+            df_track = pd.read_csv(file_name)
+            display_track(df_track)
+        if file_name.endswith('.geojson'):
+            df_track = gpd.read_file(file_name)
+            display_track_geojson(df_track)
+        
