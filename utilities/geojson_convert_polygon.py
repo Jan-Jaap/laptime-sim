@@ -1,4 +1,4 @@
-import streamlit as st
+# import streamlit as st
 import pandas as pd
 import geopandas as gpd
 from streamlit_folium import st_folium
@@ -11,7 +11,6 @@ def main():
     
     
     df = pd.read_csv(f'{DIR_TRACK}{FILE_NAME}.csv')
-    st.write(df.columns)
     inner  = gpd.GeoSeries.from_xy(df[['inner_x']], df[['inner_y']], z=df[['inner_z']])
     outer  = gpd.GeoSeries.from_xy(df[['outer_x']], df[['outer_y']], z=df[['outer_z']])
            
@@ -21,21 +20,16 @@ def main():
     
     gdf = outer.overlay(inner, how='symmetric_difference')
         
-    st_data = st_folium(gdf.explore(style_kwds=dict(color="black")))
+    # st_data = st_folium(gdf.explore(style_kwds=dict(color="black")))
 
 
-    if st.button('save file'):
+    if input('save file?  [y/n]') in ('y', 'Y'):
+        print('saving file')
         utm_crs = gdf.estimate_utm_crs()
         gdf.to_crs(utm_crs).to_file(f'{DIR_TRACK}{FILE_NAME}.geojson', driver='GeoJSON')
     
 
-    
-
 if __name__ == '__main__':
-    st.set_page_config(
-    page_title='HSR Webracing',
-    # layout='wide'
-    )
     main()
 
 # border_left         = Feature(geometry=Polygon([data.filter(regex="outer_").values.tolist()]))

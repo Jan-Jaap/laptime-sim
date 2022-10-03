@@ -6,10 +6,6 @@ Created on Wed Oct 30 14:31:52 2019
 """
 
 import pandas
-#from scipy.interpolate import CubicSpline
-#import numpy as np
-#import matplotlib.pyplot as plt
-	
 from datetime import datetime
 
 #"C:\Users\JV\Documents\programming\LapTimeSim_Python\gis_data\Spa\Spa francorchamps.csv"
@@ -28,4 +24,4 @@ df_out.sort_index(axis=1, inplace=True)
 df_out.columns = ['_'.join(col).strip() for col in df_out.columns.values]
 filename_out = '{}_{}.csv'.format(datetime.now(tz=None).strftime('%Y%m%d'), track_name)
 df_out.to_csv(filename_out, index=False)
-df = pandas.read_csv(filename_out)
+# df = pandas.read_csv(filename_out)

@@ -13,7 +13,6 @@ inProj = Proj(init='epsg:28992')
 outProj = Proj(init='epsg:32631')
 
 
-
 df_track.inner_x,df_track.inner_y = transform(inProj,outProj,df_track.inner_x.values,df_track.inner_y.values)
 df_track.outer_x,df_track.outer_y = transform(inProj,outProj,df_track.outer_x.values,df_track.outer_y.values)
 df_track.initial_x,df_track.initial_y = transform(inProj,outProj,df_track.initial_x.values,df_track.initial_y.values)
