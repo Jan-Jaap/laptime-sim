@@ -24,9 +24,8 @@ def select_track():
         return dir + filename_track
     return None
 
-def display_track_csv(filename_track):
+def display_track_csv(df_track):
 
-        df_track = pd.read_csv(filename_track)
 
         if 'Timestamp' in df_track.columns:
             laptime = df_track.Timestamp.iloc[-1]
@@ -71,7 +70,11 @@ if __name__ == '__main__':
         st.header('Race track display')
         if file:=select_track():
             if file.endswith('.csv'):
-                display_track_csv(file)
+                df_track = pd.read_csv(file)
+                display_track_csv(df_track)
             if file.endswith('.geojson'):
                 display_track_geojson(file)
-                    
+            
+    with tab2:
+        pass
+    

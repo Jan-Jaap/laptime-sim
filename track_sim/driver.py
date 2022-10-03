@@ -50,6 +50,19 @@ class Driver():
         return self.pr
 
 
+    def calc_line(self):
+        line = self.track.get_line_coordinates(self.raceline)
+        ds = mag(np.diff(line.T,1 ,prepend=np.c_[line[-1]]).T)     #distance from previous
+        s = ds.cumsum() - ds[0]
+        return line, ds, s
+
+    def get_curvature(self, position):
+        line, _, _ = self.calc_line(position)
+        dX = np.gradient(line, axis=0)
+        ddX = np.gradient(dX, axis=0)
+        return mag(np.cross(dX, ddX))/mag(dX)**3 
+
+      
     def race(self, raceline):
      
         line = self.track.get_line_coordinates(raceline)
