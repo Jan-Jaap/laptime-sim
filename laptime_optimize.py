@@ -1,5 +1,7 @@
 import pandas as pd
 import json, os
+import geopandas as gpd
+from streamlit import set_page_config
 
 from track_sim.sim import Car, Track
 from utilities.timer import Timer
@@ -10,7 +12,8 @@ PATH_TRACKS     = './tracks/'
 PATH_CARS       = './cars/'
 
 NAME_CAR = "Peugeot_205RFS"
-NAME_TRACK = "20191220_Spa_Francorchamp"
+NAME_TRACK = "20191030_Circuit_Zandvoort"
+
 
 OUTPUT_COLUMNS_NAMES = dict(
     distance            = 'Distance (m)',
@@ -24,9 +27,6 @@ OUTPUT_COLUMNS_NAMES = dict(
     time                = 'Timestamp',
 )
 
-filename_car_properties = f"{PATH_CARS}{NAME_CAR}.json"
-filename_track = f"{PATH_TRACKS}{NAME_TRACK}.csv"
-filename_results = f'{PATH_RESULTS_}{NAME_CAR}_{NAME_TRACK}_simulated.csv'
 
 def laptime_str(seconds):
     return "{:02.0f}:{:06.03f}".format(seconds%3600//60, seconds%60)
@@ -40,16 +40,38 @@ def save_results(df, results, filename_results):
     df.drop(columns=results.columns, errors='ignore').join(results).to_csv(filename_results, index = None, header=True)
     
 
+
+def get_track_data(track):
+       
+    filename = f'{PATH_RESULTS_}{NAME_CAR}_{track}_simulated.csv'
+    if os.path.isfile(filename):
+        print('Loading track from results file')
+        return pd.read_csv(filename)
+    
+    filename = f"{PATH_TRACKS}{track}.geojson"
+    if os.path.isfile(filename):
+        print('Loading geojson track')
+        return gpd.read_file(filename)
+
+    filename = f"{PATH_TRACKS}{track}.csv"
+    if os.path.isfile(filename):
+        print('Loading csv track')
+        return pd.read_csv(filename)
+
+    print('No track data found')
+    return False
+
+
 def main():
+
+    filename_car_properties = f"{PATH_CARS}{NAME_CAR}.json"
+    filename_results = f'{PATH_RESULTS_}{NAME_CAR}_{NAME_TRACK}_simulated.csv'
 
     with open(filename_car_properties, 'r') as fp:
         race_car = Car(json.load(fp))
 
-    try:
-        df_track = pd.read_csv(filename_results)
-    except FileNotFoundError:
-        df_track = pd.read_csv(filename_track)
-
+    df_track = get_track_data(NAME_TRACK)
+    
     for column in ['Race line','Optimized line','initial_position']:
         if column in df_track.columns:
             best_known_raceline = df_track[column].values
@@ -61,6 +83,7 @@ def main():
         name = NAME_TRACK,
         border_left     = df_track.filter(regex="outer_").values,
         border_right    = df_track.filter(regex="inner_").values,
+        best_known_raceline = best_known_raceline,
         min_clearance   = 0.85,
         )
 

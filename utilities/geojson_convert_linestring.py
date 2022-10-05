@@ -1,47 +1,36 @@
 # import streamlit as st
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import LineString
+from shapely.geometry import LineString, LinearRing
 
-FILE_NAME   = './tracks/202209022_Circuit_Meppen'
-CRS         = 32632
+FILE_NAME   = './tracks/20191220_Spa_Francorchamp'
+input_CRS         = 32631
 
 def main():
         
     df = pd.read_csv(f'{FILE_NAME}.csv')
 
-    inner = LineString(df.filter(regex='inner_').values.tolist())
-    outer = LineString(df.filter(regex='outer_').values.tolist())
+    track_dict = dict(
+    inner = LinearRing(df.filter(regex='inner_').values[:,:2].tolist()),
+    outer = LinearRing(df.filter(regex='outer_').values[:,:2].tolist())
+    )
+
 
     if any(df.columns.str.startswith('line_')):
         print('adding raceline')
-        line = LineString(df.filter(regex='line_').values.tolist())
-        d = {'name':['inner','outer','line'], 'geometry':[inner, outer, line]}
-    else:
-        d = {'name':['inner','outer'], 'geometry':[inner, outer]}
+        track_dict['line'] = LinearRing(df.filter(regex='line_').values.tolist())
     
-    track = gpd.GeoDataFrame(d, crs=CRS)
+    track = gpd.GeoDataFrame(
+        dict(
+            name=list(track_dict.keys()),
+            geometry=list(track_dict.values())
+            ), 
+        crs=input_CRS)
 
-    utm_crs = track.estimate_utm_crs()
-    track.to_crs(utm_crs).to_file(f'{FILE_NAME}.geojson', driver='GeoJSON')
+    local_utm_crs = track.estimate_utm_crs()
+    track.to_crs(local_utm_crs).to_file(f'{FILE_NAME}.geojson', driver='GeoJSON')
     
 
 if __name__ == '__main__':
     main()
 
-# border_left         = Feature(geometry=Polygon([data.filter(regex="outer_").values.tolist()]))
-# border_right        = Feature(geometry=Polygon([data.filter(regex="inner_").values.tolist()]))
-
-
-# crs = {
-#     "type": "name",
-#     "properties": {
-#         "name": "EPSG:32631"
-#     }
-# }
-
-# geo = FeatureCollection( [border_left, border_right], name="zandvoort_coded", crs=crs)
- 
-
-# with open('./tracks/20191030_Circuit_Zandvoort.geojson', 'w') as f:
-#     dump(geo, fp=f, indent=2)

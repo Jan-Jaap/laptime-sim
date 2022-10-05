@@ -34,10 +34,14 @@ class Track:
     name: str
     border_left: np.ndarray
     border_right: np.ndarray
+    best_known_raceline: np.ndarray = None
     min_clearance: float = 0
     
     def __post_init__(self):
         self.position_clearance = self.min_clearance / self.width
+
+        if self.best_known_raceline is None:
+            self.best_known_raceline = self.position_clearance  #hugging left edge
 
     @property
     def width(self):
