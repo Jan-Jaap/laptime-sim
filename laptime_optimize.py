@@ -1,9 +1,9 @@
 import pandas as pd
 import json, os
 import geopandas as gpd
-from streamlit import set_page_config
 
-from track_sim.sim import Car, Track
+from track_sim.sim import Car
+from track_sim.track import Track
 from utilities.timer import Timer
 from track_sim.driver import Driver
 
@@ -12,8 +12,7 @@ PATH_TRACKS     = './tracks/'
 PATH_CARS       = './cars/'
 
 NAME_CAR = "Peugeot_205RFS"
-NAME_TRACK = "20191030_Circuit_Zandvoort"
-
+NAME_TRACK = "20191211_Bilsterberg"
 
 OUTPUT_COLUMNS_NAMES = dict(
     distance            = 'Distance (m)',
@@ -38,24 +37,23 @@ def save_results(df, results, filename_results):
             ).rename(columns = OUTPUT_COLUMNS_NAMES)
 
     df.drop(columns=results.columns, errors='ignore').join(results).to_csv(filename_results, index = None, header=True)
-    
 
 
 def get_track_data(track):
        
     filename = f'{PATH_RESULTS_}{NAME_CAR}_{track}_simulated.csv'
     if os.path.isfile(filename):
-        print('Loading track from results file')
+        print(f'Loading track data from {filename}')
         return pd.read_csv(filename)
     
     filename = f"{PATH_TRACKS}{track}.geojson"
     if os.path.isfile(filename):
-        print('Loading geojson track')
+        print(f'Loading geojson track from {filename}')
         return gpd.read_file(filename)
 
     filename = f"{PATH_TRACKS}{track}.csv"
     if os.path.isfile(filename):
-        print('Loading csv track')
+        print(f'Loading csv track from {filename}')
         return pd.read_csv(filename)
 
     print('No track data found')

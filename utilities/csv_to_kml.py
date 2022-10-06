@@ -6,8 +6,8 @@ import fiona
 
 fiona.supported_drivers['KML'] = 'rw'
 
-FILE_NAME   = './simulated/Peugeot_205RFS_20191211_Bilsterberg_simulated'
-CRS         = 32632
+FILE_NAME   = './simulated/Peugeot_205RFS_20191030_Circuit_Zandvoort_simulated'
+CRS         = 32631
 
 def main():
         
