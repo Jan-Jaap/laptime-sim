@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import CubicSpline
-from track_sim.sim import Track
+from track_sim.car import Track
 
 i = 800
 
