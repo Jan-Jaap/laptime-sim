@@ -4,8 +4,10 @@ import geopandas as gpd
 
 from track_sim.car import Car
 from track_sim.track import Track
-from utilities.timer import Timer
 from track_sim.driver import Driver
+
+from utilities.timer import Timer
+
 
 PATH_RESULTS_   = './simulated/'
 PATH_TRACKS     = './tracks/'

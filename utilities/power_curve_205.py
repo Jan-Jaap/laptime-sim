@@ -78,6 +78,7 @@ if __name__ == '__main__':
     plt.plot(speed, gear.T*1000)
     plt.plot(speed, F_drag.T)
     
+    plt.show()
     
     #rpm = rpm[rpm<7000]
 
