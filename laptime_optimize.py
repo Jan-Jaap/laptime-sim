@@ -2,7 +2,7 @@ import pandas as pd
 import json, os
 import geopandas as gpd
 
-from track_sim.sim import Car
+from track_sim.car import Car
 from track_sim.track import Track
 from utilities.timer import Timer
 from track_sim.driver import Driver
