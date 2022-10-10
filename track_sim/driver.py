@@ -1,4 +1,3 @@
-# from sim import Car, Track
 from typing import Any
 import numpy as np
 

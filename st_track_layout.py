@@ -1,40 +1,24 @@
 import os
-# import pandas as pd
 import streamlit as st
-# import plotly.graph_objects as go
 import geopandas as gpd
 from streamlit_folium import st_folium
 from track_sim.track import Track
 
+SUPPORTED_FILETYPES = ('.csv', '.geojson')
 
 def get_track_filename():
-    match st.radio('select filetype', options=['csv tracks', 'geojson tracks', 'simulation results']):
-        case 'csv tracks':
+    match st.radio('select directory', options=['tracks', 'simulation results']):
+        case 'tracks':
             dir = './tracks/'
-            endswith = '.csv'
-        case 'geojson tracks':
-            dir = './tracks/'
-            endswith = '.geojson'
         case  'simulation results':
             dir = './simulated/'
-            endswith = '.csv'
-
-    files_in_dir = [s for s in sorted(os.listdir(dir)) if s.endswith(endswith)]
+        
+    files_in_dir = [s for s in sorted(os.listdir(dir)) if s.endswith(SUPPORTED_FILETYPES)]
 
     if filename_track := st.radio(label='select track', options=files_in_dir):
         return dir + filename_track
     return None
 
-def display_track(track):
-    
-    if laptime:=track.track_record:
-        st.write(f'Simulated laptime = {laptime%3600//60:02.0f}:{laptime%60:06.03f}')
-    st.plotly_chart(track.figure(), use_container_width=True)
-
-def display_track_geojson(gdf):
-    st_data = st_folium(gdf.explore(style_kwds=dict(color="black")),  width = 725)
-    with st.expander("Expand to see data returned to Python"):
-        st_data
 
 if __name__ == '__main__':
     st.set_page_config(
@@ -51,11 +35,16 @@ if __name__ == '__main__':
         if file_name is None:
             st.stop()
         if file_name.endswith('.csv'):
-            track = Track.from_csv(file_name)
-            display_track(track)
+            track = Track.from_csv(file_name, crs=st.number_input('EPSG', value=32631, label_visibility='collapsed'))
+            if tr:=track.track_record:
+                st.write(f'Simulated laptime = {tr%3600//60:02.0f}:{tr%60:06.03f}')
+            gdf = track.to_geojson()
+
         if file_name.endswith('.geojson'):
-            df_track = gpd.read_file(file_name)
-            display_track_geojson(df_track)
+            gdf = gpd.read_file(file_name)
+
+
+        st_folium(gdf.explore(style_kwds=dict(color="black")),  width = 725)
         
     with tab2:
         st.header('test')
