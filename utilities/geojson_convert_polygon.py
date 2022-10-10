@@ -8,8 +8,7 @@ from shapely.geometry import Polygon
 FILE_NAME = '202209022_Circuit_Meppen'
 DIR_TRACK = './tracks/'
 def main():
-    
-    
+        
     df = pd.read_csv(f'{DIR_TRACK}{FILE_NAME}.csv')
     inner  = gpd.GeoSeries.from_xy(df[['inner_x']], df[['inner_y']], z=df[['inner_z']])
     outer  = gpd.GeoSeries.from_xy(df[['outer_x']], df[['outer_y']], z=df[['outer_z']])

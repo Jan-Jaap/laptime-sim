@@ -1,72 +1,62 @@
 import os
-import pandas as pd
+# import pandas as pd
 import streamlit as st
-import plotly.graph_objects as go
-
+# import plotly.graph_objects as go
 import geopandas as gpd
 from streamlit_folium import st_folium
+from track_sim.track import Track
 
 
-def select_track():
+def get_track_filename():
     match st.radio('select filetype', options=['csv tracks', 'geojson tracks', 'simulation results']):
         case 'csv tracks':
             dir = './tracks/'
             endswith = '.csv'
-        case  'simulation results':
-            dir = './simulated/'
-            endswith = '.csv'
         case 'geojson tracks':
             dir = './tracks/'
             endswith = '.geojson'
+        case  'simulation results':
+            dir = './simulated/'
+            endswith = '.csv'
 
+    files_in_dir = [s for s in sorted(os.listdir(dir)) if s.endswith(endswith)]
 
-    if filename_track := st.radio(label='select track', options=[s for s in sorted(os.listdir(dir)) if s.endswith(endswith)]):
+    if filename_track := st.radio(label='select track', options=files_in_dir):
         return dir + filename_track
     return None
 
-def display_track(df):
-
-        if 'Timestamp' in df.columns:
-            laptime = df.Timestamp.iloc[-1]
-            st.write(f'Simulated laptime = {laptime%3600//60:02.0f}:{laptime%60:06.03f}')
-  
-        border_left         = df.filter(regex="outer_").values
-        border_right        = df.filter(regex="inner_").values
-        race_line           = df.filter(regex="line_").values
-        
-        MODE = 'lines'
-        fig = go.Figure()
-
-        fig.add_trace(go.Scatter(x=border_left[:,0] , y=border_left[:,1] ,mode=MODE, name='border_left' ))
-        fig.add_trace(go.Scatter(x=border_right[:,0], y=border_right[:,1],mode=MODE, name='border_right' ))
-        
-        if race_line.size != 0:
-            fig.add_trace(go.Scatter(x=race_line[:,0], y=race_line[:,1],
-                mode=MODE, name='line', line=dict(width=2, dash='dash')))
-        
-        fig.update_xaxes(showticklabels=False, zeroline=False)
-        fig.update_yaxes(showticklabels=False, zeroline=False, scaleanchor = "x", scaleratio = 1)
-
-        st.plotly_chart(fig, use_container_width=True)
-
+def display_track(track):
+    
+    if laptime:=track.track_record:
+        st.write(f'Simulated laptime = {laptime%3600//60:02.0f}:{laptime%60:06.03f}')
+    st.plotly_chart(track.figure(), use_container_width=True)
 
 def display_track_geojson(gdf):
     st_data = st_folium(gdf.explore(style_kwds=dict(color="black")),  width = 725)
     with st.expander("Expand to see data returned to Python"):
         st_data
 
-
 if __name__ == '__main__':
     st.set_page_config(
     page_title='HSR Webracing',
     layout='wide')
 
-    st.header('Race track display')
-    if file_name:=select_track():
+    tab1, tab2 = st.tabs(['Select track','Display results'])\
+    
+    with tab1:
+        st.header('Race track display')
+        
+        file_name=get_track_filename()
+            
+        if file_name is None:
+            st.stop()
         if file_name.endswith('.csv'):
-            df_track = pd.read_csv(file_name)
-            display_track(df_track)
+            track = Track.from_csv(file_name)
+            display_track(track)
         if file_name.endswith('.geojson'):
             df_track = gpd.read_file(file_name)
             display_track_geojson(df_track)
+        
+    with tab2:
+        st.header('test')
         
