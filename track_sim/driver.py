@@ -1,6 +1,10 @@
 from typing import Any
 import numpy as np
 
+
+from track_sim.car import Car
+from track_sim.track import Track
+
 def mag(vector):
     return np.sum(vector**2, 1)**0.5
 
@@ -16,19 +20,19 @@ def get_curvature(line):
 
 
 class Driver():
-    def __init__(self, car: Any, track: Any, raceline: Any = None):
+    def __init__(self, car: Car, track: Track, raceline: Any = None):
         self.car = car
         self.track = track
-        self.position_clearance = track.min_clearance / track.width
+        # self.position_clearance = track.min_clearance / track.width
                 
         if raceline is None:
-            raceline = np.ones(np.size(self.position_clearance))/2
+            raceline = track.best_known_raceline
 
         self.raceline = raceline
-        self.pr = self.race(raceline)
+        self.pr = self.race()
 
 
-    def try_new_line(self):
+    def try_new_line(self, track):
         start = np.random.randint(0, len(self.raceline))
         length = np.random.randint(1, 60)
         deviation = np.random.randn() / 10
@@ -37,10 +41,9 @@ class Driver():
         new_line = self.raceline * 0
         new_line[:length] = line_adjust * deviation
         new_line = np.roll(new_line, start)
-        test_line = self.raceline + new_line / self.track.width
-        test_line  = np.clip(test_line, self.position_clearance, 1 - self.position_clearance)
-
-        laptime = self.race(test_line)
+        test_line = self.raceline + new_line / track.width
+        test_line = track.check_clearance(test_line)
+        laptime = self.race(track.get_line_coordinates(test_line))
 
         if laptime < self.pr:
             self.pr = laptime
@@ -62,13 +65,14 @@ class Driver():
         return mag(np.cross(dX, ddX))/mag(dX)**3 
 
       
-    def race(self, raceline, verbose=False):
+    def race(self, line_coordinates=None, verbose=False):
      
-        line = self.track.get_line_coordinates(raceline)
-        ds = mag(np.diff(line.T,1 ,prepend=np.c_[line[-1]]).T)     #distance from previous
+        if line_coordinates is None:
+            line_coordinates = self.track.get_line_coordinates(self.raceline)
+        ds = mag(np.diff(line_coordinates.T,1 ,prepend=np.c_[line_coordinates[-1]]).T)     #distance from previous
 
         # Calculate the first and second derivative of the points
-        dX = np.gradient(line, axis=0)
+        dX = np.gradient(line_coordinates, axis=0)
         ddX = np.gradient(dX, axis=0)
 
         k = mag(np.cross(dX, ddX))/mag(dX)**3   # magnitude of curvature
@@ -139,9 +143,6 @@ class Driver():
             a_lat = -(speed**2) * Nk[:, 0]
             a_lon = np.gradient(speed, distance) * speed
 
-            return np.column_stack((self.raceline, distance, line, speed, time, a_lat, a_lon))
+            return np.column_stack((self.raceline, distance, line_coordinates, speed, time, a_lat, a_lon))
 
         return time[-1]
-
-    def race_results(self):
-        return self.race(self.raceline, verbose=True)

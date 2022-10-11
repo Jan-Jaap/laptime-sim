@@ -1,20 +1,20 @@
-import pandas as pd
-import json, os
+import json
+import os
+
 import geopandas as gpd
+import pandas as pd
 
 from track_sim.car import Car
-from track_sim.track import Track
 from track_sim.driver import Driver
-
+from track_sim.track import Track
 from utilities.timer import Timer
-
 
 PATH_RESULTS_   = './simulated/'
 PATH_TRACKS     = './tracks/'
 PATH_CARS       = './cars/'
 
 NAME_CAR = "Peugeot_205RFS"
-NAME_TRACK = "20191211_Bilsterberg"
+NAME_TRACK = "20191220_Spa_Francorchamp"
 
 OUTPUT_COLUMNS_NAMES = dict(
     distance            = 'Distance (m)',
@@ -99,7 +99,7 @@ def main():
     try:
         while True:
             nr_iterations += 1
-            driver.try_new_line()
+            driver.try_new_line(track)
 
             if timer1.elapsed_time > 3:
                 print(f"Laptime = {laptime_str(driver.pr)}  (iteration:{nr_iterations})")
@@ -108,7 +108,7 @@ def main():
             if timer2.elapsed_time > 10:
                 print(f'intermediate results saved to {filename_results=}')
                 timer2.reset()
-                save_results(df_track, driver.race_results(), filename_results)
+                save_results(df_track, driver.race(verbose=True), filename_results)
                 
     except KeyboardInterrupt:
         print('Interrupted by CTRL+C, saving progress')
@@ -117,7 +117,7 @@ def main():
     if not os.path.exists(PATH_RESULTS_):
         os.makedirs(PATH_RESULTS_)
 
-    save_results(df_track, driver.race_results(), filename_results)
+    save_results(df_track, driver.race(verbose=True), filename_results)
 
     print(f'{race_car.name} - Simulated laptime = {laptime_str(driver.pr)}')
 

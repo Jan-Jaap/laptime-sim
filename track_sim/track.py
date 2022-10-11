@@ -16,9 +16,10 @@ class Track:
     name: str
     border_left: np.ndarray
     border_right: np.ndarray
+    min_clearance: float
     best_known_raceline: np.ndarray = None
     track_record: float = None
-    min_clearance: float = 0
+    position_clearance: np.ndarray = None
     crs: int = None
     
     def __post_init__(self):
@@ -42,7 +43,8 @@ class Track:
 
     @classmethod
     def from_geojson(cls, file_name):
-        return gpd.read_file(file_name)
+        gdf =  gpd.read_file(file_name)
+
         # return cls(
         #     name=file_name, 
         #     border_left         = df.filter(regex="outer_").values, 
@@ -78,6 +80,10 @@ class Track:
             
     def get_line_coordinates(self, position: np.ndarray = None) -> np.ndarray:
         return self.border_left + (self.border_right - self.border_left) * np.expand_dims(position, axis=1)
+
+    def check_clearance(self, position):
+        return np.clip(position, self.position_clearance, 1 - self.position_clearance)
+
 
     # def figure(self):
     #     MODE = 'lines'
