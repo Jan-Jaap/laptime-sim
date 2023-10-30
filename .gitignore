@@ -1,6 +1,14 @@
-/simulated
-/misc-scripts
-*_woonwerk*
+simulated/
+misc-scripts/
+*woonwerk*
+tracks/
+!tracks/*.csv
+!tracks/*.parquet
+!tracks/*.geojson
+
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

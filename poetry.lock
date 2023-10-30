@@ -1384,6 +1384,50 @@ files = [
 plugins = ["importlib-metadata"]
 
 [[package]]
+name = "pyogrio"
+version = "0.7.1"
+description = "Vectorized spatial vector file format I/O using GDAL/OGR"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "pyogrio-0.7.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:d3bea3896d3efc67bb97b4dc5a9e67392a744e9d48f812b9c925b9fda571afc1"},
+    {file = "pyogrio-0.7.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:09205f3d7d44306c3a6d32cd41e881acda8c3aa456348fd5fe16ba2907c6a5df"},
+    {file = "pyogrio-0.7.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:693cc641f3e822912e2a24df4ab9683014d3ad95d9a905202525ccb513310d3a"},
+    {file = "pyogrio-0.7.1-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:540a0ed9a2847859cc3894bb2982e731ffeae6f54157e88c665423c1820980b7"},
+    {file = "pyogrio-0.7.1-cp310-cp310-win_amd64.whl", hash = "sha256:8daf521db87431cc7932fff1b81e113e2f7b23714a629da6e144b67ad25458ee"},
+    {file = "pyogrio-0.7.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:47bafc4358294b342e416a276120b9a39f09f3b4fc6c0041e260de1ade1fed32"},
+    {file = "pyogrio-0.7.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:8498beeff26994d1f5eb13d1d8e56c1ca2da85c7b1504d66cff425bddb03a53f"},
+    {file = "pyogrio-0.7.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:043939d0945a1c19693daee41f06667c4a03679d0fcbde0dd6b39db31417bf9e"},
+    {file = "pyogrio-0.7.1-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:9f7738ad62c6686531dbeb4f39f06d540374e5c8fbe944b90797054ced9c7bca"},
+    {file = "pyogrio-0.7.1-cp311-cp311-win_amd64.whl", hash = "sha256:b6b8dec9c04d863c5705a725681e55e725ac9ac9c33e06a6a2edeb1793c43429"},
+    {file = "pyogrio-0.7.1-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:c88bb412dd4e6b88bd8974c0a990093466d5ca82a710718577d42b539f196aee"},
+    {file = "pyogrio-0.7.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:8f63beed424185c4d32dfbc7c096e45e1c8611d10471affe5164be497d76501a"},
+    {file = "pyogrio-0.7.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:330a7ad643ed9b6a4c64feec06333b00eef871ced672cb4e873249b76e7dfdcf"},
+    {file = "pyogrio-0.7.1-cp312-cp312-win_amd64.whl", hash = "sha256:6a80db8cb7a435dcf6a7b02d32ed496018719b2c5dbc63145e36980674589049"},
+    {file = "pyogrio-0.7.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:1e160cc9ce9faf56046e75cd656030dd3b406eca478bdde63439b6fdeb5cce06"},
+    {file = "pyogrio-0.7.1-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:fe141e49ff35ea2f2a26c5c6a03cfe39aded43bf1435de38c9eeef15b6350198"},
+    {file = "pyogrio-0.7.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:75b032363e567329a3c34d377a1815492f725f1a153336660491bf9adb6ab2d2"},
+    {file = "pyogrio-0.7.1-cp38-cp38-manylinux_2_28_aarch64.whl", hash = "sha256:c7f7ac31b53ef162f3168b599c2767e138b8594e64152f60e5ce5c6519700916"},
+    {file = "pyogrio-0.7.1-cp38-cp38-win_amd64.whl", hash = "sha256:8da126f1b4e72e5f3a5d91bf5fbc7ae0a93329f185fc573e342e24deb364fb6a"},
+    {file = "pyogrio-0.7.1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:bcdde59ed711d5d11367d751b6d524286854127a94f5a0d056845ff5de84d742"},
+    {file = "pyogrio-0.7.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:37d5865418582754a37e3d34df2608a6b1c58a49aa61697ad0ddd652f3ef5377"},
+    {file = "pyogrio-0.7.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d389edbe48fcef5117c791d3ab8fe21a3f8cfde37ed472bdcfee12d7df9b91e8"},
+    {file = "pyogrio-0.7.1-cp39-cp39-manylinux_2_28_aarch64.whl", hash = "sha256:3bd561462d72abd5b146dc92bb84bf36a508c3b422b2d28dbd3f9c1e266bf228"},
+    {file = "pyogrio-0.7.1-cp39-cp39-win_amd64.whl", hash = "sha256:a81b2efe0d9f89558f288e2cd7a71ab4948f52ab5ca233d97728f69663192ef5"},
+    {file = "pyogrio-0.7.1.tar.gz", hash = "sha256:5ec6fa626a87d8e737672c77eab1563ac5234ebdfa9a21c7063fe5ef498b9289"},
+]
+
+[package.dependencies]
+certifi = "*"
+numpy = "*"
+
+[package.extras]
+benchmark = ["pytest-benchmark"]
+dev = ["Cython"]
+geopandas = ["geopandas"]
+test = ["pytest", "pytest-cov"]
+
+[[package]]
 name = "pyparsing"
 version = "3.1.1"
 description = "pyparsing module - Classes and methods to define and execute parsing grammars"
@@ -2102,4 +2146,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "7d38d49ec1d00e633df9230a36a6277450a6cd1f7e81c14fe1f63b02e80920e2"
+content-hash = "65cbcfedfa67ee4f3a530152abbc3b4923d2b00afba01a901ef23906f530e078"

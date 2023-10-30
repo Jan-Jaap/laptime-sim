@@ -1,23 +1,6 @@
 from dataclasses import dataclass
 import numpy as np
-
-# class DotDict(dict):
-#     """
-#     a dictionary that supports dot notation
-#     as well as dictionary access notation
-#     usage: d = DotDict() or d = DotDict({'val1':'first'})
-#     set attributes: d.val2 = 'second' or d['val2'] = 'second'
-#     get attributes: d.val2 or d['val2']
-#     """
-#     __getattr__ = dict.__getitem__
-#     __setattr__ = dict.__setitem__
-#     __delattr__ = dict.__delitem__
-
-#     def __init__(self, dct={}):
-#         for key, value in dct.items():
-#             if hasattr(value, 'keys'):
-#                 value = DotDict(value)
-#             self[key] = value
+import json
 
 @dataclass
 class Car:
@@ -31,6 +14,11 @@ class Car:
     name                : str = None
     trail_braking       : float = 70
 
+    @classmethod
+    def from_file(cls, filename):
+        
+        with open(filename, 'r') as fp:
+            return cls(**json.load(fp))
     
     def get_max_acc(self,v, acc_lat):
         '''maximum possible acceleration (flooring it)'''

@@ -2,13 +2,15 @@ import os
 import pandas as pd
 import streamlit as st
 import geopandas
+geopandas.options.io_engine = "pyogrio"
+
 from streamlit_folium import st_folium
 
 
-from geopanda_utils import gdf_from_df, drop_z
+from track_data import gdf_from_df
 
-from icecream import install
-install()
+# from icecream import install
+# install()
 
 
 SUPPORTED_FILETYPES = ('.csv', '.geojson', '.parquet')
@@ -25,18 +27,18 @@ def st_select_track(path):
     return None
 
 
-def load_track(track_path) -> geopandas.GeoDataFrame:
+def load_track(file_path) -> geopandas.GeoDataFrame:
     
-    match track_path:
+    match file_path:
         case None:
             st.stop()
         case s if s.endswith('.csv'):
             crs = st.number_input('EPSG', value=32631, label_visibility='collapsed')
             return gdf_from_df(pd.read_csv(s), crs)
         case s if s.endswith('.geojson'):
-            return geopandas.read_file(track_path)
+            return geopandas.read_file(file_path)
         case s if  s.endswith('.parquet'):
-            return geopandas.read_parquet(track_path)
+            return geopandas.read_parquet(file_path)
 
  
 if __name__ == '__main__':
@@ -53,7 +55,7 @@ if __name__ == '__main__':
         file_name = st_select_track(path)
         track = load_track(file_name)
         
-        cols = st.columns(2, gap='small')
+        cols = st.columns(3, gap='small')
         file_name = os.path.splitext(file_name)[0]
         
         with cols[0]:
@@ -62,13 +64,17 @@ if __name__ == '__main__':
                 track.to_parquet(file_name +'.parquet')
                 st.rerun()
     
-
-    
         with cols[1]:
             if st.button('save shape file', use_container_width=True):
-                drop_z(track).to_file(f'{file_name}.shp')
+                track.to_file(f'{file_name}.shp')
                 st.rerun()
-            
+
+        with cols[2]:
+            # if st.button('save shape file', use_container_width=True):
+            st.download_button('save shape file', use_container_width=True, data=track.to_file(f'{file_name}.shp').encode('utf-8'))
+                # track.to_file(f'{file_name}.shp')
+                # st.rerun()
+
 
         st_folium(track.explore(style_kwds=dict(color="black")), use_container_width=True)
 
