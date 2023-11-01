@@ -3,6 +3,8 @@ import functools
 import numpy as np
 from geopandas import GeoDataFrame
 
+from laptime_sim.geodataframe_operations import interpolate
+
 @dataclass
 class Track:
     name: str
@@ -25,10 +27,10 @@ class Track:
     def slope(self):
         return (self.border_right[:,2] - self.border_left[:,2]) / self.width
     @functools.cached_property
-    def border_right(self):
+    def border_left(self):
         return self.geodataframe.geometry.loc[[0]].get_coordinates(include_z=True).to_numpy(na_value=0)
     @functools.cached_property
-    def border_left(self):
+    def border_right(self):
         return self.geodataframe.geometry.loc[[1]].get_coordinates(include_z=True).to_numpy(na_value=0)
     @functools.cached_property
     def len(self):
@@ -37,11 +39,18 @@ class Track:
     def get_line_coordinates(self, position: np.ndarray = None) -> np.ndarray:
         # return self.border_left + np.multiply(self.border_right - self.border_left, position)
         return self.border_left + (self.border_right - self.border_left) * np.expand_dims(position, axis=1)
+        # return self.border_right + (self.border_left - self.border_right) * np.expand_dims(position, axis=1)
 
-    def check_clearance(self, position):
-        return np.clip(position, self.position_clearance, 1 - self.position_clearance)
+    def clip_raceline(self, raceline:np.ndarray) -> np.ndarray:
+        return np.clip(raceline,  a_min=self.position_clearance, a_max=1 - self.position_clearance)
+
+
 
 
 def interpolate_track(track: Track, nr_datapoint: int) -> Track:
-    
-    pass
+
+    return Track(
+        name=track.name,
+        geodataframe=interpolate(track.geodataframe, nr_datapoint),
+        min_clearance=track.min_clearance
+        )

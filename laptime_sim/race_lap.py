@@ -1,7 +1,7 @@
 import numpy as np
 
-from car import Car
-from track import Track
+from laptime_sim.car import Car
+from laptime_sim.track import Track
 
 
 def mag(vector):
@@ -22,7 +22,7 @@ def get_new_line(track: Track):
     new_line[:length] = line_adjust * deviation
     new_line = np.roll(new_line, start)
     test_line = track.best_line + new_line / track.width
-    return track.check_clearance(test_line)
+    return track.clip_raceline(test_line)
     
     
 def race(track: Track, car: Car, raceline=None, verbose=False):

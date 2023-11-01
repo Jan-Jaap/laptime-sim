@@ -1,5 +1,4 @@
 simulated/
-misc-scripts/
 *woonwerk*
 tracks/
 !tracks/*.csv

@@ -5,12 +5,11 @@ import geopandas
 geopandas.options.io_engine = "pyogrio"
 
 from streamlit_folium import st_folium
+import laptime_sim.file_operations as file_operations
+import geodataframe_operations
 
-
-from track_data import gdf_from_df
-
-# from icecream import install
-# install()
+from icecream import install
+install()
 
 
 SUPPORTED_FILETYPES = ('.csv', '.geojson', '.parquet')
@@ -34,11 +33,12 @@ def load_track(file_path) -> geopandas.GeoDataFrame:
             st.stop()
         case s if s.endswith('.csv'):
             crs = st.number_input('EPSG', value=32631, label_visibility='collapsed')
-            return gdf_from_df(pd.read_csv(s), crs)
+            return file_operations.gdf_from_df(pd.read_csv(s), crs)
         case s if s.endswith('.geojson'):
             return geopandas.read_file(file_path)
         case s if  s.endswith('.parquet'):
             return geopandas.read_parquet(file_path)
+    return None
 
  
 if __name__ == '__main__':
@@ -68,13 +68,10 @@ if __name__ == '__main__':
             if st.button('save shape file', use_container_width=True):
                 track.to_file(f'{file_name}.shp')
                 st.rerun()
+    
 
-        with cols[2]:
-            # if st.button('save shape file', use_container_width=True):
-            st.download_button('save shape file', use_container_width=True, data=track.to_file(f'{file_name}.shp').encode('utf-8'))
-                # track.to_file(f'{file_name}.shp')
-                # st.rerun()
-
+        track = geodataframe_operations.add_lines(track)
+        
 
         st_folium(track.explore(style_kwds=dict(color="black")), use_container_width=True)
 

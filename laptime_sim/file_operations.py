@@ -1,9 +1,10 @@
-import shapely
 import geopandas
 import pandas as pd
 import numpy as np
-# import geopandas as gpd
+
+from laptime_sim.geodataframe_operations import gdf_from_df, interpolate
 geopandas.options.io_engine = "pyogrio"
+
 
 import os
 from track import Track
@@ -81,38 +82,9 @@ def save_results(data: np.ndarray, filename_results:str):
 
     results = pd.DataFrame(
             data = data,
-            columns=(('outer_x','outer_y','outer_z','inner_x','inner_y','inner_z','race_line_position', 'distance', 'line_x', 'line_y', 'line_z', 'speed', 'time', 'a_lat', 'a_lon' ))
+            columns=(('inner_x','inner_y','inner_z','outer_x','outer_y','outer_z','race_line_position', 'distance', 'line_x', 'line_y', 'line_z', 'speed', 'time', 'a_lat', 'a_lon' ))
             ).rename(columns = OUTPUT_COLUMNS_NAMES)
 
     results.to_csv(PATH_RESULTS_+filename_results, index = None, header=True)
 
 
-def gdf_from_df(df, crs=None):
-
-    border_left = df.filter(regex="outer_").values
-    border_right = df.filter(regex="inner_").values
-    race_line = df.filter(regex="line_").values
-   
-    track_dict = dict(
-    inner = shapely.LineString(border_left.tolist()),
-    outer = shapely.LineString(border_right.tolist())
-    )
-
-    if not race_line.size == 0:
-        track_dict['line'] = shapely.LineString(race_line.tolist())
-    
-    gdf = geopandas.GeoDataFrame(
-        dict(
-            name=list(track_dict.keys()),
-            geometry=list(track_dict.values())
-            ), 
-        crs=crs)
-    
-    crs = gdf.estimate_utm_crs()
-    # convert from arbitrary crs to UTM (unit=m)
-    return gdf.to_crs(crs)
-
-def drop_z(data: geopandas.GeoDataFrame) -> geopandas.GeoDataFrame:
-    for i, geom in enumerate(data.geometry):
-        data.geometry[i] = shapely.wkb.loads(shapely.wkb.dumps(geom, output_dimension=2))
-    return data
