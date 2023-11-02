@@ -25,3 +25,6 @@ icecream = "^2.1.3"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib",]
+pythonpath = [".", "tests", "laptime_sim"]

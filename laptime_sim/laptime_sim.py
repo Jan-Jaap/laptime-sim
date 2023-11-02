@@ -1,15 +1,15 @@
 import time
 import itertools
 
-from laptime_sim.file_operations import get_track_data, save_results
-from laptime_sim.car import Car
+import file_operations
+from car import Car
 import race_lap
 
 
 NAME_CAR = 'Peugeot_205RFS'
 # NAME_TRACK = "2020_zandvoort"
 # NAME_TRACK = "20191030_Circuit_Zandvoort"
-NAME_TRACK = "20191128_Circuit_Assen"
+NAME_TRACK = "202209022_Circuit_Meppen"
 
 
 class Timer:
@@ -29,7 +29,7 @@ def laptime_str(seconds):
 def main():
     
     race_car = Car.from_file(f"./cars/{NAME_CAR}.json")
-    track = get_track_data(NAME_TRACK, NAME_CAR)
+    track = file_operations.get_track_data(NAME_TRACK, NAME_CAR)
     
     if track is None: return
     
@@ -48,7 +48,7 @@ def main():
         for nr_iterations in itertools.count():
             new_line = race_lap.get_new_line(track=track)
             laptime = race_lap.race(track=track, car=race_car, raceline=new_line)
-                
+            
             if laptime < best_time:
                 best_time = laptime
                 track.best_line = new_line
@@ -59,13 +59,13 @@ def main():
             
             if timer2.elapsed_time > 30:
                 timer2.reset()
-                save_results(race_lap.race(track=track, car=race_car, verbose=True), filename_results)
+                file_operations.save_results(race_lap.race(track=track, car=race_car, verbose=True), filename_results)
                 print(f'intermediate results saved to {filename_results=}')
                 
     except KeyboardInterrupt:
         print('Interrupted by CTRL+C, saving progress')
 
-    save_results(race_lap.race(track=track, car=race_car, verbose=True), filename_results)
+    file_operations.save_results(race_lap.race(track=track, car=race_car, verbose=True), filename_results)
 
     print(f'{race_car.name} - Simulated laptime = {laptime_str(best_time)}')
 

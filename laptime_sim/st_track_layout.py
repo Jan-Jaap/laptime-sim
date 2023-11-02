@@ -5,12 +5,8 @@ import geopandas
 geopandas.options.io_engine = "pyogrio"
 
 from streamlit_folium import st_folium
-import laptime_sim.file_operations as file_operations
+import file_operations as file_operations
 import geodataframe_operations
-
-from icecream import install
-install()
-
 
 SUPPORTED_FILETYPES = ('.csv', '.geojson', '.parquet')
 PATH_TRACK_FILES = './tracks/'
@@ -62,17 +58,13 @@ if __name__ == '__main__':
                 
             if st.button('save parquet', use_container_width=True):
                 track.to_parquet(file_name +'.parquet')
-                st.rerun()
     
         with cols[1]:
             if st.button('save shape file', use_container_width=True):
                 track.to_file(f'{file_name}.shp')
-                st.rerun()
     
-
         track = geodataframe_operations.add_lines(track)
         
-
         st_folium(track.explore(style_kwds=dict(color="black")), use_container_width=True)
 
         with st.expander('GeoDataFrame'):

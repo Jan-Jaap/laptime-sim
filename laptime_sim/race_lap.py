@@ -1,7 +1,8 @@
 import numpy as np
+import pandas as pd
 
-from laptime_sim.car import Car
-from laptime_sim.track import Track
+from car import Car
+from track import TrackSession
 
 
 def mag(vector):
@@ -12,7 +13,7 @@ def dot(u, v):
     return np.einsum('ij,ij->i',u,v)
 
 
-def get_new_line(track: Track):
+def get_new_line(track: TrackSession):
     start = np.random.randint(0, track.len)
     length = np.random.randint(1, 60)
     deviation = np.random.randn() / 10
@@ -25,7 +26,7 @@ def get_new_line(track: Track):
     return track.clip_raceline(test_line)
     
     
-def race(track: Track, car: Car, raceline=None, verbose=False):
+def race(track: TrackSession, car: Car, raceline=None, verbose=False):
     
     if raceline is None:
         raceline = track.best_line
@@ -101,10 +102,18 @@ def race(track: Track, car: Car, raceline=None, verbose=False):
     time = dt.cumsum()
 
     if verbose:
-        distance = ds.cumsum() - ds[0]
-        a_lat = -(speed**2) * Nk[:, 0]
-        a_lon = np.gradient(speed, distance) * speed
-
-        return np.column_stack((track.border_right, track.border_left, raceline, distance, line_coordinates, speed, time, a_lat, a_lon))
+        df = pd.DataFrame()
+        df['time'] = time
+        df1 = pd.DataFrame(data=track.border_right, columns=['x','y','z']).add_prefix('inner_')
+        df2 = pd.DataFrame(data=track.border_left, columns=['x','y','z']).add_prefix('outer_')
+        df3 = pd.DataFrame(data=track.get_line_coordinates(), columns=['x','y','z']).add_prefix('line_')
+        df = pd.concat([df, df1, df2, df3], axis=1)
+        df['race_line_position'] = raceline
+        df['distance'] =  ds.cumsum() - ds[0]
+        df['a_lat'] = -(speed**2) * Nk[:, 0]
+        df['a_lon'] = np.gradient(speed, df.distance) * speed
+        df['speed'] = speed
+        return df
 
     return time[-1]
+
