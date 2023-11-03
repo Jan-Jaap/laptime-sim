@@ -29,9 +29,6 @@ def get_new_line(track: TrackSession):
     
 def race(track: TrackSession, car: Car, raceline=None, verbose=False):
     
-    # if raceline is None:
-    #     raceline = track.best_line
-        
     line_coordinates = track.line_coords(raceline)
     ds = mag(np.diff(line_coordinates.T,1 ,prepend=np.c_[line_coordinates[-1]]).T)     #distance from previous
 

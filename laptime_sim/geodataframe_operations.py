@@ -29,6 +29,7 @@ def df_to_geo(df, crs=None):
 
     return geo.to_crs(geo.estimate_utm_crs())
 
+
 def drop_z(geo: GeoSeries) -> GeoSeries:
     for i, geom in enumerate(geo.geometry):
         geo.geometry[i] = shapely.wkb.loads(shapely.wkb.dumps(geom, output_dimension=2))
@@ -37,14 +38,11 @@ def drop_z(geo: GeoSeries) -> GeoSeries:
 
 def add_lines(geo: GeoSeries) -> GeoSeries:
 
-    
     border_left = geo.geometry.loc[['outer']].get_coordinates(include_z=True).to_numpy(na_value=0)
     border_right = geo.geometry.loc[['inner']].get_coordinates(include_z=True).to_numpy(na_value=0)
     lines=[]
-    for i, point_left in enumerate(border_left):
-        point_right = border_right[i]
-        lines.append(([(point_left), (point_right)   ] ))
-    lines = shapely.MultiLineString(lines=lines)
-    lines = GeoSeries(lines, index=['divisions'], crs=geo.crs)
+    for point_left, point_right in zip(border_left, border_right):
+        lines.append(([(point_left), (point_right)]))
+    lines = GeoSeries(shapely.MultiLineString(lines=lines), index=['divisions'], crs=geo.crs)
 
     return pd.concat([geo.geometry, lines.geometry])
