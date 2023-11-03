@@ -29,7 +29,7 @@ def load_track(file_path) -> geopandas.GeoDataFrame:
             st.stop()
         case s if s.endswith('.csv'):
             crs = st.number_input('EPSG', value=32631, label_visibility='collapsed')
-            return file_operations.gdf_from_df(pd.read_csv(s), crs)
+            return file_operations.df_to_geo(pd.read_csv(s), crs)
         case s if s.endswith('.geojson'):
             return geopandas.read_file(file_path)
         case s if  s.endswith('.parquet'):
@@ -57,15 +57,18 @@ if __name__ == '__main__':
         with cols[0]:
                 
             if st.button('save parquet', use_container_width=True):
-                track.to_parquet(file_name +'.parquet')
+                geopandas.GeoDataFrame(geometry=track.geometry, crs=track.crs).to_parquet(file_name +'.parquet')
     
         with cols[1]:
             if st.button('save shape file', use_container_width=True):
                 track.to_file(f'{file_name}.shp')
     
-        track = geodataframe_operations.add_lines(track)
+        if st.toggle('Show divisions'):
+            track = geodataframe_operations.add_lines(track)
         
-        st_folium(track.explore(style_kwds=dict(color="black")), use_container_width=True)
+        map = track.explore(style_kwds=dict(color="black"))
+        
+        st_folium(map, use_container_width=True)
 
         with st.expander('GeoDataFrame'):
             st.write(track)

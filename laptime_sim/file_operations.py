@@ -1,12 +1,11 @@
+import os
 import geopandas
 import pandas as pd
 import numpy as np
 
-from geodataframe_operations import gdf_from_df
+from geodataframe_operations import df_to_geo
 geopandas.options.io_engine = "pyogrio"
 
-
-import os
 from track import TrackSession
 
 PATH_RESULTS_   = './simulated/'
@@ -35,7 +34,7 @@ def get_best_known_raceline(df) -> np.ndarray:
 def track_from_csv(filename: str) -> TrackSession:
     df = pd.read_csv(filename)
     return TrackSession(
-        track_layout=gdf_from_df(df, crs=32631),
+        track_layout=df_to_geo(df, crs=32631),
         best_line=get_best_known_raceline(df),
         min_clearance=0.85)
 
@@ -67,7 +66,6 @@ def get_track_data(track_name, name_car) -> TrackSession:
 
     print('No track data found')
     
-
 
 def save_results(pd: pd.DataFrame, filename_results:str):
 

@@ -5,11 +5,11 @@ import file_operations
 from car import Car
 import race_lap
 
-
 NAME_CAR = 'Peugeot_205RFS'
 # NAME_TRACK = "2020_zandvoort"
 # NAME_TRACK = "20191030_Circuit_Zandvoort"
-NAME_TRACK = "202209022_Circuit_Meppen"
+# NAME_TRACK = "202209022_Circuit_Meppen"
+NAME_TRACK = "20191211_Bilsterberg"
 
 
 class Timer:
@@ -48,10 +48,15 @@ def main():
         for nr_iterations in itertools.count():
             new_line = race_lap.get_new_line(track=track)
             laptime = race_lap.race(track=track, car=race_car, raceline=new_line)
-            
-            if laptime < best_time:
+            improvement = (best_time - laptime)
+        
+            if improvement > 0:
+                track.update_best_line(new_line, improvement=improvement)
                 best_time = laptime
-                track.best_line = new_line
+            else:
+            #     track.improvement_avg = (track.improvement_avg + max(0, improvement)) / 1.001    # slowly to zero
+                track.heatmap = (track.heatmap + 0.01) / 1.01                           # slowly to one
+                
             
             if timer1.elapsed_time > 3:
                 print(f"Laptime = {laptime_str(best_time)}  (iteration:{nr_iterations})")
@@ -65,10 +70,10 @@ def main():
     except KeyboardInterrupt:
         print('Interrupted by CTRL+C, saving progress')
 
-    file_operations.save_results(race_lap.race(track=track, car=race_car, verbose=True), filename_results)
+        file_operations.save_results(race_lap.race(track=track, car=race_car, verbose=True), filename_results)
+        print(f'final results saved to {filename_results=}')
 
-    print(f'{race_car.name} - Simulated laptime = {laptime_str(best_time)}')
-
+        print(f'{race_car.name} - Simulated laptime = {laptime_str(best_time)}')
 
 if __name__ == '__main__':
     main()

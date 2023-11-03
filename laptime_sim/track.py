@@ -1,24 +1,25 @@
 from dataclasses import dataclass
 import functools
 import numpy as np
-from geopandas import GeoDataFrame
+from geopandas import GeoSeries
+from shapely import LineString
 
 @dataclass
 class TrackSession:
-    track_layout: GeoDataFrame
+    track_layout: GeoSeries
     best_line: np.ndarray = None
     heatmap: np.ndarray = None
-    min_clearance: float = 0
-
+    min_clearance: float = 0.0
+    
     def __post_init__(self):
         if self.best_line is None:
-            self.best_line = self.position_clearance
+            self.best_line = self._position_clearance
                     
         if self.heatmap is None:
-            self.heatmap = np.zeros(shape=np.shape(self.best_line))
+            self.heatmap = np.ones(shape=np.shape(self.best_line))
 
     @functools.cached_property    
-    def position_clearance(self):
+    def _position_clearance(self):
         return self.min_clearance / self.width
     @functools.cached_property
     def width(self):
@@ -34,19 +35,30 @@ class TrackSession:
         return self.track_layout.geometry.loc[['inner']].get_coordinates(include_z=True).to_numpy(na_value=0)
     @functools.cached_property
     def len(self):
-        return len(self.position_clearance)
+        return len(self._position_clearance)
+    @property
+    def line(self):
+        return self.track_layout.geometry.loc[['line']].get_coordinates(include_z=True).to_numpy(na_value=0)
 
-    def get_line_coordinates(self, position: np.ndarray = None) -> np.ndarray:
+    def line_coords(self, position: np.ndarray = None) -> np.ndarray:
         if position is None:
             position = self.best_line
-        return self.border_left + (self.border_right - self.border_left) * np.expand_dims(position, axis=1)
+        return get_line_coordinates( self.border_left, self.border_right, position)
+
+    def set_line(self, new_line):
+        line_coords = self.line_coords(new_line)
+        self.track_layout.geometry['line'] = LineString(line_coords.tolist())
+        # return self.line
 
     def clip_raceline(self, raceline:np.ndarray) -> np.ndarray:
-        return np.clip(raceline,  a_min=self.position_clearance, a_max=1 - self.position_clearance)
+        return np.clip(raceline,  a_min=self._position_clearance, a_max=1 - self._position_clearance)
 
-    def update_best_line(self, new_line) -> None:
-        
-        self.heatmap = (self.heatmap + 0.05) / (1.05)
-        self.heatmap += abs(self.best_line - new_line)
-        
+    def update_best_line(self, new_line, improvement) -> None:
+        deviation = np.abs(self.best_line - new_line)
+        self.heatmap += deviation / max(deviation) * improvement * 10
         self.best_line = new_line
+        line_coords = self.line_coords(new_line)
+        self.track_layout.geometry['line'] = LineString(line_coords.tolist())
+
+def get_line_coordinates(left_coords, right_coords, position: np.ndarray) -> np.ndarray:
+    return left_coords + (right_coords - left_coords) * np.expand_dims(position, axis=1)
