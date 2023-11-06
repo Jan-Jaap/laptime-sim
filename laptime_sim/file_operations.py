@@ -6,10 +6,9 @@ import numpy as np
 from geodataframe_operations import df_to_geo
 geopandas.options.io_engine = "pyogrio"
 
-from track import TrackSession
-
 PATH_RESULTS_   = './simulated/'
 PATH_TRACKS     = './tracks/'
+SUPPORTED_FILETYPES = ('.csv', '.geojson', '.parquet')
 
 if not os.path.exists(PATH_RESULTS_):
     os.makedirs(PATH_RESULTS_)
@@ -30,39 +29,38 @@ def get_best_known_raceline(df) -> np.ndarray:
         if col in df.columns:
             return df[col].values
     return None
+
+
+def load_trackdata_from_file(file_name: str) -> tuple[geopandas.GeoSeries, np.ndarray | None]:
     
-def track_from_csv(filename: str) -> TrackSession:
-    df = pd.read_csv(filename)
-    return TrackSession(
-        track_layout=df_to_geo(df, crs=32631),
-        best_line=get_best_known_raceline(df),
-        min_clearance=0.85)
+    match file_name:
+        case s if s.endswith('.csv'):
+            df = pd.read_csv(file_name)
+            return df_to_geo(df), get_best_known_raceline(df)
+        case s if s.endswith('.geojson'):
+            return geopandas.read_file(file_name).geometry, None
+        case s if  s.endswith('.parquet'):
+            return geopandas.read_parquet(file_name).geometry, None
+    return None
 
-def track_from_parquet(filename: str) -> TrackSession:
-    gdf = geopandas.read_parquet(filename)
-    return TrackSession(
-        track_layout=gdf,
-        best_line=None,
-        min_clearance=0.85
-        )
-
-
-def get_track_data(track_name, name_car) -> TrackSession:
-
-    filename = f'{PATH_RESULTS_}{name_car}_{track_name}_simulated.csv'
-    if os.path.isfile(filename):
-        print(f'Loading track data from {filename}')
-        return track_from_csv(filename)
+def filename_iterator(path=PATH_TRACKS) -> str:
+    tracks_in_dir = [ os.path.join(path, s) for s in os.listdir(path) if s.endswith(SUPPORTED_FILETYPES)]
+    for track_name in tracks_in_dir:
+        yield track_name
+        
+def find_filename(track_name, name_car) -> str:
     
-    filename = f"{PATH_TRACKS}{track_name}.parquet"
-    if os.path.isfile(filename):
-        print(f'Loading track from {filename}')
-        return track_from_parquet(filename)
-    
-    filename = f"{PATH_TRACKS}{track_name}.csv"
-    if os.path.isfile(filename):
-        print(f'Loading track data from {filename}')
-        return track_from_csv(filename)
+    #first try to restart an existing simulation
+    for filename in filename_iterator(PATH_RESULTS_):
+        match filename:
+            case s if track_name in s and name_car in s and '.csv' in s:
+                return s
+
+    #find track data from different file sources.
+    for filename in filename_iterator():
+        match filename:
+            case s if track_name in s:
+                return s
 
     print('No track data found')
     

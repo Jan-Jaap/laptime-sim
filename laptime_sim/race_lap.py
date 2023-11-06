@@ -13,23 +13,27 @@ def dot(u, v):
     return np.einsum('ij,ij->i',u,v)
 
 
-def get_new_line(track: TrackSession):
-    # location = np.random.randint(0, track.len)
-    location = np.random.choice(track.len, p=track.heatmap / sum(track.heatmap))
-    length = np.random.randint(1, 200)
+def get_new_line_parameters(session) -> tuple[int, int, float]:
+    location = np.random.choice(session.len, p=session.heatmap / sum(session.heatmap))
+    length = np.random.randint(1, 60)
     deviation = np.random.randn() / 10
+    return location, length, deviation
+
+def get_new_line(track_session: TrackSession, parameters):
     
+    location, length, deviation = parameters
+
     line_adjust = 1 - np.cos(np.linspace(0, 2*np.pi, length))
-    new_line = track.best_line * 0
+    new_line = track_session.best_line * 0
     new_line[:length] = line_adjust * deviation
     new_line = np.roll(new_line, location - length//2)
-    test_line = track.best_line + new_line / track.width
-    return track.clip_raceline(test_line)
+    test_line = track_session.best_line + new_line / track_session.width
+    return track_session.clip_raceline(test_line)
     
     
-def race(track: TrackSession, car: Car, raceline=None, verbose=False):
+def sim(track_session: TrackSession, car: Car, raceline=None, verbose=False):
     
-    line_coordinates = track.line_coords(raceline)
+    line_coordinates = track_session.line_coords(raceline)
     ds = mag(np.diff(line_coordinates.T,1 ,prepend=np.c_[line_coordinates[-1]]).T)     #distance from previous
 
     # Calculate the first and second derivative of the points
@@ -48,7 +52,7 @@ def race(track: TrackSession, car: Car, raceline=None, verbose=False):
     #Rotate Tt 90deg CW in xy-plane
     Bt = Tt[:,[1, 0, 2]]
     Bt[:,1] *= -1
-    Bt[:,2] = track.slope         #align Bt with the track and normalize
+    Bt[:,2] = track_session.slope         #align Bt with the track and normalize
     Bt = Bt / mag(Bt)[:,None]
     Nt = np.cross(Bt, Tt)
 
@@ -103,12 +107,12 @@ def race(track: TrackSession, car: Car, raceline=None, verbose=False):
         
         df = pd.DataFrame()
         df['time'] = time
-        df1 = pd.DataFrame(data=track.border_right, columns=['x','y','z']).add_prefix('inner_')
-        df2 = pd.DataFrame(data=track.border_left, columns=['x','y','z']).add_prefix('outer_')
-        df3 = pd.DataFrame(data=track.line_coords(raceline), columns=['x','y','z']).add_prefix('line_')
+        df1 = pd.DataFrame(data=track_session.border_right, columns=['x','y','z']).add_prefix('inner_')
+        df2 = pd.DataFrame(data=track_session.border_left, columns=['x','y','z']).add_prefix('outer_')
+        df3 = pd.DataFrame(data=track_session.line_coords(raceline), columns=['x','y','z']).add_prefix('line_')
         # df3 = pd.DataFrame(data=track.line, columns=['x','y','z']).add_prefix('line_')
         df = pd.concat([df, df1, df2, df3], axis=1)
-        df['race_line_position'] = track.best_line
+        df['race_line_position'] = track_session.best_line
         df['distance'] =  ds.cumsum() - ds[0]
         df['a_lat'] = -(speed**2) * Nk[:, 0]
         df['a_lon'] = np.gradient(speed, df.distance) * speed

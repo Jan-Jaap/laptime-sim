@@ -8,7 +8,7 @@ packages = [{include = "laptime_sim"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-streamlit = "^1.28.0"
+streamlit = "^1.28.1"
 geopandas = "^0.14.0"
 streamlit-folium = "^0.15.0"
 plotly = "^5.17.0"

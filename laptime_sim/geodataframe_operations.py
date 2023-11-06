@@ -11,7 +11,7 @@ from geopandas import GeoSeries
 # from shapelysmooth import chaikin_smooth
 # smoothed_geometry = chaikin_smooth(geometry, iters, keep_ends)
 
-def df_to_geo(df, crs=None):
+def df_to_geo(df, crs=None) -> geopandas.GeoSeries:
 
     border_right = df.filter(regex="inner_").values
     border_left = df.filter(regex="outer_").values
@@ -27,7 +27,7 @@ def df_to_geo(df, crs=None):
                          GeoSeries([LineString(race_line.tolist())],['line'], crs=crs)
                          ])
 
-    return geo.to_crs(geo.estimate_utm_crs())
+    return geo#.to_crs(geo.estimate_utm_crs())
 
 
 def drop_z(geo: GeoSeries) -> GeoSeries:

@@ -9,7 +9,7 @@ class TrackSession:
     track_layout: GeoSeries
     best_line: np.ndarray = None
     heatmap: np.ndarray = None
-    min_clearance: float = 0.0
+    min_clearance: float = 1.0
     
     def __post_init__(self):
         if self.best_line is None:

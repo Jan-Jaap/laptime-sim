@@ -1,5 +1,4 @@
 import os
-import pandas as pd
 import streamlit as st
 import geopandas
 geopandas.options.io_engine = "pyogrio"
@@ -13,30 +12,15 @@ PATH_TRACK_FILES = './tracks/'
 PATH_RESULTS_FILES = './simulated/'
 PATH_CAR_FILES = './cars/'
 
-def st_select_track(path):
+def st_select_track(path=PATH_TRACK_FILES):
     
     tracks_in_dir = [s for s in sorted(os.listdir(path)) if s.endswith(SUPPORTED_FILETYPES)]
         
     if track_name := st.radio(label='select track', options=tracks_in_dir):
-        return path + track_name
+        return  os.path.join(path, track_name)
     return None
 
 
-def load_track(file_path) -> geopandas.GeoDataFrame:
-    
-    match file_path:
-        case None:
-            st.stop()
-        case s if s.endswith('.csv'):
-            crs = st.number_input('EPSG', value=32631, label_visibility='collapsed')
-            return file_operations.df_to_geo(pd.read_csv(s), crs)
-        case s if s.endswith('.geojson'):
-            return geopandas.read_file(file_path)
-        case s if  s.endswith('.parquet'):
-            return geopandas.read_parquet(file_path)
-    return None
-
- 
 if __name__ == '__main__':
     st.set_page_config(
     page_title='HSR Webracing',
@@ -49,7 +33,10 @@ if __name__ == '__main__':
         
         path = st.radio('select directory', [PATH_TRACK_FILES, PATH_RESULTS_FILES])
         file_name = st_select_track(path)
-        track = load_track(file_name)
+        track_layout, best_line = file_operations.load_trackdata_from_file(file_name)
+        
+        if track_layout.crs is None:
+            track_layout = track_layout.set_crs(st.number_input('set crs to', value=32631))
         
         cols = st.columns(3, gap='small')
         file_name = os.path.splitext(file_name)[0]
@@ -57,21 +44,24 @@ if __name__ == '__main__':
         with cols[0]:
                 
             if st.button('save parquet', use_container_width=True):
-                geopandas.GeoDataFrame(geometry=track.geometry, crs=track.crs).to_parquet(file_name +'.parquet')
+                geopandas.GeoDataFrame(geometry=track_layout.geometry, crs=track_layout.crs).to_parquet(file_name +'.parquet')
     
         with cols[1]:
             if st.button('save shape file', use_container_width=True):
-                track.to_file(f'{file_name}.shp')
+                track_layout.to_file(f'{file_name}.shp')
     
         if st.toggle('Show divisions'):
-            track = geodataframe_operations.add_lines(track)
+            track_layout = geodataframe_operations.add_lines(track_layout)
         
-        map = track.explore(style_kwds=dict(color="black"))
+
+
+        map = track_layout.explore(style_kwds=dict(color="black"))
         
         st_folium(map, use_container_width=True)
 
         with st.expander('GeoDataFrame'):
-            st.write(track)
+            st.write(f'{track_layout.crs=}')
+            st.json(track_layout.geometry.to_json())
     with tab2:
         st.header('test')
         
