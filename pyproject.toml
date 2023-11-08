@@ -1,30 +1,33 @@
 [tool.poetry]
-name = "laptime-sim"
+name = "laptime_sim"
 version = "0.1.0"
 description = ""
 authors = ["JanJaapvandeVelde <janjaap.vandevelde@gmail.com>"]
 readme = "README.md"
-packages = [{include = "laptime_sim"}]
+packages = [{include = "laptime_sim", from = "src"}]
+# packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
 streamlit = "^1.28.1"
 geopandas = "^0.14.0"
-streamlit-folium = "^0.15.0"
+streamlit-folium = "^0.15.1"
 plotly = "^5.17.0"
 folium = "^0.14.0"
-matplotlib = "^3.8.0"
+matplotlib = "^3.8.1"
 mapclassify = "^2.6.1"
-pyogrio = "^0.7.1"
+pyogrio = "^0.7.2"
 shapelysmooth = "^0.1.1"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.3"
 icecream = "^2.1.3"
+flake8 = "^6.1.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib",]
-pythonpath = [".", "tests", "laptime_sim"]
+pythonpath = [".", "tests", "src/laptime_sim"]
