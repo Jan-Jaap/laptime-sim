@@ -1,5 +1,6 @@
 import file_operations
 from car import Car
+import geodataframe_operations
 from tracksession import TrackSession
 import race_lap
 
@@ -7,8 +8,8 @@ NAME_CAR = 'Peugeot_205RFS'
 # NAME_TRACK = "2020_zandvoort"
 # NAME_TRACK = "20191030_Circuit_Zandvoort"
 # NAME_TRACK = "202209022_Circuit_Meppen"
-# NAME_TRACK = "20191211_Bilsterberg"
-NAME_TRACK = "20191128_Circuit_Assen"
+NAME_TRACK = "20191211_Bilsterberg"
+# NAME_TRACK = "20191128_Circuit_Assen"
 # NAME_TRACK = "20191220_Spa_Francorchamp"
 
 
@@ -28,11 +29,13 @@ def save_results(track_session, filename_results) -> None:
 
 def main():
 
-    filename_track = file_operations.find_filename(NAME_TRACK, NAME_CAR)
+    # filename_track = file_operations.find_filename(NAME_TRACK, NAME_CAR)
+    filename_track = './simulated/20191211_Bilsterberg.parquet'
     race_car = Car.from_toml(f"./cars/{NAME_CAR}.toml")
     filename_results = f"{NAME_CAR}_{NAME_TRACK}_simulated.csv"
 
     track_layout, best_line = file_operations.load_trackdata_from_file(filename_track)
+    best_line = geodataframe_operations.parametrize_race_line(track_layout)
     track_session = TrackSession(track_layout=track_layout, car=race_car, line_pos=best_line)
 
     if track_session is None:

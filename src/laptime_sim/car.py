@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from functools import cached_property
+import functools
 import numpy as np
 import json
 
@@ -41,6 +41,10 @@ class Car:
         '''load car parameters from TOML file'''
         return cls(**toml.load(filename))
 
+    @functools.cached_property
+    def P_engine_in_watt(self):
+        return self.P_engine / 1.3410 * 1000  # from hp to Watt
+
     def get_max_acc(self, v, acc_lat):
         '''maximum possible acceleration (flooring it)
         args:
@@ -61,10 +65,6 @@ class Car:
         acc_lon += v**2 * self.c_drag / self.mass
         acc_lon += self.c_roll * 9.81      # rolling resistance
         return acc_lon
-
-    @cached_property
-    def P_engine_in_watt(self):
-        return self.P_engine / 1.3410 * 1000  # from hp to Watt
 
     def force_engine(self, v):
         '''return available engine force at given velocity'''

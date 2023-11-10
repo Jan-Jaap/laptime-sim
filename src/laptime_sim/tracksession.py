@@ -3,7 +3,6 @@ import functools
 import numpy as np
 from shapely import LineString
 
-
 from geodataframe_operations import GeoSeries
 from car import Car
 

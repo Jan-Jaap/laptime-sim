@@ -1,4 +1,4 @@
-from shapely import MultiLineString, LineString
+from shapely import MultiLineString, LineString, LinearRing, Point
 from geopandas import GeoSeries
 
 import shapely
@@ -18,14 +18,14 @@ def df_to_geo(df, crs=None) -> geopandas.GeoSeries:
     race_line = df.filter(regex="line_").values
 
     geo = GeoSeries({
-            'outer': LineString(border_left.tolist()),
-            'inner': LineString(border_right.tolist())
+            'outer': LinearRing(border_left.tolist()),
+            'inner': LinearRing(border_right.tolist())
             }, crs=crs)
 
     if race_line.size == 0:
         return geo
 
-    return pd.concat([geo, GeoSeries([LineString(race_line.tolist())], ['line'], crs=crs)])
+    return pd.concat([geo, GeoSeries([LinearRing(race_line.tolist())], ['line'], crs=crs)])
 
 
 def drop_z(geom: GeoSeries) -> GeoSeries:
@@ -40,6 +40,9 @@ def get_divisions(geo: GeoSeries) -> shapely.MultiLineString:
     lines = []
     for point_left, point_right in zip(border_left, border_right):
         lines.append(([(point_left), (point_right)]))
+    # if geo['outer'].is_ring:
+    #     lines = lines[1:]  # first entry is double for rings.
+
     return MultiLineString(lines=lines)
 
 
@@ -55,3 +58,17 @@ def get_intersections(geo: GeoSeries) -> shapely.MultiPoint:
 def add_intersections(geo: GeoSeries) -> GeoSeries:
     intersection = get_intersections(geo)
     return pd.concat([geo, GeoSeries(intersection, index=['intersections'], crs=geo.crs)])
+
+
+def parametrize_race_line(geo):
+
+    def loc_line(point_left, point_right, point_line):
+        division = LineString([(point_left), (point_right)])
+        intersect = Point(point_line)
+        return division.project(intersect, normalized=True)
+
+    border_left = geo[['outer']].get_coordinates(include_z=False).to_numpy(na_value=0)
+    border_right = geo[['inner']].get_coordinates(include_z=False).to_numpy(na_value=0)
+    line = geo[['line']].get_coordinates(include_z=False).to_numpy(na_value=0)
+    # ic(list(zip(border_left, border_right, line)))
+    return [loc_line(pl, pr, loc) for pl, pr, loc in zip(border_left, border_right, line)]

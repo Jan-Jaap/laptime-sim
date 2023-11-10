@@ -56,15 +56,13 @@ def app():
 
         if track_layout.crs is None:
             track_layout = track_layout.set_crs(
-                st.number_input("set crs to", value=32631)
+                st.number_input("CRS not in file. Set track crs to", value=32631)
             )
 
-        save_parquet_button, *_ = st.columns(3, gap="small")
         file_name = os.path.splitext(file_name)[0]
 
-        with save_parquet_button:
-            if st.button("save parquet", use_container_width=True):
-                geopandas.GeoDataFrame(geometry=track_layout).to_parquet(file_name + ".parquet")
+        if st.button("save parquet"):
+            geopandas.GeoDataFrame(geometry=track_layout).to_parquet(file_name + ".parquet")
 
         track_display = track_layout
 
@@ -76,6 +74,10 @@ def app():
                 st.error('Line not found in track')
             else:
                 track_display = geodataframe_operations.add_intersections(track_display)
+
+        if st.toggle('test'):
+            good_line = geodataframe_operations.parametrize_race_line(track_display)
+            st.write(good_line)
 
         with st.expander("GeoDataFrame"):
             st.write(track_display.to_dict())
