@@ -2,7 +2,10 @@
 Laptime sim
 
 use poetry to install to venv:
-poetry install
-
-use streamlit to view tracks and control optimizations
-streamlit run st_track_layout.py
+'''console
+user:~$ poetry install
+'''
+use streamlit to view tracks and control optimizations:
+'''console
+user:~$ streamlit run streamlit_laptime_sim.py
+'''
