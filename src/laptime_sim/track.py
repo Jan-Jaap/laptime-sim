@@ -14,11 +14,13 @@ class TrackSession:
     car: Car
     line_pos: np.ndarray = None
     heatmap: np.ndarray = None
-    min_clearance: float = 1.0
+    min_clearance: float = 0.85
 
     def __post_init__(self):
         if self.line_pos is None:
-            self.line_pos = self._position_clearance
+            self.line_pos = np.zeros_like(self.width) + 0.5
+
+        self.line_pos = self.clip_raceline(self.line_pos)
 
         if self.heatmap is None:
             self.heatmap = np.ones_like(self.line_pos)
