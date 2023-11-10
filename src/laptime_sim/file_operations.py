@@ -45,8 +45,8 @@ def load_trackdata_from_file(file_name: str) -> tuple[geopandas.GeoSeries, np.nd
     return None
 
 
-def filename_iterator(path=PATH_TRACKS) -> str:
-    tracks_in_dir = [os.path.join(path, s) for s in os.listdir(path) if s.endswith(SUPPORTED_FILETYPES)]
+def filename_iterator(path, extensions=SUPPORTED_FILETYPES):
+    tracks_in_dir = [os.path.join(path, s) for s in os.listdir(path) if s.endswith(extensions)]
     for track_name in tracks_in_dir:
         yield track_name
 
@@ -56,18 +56,23 @@ def find_filename(track_name, name_car) -> str:
     # first try to restart an existing simulation
     for filename in filename_iterator(PATH_RESULTS_):
         match filename:
-            case s if track_name in s and name_car in s and '.csv' in s:
-                return s
+            case f if track_name in f and name_car in f and '.csv' in f:
+                return f
+
+    for filename in filename_iterator(PATH_RESULTS_):
+        match filename:
+            case f if track_name in f and '.csv' in f:
+                return f
 
     # find track data from different file sources.
-    for filename in filename_iterator():
+    for filename in filename_iterator(PATH_TRACKS):
         match filename:
-            case s if track_name in s:
-                return s
+            case f if track_name in f:
+                return f
 
     print('No track data found')
 
 
 def save_results(df: pd.DataFrame, filename_results: str):
-    results = df.rename(columns=OUTPUT_COLUMNS_NAMES)
-    results.to_csv(PATH_RESULTS_+filename_results, index=None, header=True)
+    f = os.path.join(PATH_RESULTS_, os.path.basename(filename_results))
+    df.rename(columns=OUTPUT_COLUMNS_NAMES).to_csv(f, index=None, header=True)

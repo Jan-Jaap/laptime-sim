@@ -152,6 +152,7 @@ def optimize_laptime(
     timer2 = Timer()
 
     best_time = sim(track_session=track_session)
+    save_intermediate_results(track_session)
 
     for nr_iterations in itertools.count():
         new_line_parameters = get_new_line_parameters(session=track_session)
@@ -162,20 +163,18 @@ def optimize_laptime(
 
         if laptime < best_time:
             track_session.update_best_line(new_line, improvement=dt)
-            # heatmap.append([*new_line_parameters, dt])
             best_time = laptime
-        else:
-            track_session.heatmap = (
-                track_session.heatmap + 0.0015
-            ) / 1.0015  # slowly to one
+
+        track_session.heatmap = (track_session.heatmap + 0.0015) / 1.0015  # slowly to one
 
         if timer1.elapsed_time > 3:
             # pd.DataFrame(data=heatmap).to_csv('./simulated/optimized_results.csv', index=False)
-            display_intermediate_results(best_time, nr_iterations)
+            display_intermediate_results(best_time, nr_iterations, track_session)
             timer1.reset()
 
         if timer2.elapsed_time > 30:
-            save_intermediate_results(sim(track_session=track_session, verbose=True))
+            # save_intermediate_results(sim(track_session=track_session, verbose=True))
+            save_intermediate_results(track_session)
             timer2.reset()
 
     return track_session

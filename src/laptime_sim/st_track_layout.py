@@ -37,90 +37,94 @@ def time_to_str(seconds: float) -> str:
 if __name__ == "__main__":
     st.set_page_config(page_title="HSR Webracing", layout="wide")
 
-    tab1, tab2 = st.tabs(["Select track", "Display results"])
+    if 'optimization_running' not in st.session_state:
+        st.session_state['optimization_running'] = False
+
+    tab1, tab2, tab3 = st.tabs(["Select Track", "Select Car", "Simulate and optimize"])
     with tab1:
         st.header("Race track display")
 
         path = st.radio("select directory", [PATH_TRACK_FILES, PATH_RESULTS_FILES])
-        file_name = st_select_track(path)
+
+        tracks_in_dir = [f for f in sorted(os.listdir(path)) if f.endswith(SUPPORTED_FILETYPES)]
+        file_name = os.path.join(path, st.radio(label="select track", options=tracks_in_dir))
+
         track_layout, best_line = file_operations.load_trackdata_from_file(file_name)
+
+        if track_layout is None:
+            st.error("No track selected for optimization")
 
         if track_layout.crs is None:
             track_layout = track_layout.set_crs(
                 st.number_input("set crs to", value=32631)
             )
 
-        save_parquet_button, save_shp_button, *_ = st.columns(3, gap="small")
+        save_parquet_button, *_ = st.columns(3, gap="small")
         file_name = os.path.splitext(file_name)[0]
 
         with save_parquet_button:
             if st.button("save parquet", use_container_width=True):
-                geopandas.GeoDataFrame(geometry=track_layout).to_parquet(
-                    file_name + ".parquet"
-                )
+                geopandas.GeoDataFrame(geometry=track_layout).to_parquet(file_name + ".parquet")
 
-        with save_shp_button:
-            if st.button("save shape file", use_container_width=True):
-                track_layout.to_file(f"{file_name}.shp")
+        track_display = track_layout
 
         if st.toggle("Show divisions"):
-            track_divisions = geodataframe_operations.get_divisions(track_layout)
-            track_display = geodataframe_operations.merge_geometry(
-                [track_layout, track_divisions]
-            )
-        else:
-            track_display = track_layout
+            track_display = geodataframe_operations.add_divisions(track_display)
+
+        if st.toggle("Show intersections"):
+            if 'line' not in track_display.index:
+                st.error('Line not found in track')
+            else:
+                track_display = geodataframe_operations.add_intersections(track_display)
+
+        with st.expander("GeoDataFrame"):
+            st.write(track_display.to_dict())
+            st.write(track_display.is_ring.rename('is_ring'))
+            st.write(f"{track_layout.crs=}")
 
         map = track_display.explore(style_kwds=dict(color="black"))
         st_folium(map, use_container_width=True)
 
-        with st.expander("GeoDataFrame"):
-            st.write(f"{track_layout.crs=}")
-            st.json(track_layout.geometry.to_json())
     with tab2:
-        race_car = Car.from_file("./cars/Peugeot_205RFS.json")
-        filename_results = "output_simulated.csv"
+        race_car = Car.from_toml("./cars/Peugeot_205RFS.toml")
+        st.write(race_car)
+
+    with tab3:
+
+        dir_name = os.path.dirname(file_name)
+        file_name = os.path.join(PATH_RESULTS_FILES, os.path.basename(file_name)+'.csv')
 
         track_session = TrackSession(
             track_layout=track_layout, car=race_car, line_pos=best_line
         )
-        if track_session is None:
-            st.error("No track selected for optimization")
 
-        best_time = race_lap.sim(track_session=track_session)
+        def intermediate_results(time, itereration, track_session):
+            placeholder_laptime.write(f"Laptime = {time_to_str(time)}  (iteration:{itereration})")
+            st.session_state['track_session'] = track_session
 
-        st.write(f"Track has {track_session.len} datapoints")
-        st.write(f"{race_car.name} - Simulated laptime = {time_to_str(best_time)}")
-
-        # def print_results(time, iter) -> None:
-        #     st.write(f"Laptime = {time_to_str(time)}  (iteration:{iter})")
-
-        def print_results(time, iter):
-            placeholder_laptime.write(f"Laptime = {time_to_str(time)}  (iteration:{iter})")
-
-        def save_results(df) -> None:
-            geopandas.GeoDataFrame(geometry=track_session.track_layout).to_parquet(
-                file_name + ".parquet"
-            )
+        def save_results(track_session) -> None:
+            results = race_lap.sim(track_session, verbose=True)
+            file_operations.save_results(results, file_name)
             st.write(
-                f"{datetime.now().strftime('%H:%M:%S')}: results saved to {filename_results=}"
+                f"{datetime.now().strftime('%H:%M:%S')}: results saved to {file_name=}"
             )
+        if st.button('save track to results'):
+            # results = race_lap.sim(track_session, verbose=True)
+            save_results(track_session)
 
-        with st.expander("Raceline optimization", expanded=True):
+        with st.status("Raceline optimization", state='error', expanded=True) as status:
             placeholder_laptime = st.empty()
-            if st.toggle("Optimize raceline"):
-                track_session = race_lap.optimize_laptime(
-                    track_session, print_results, save_results
-                )
+            if st.button("Start/Stop - Optimize raceline"):
+                if not st.session_state.optimization_running:  # if not running start te optimization
+                    st.session_state.optimization_running = True
+                    status.update(state='running')
+                    placeholder_laptime.write('optimization is started')
 
-        # except KeyboardInterrupt:
-        #     print('Interrupted by CTRL+C, saving progress')
-        file_operations.save_results(
-            race_lap.sim(track_session=track_session, verbose=True), filename_results
-        )
-        # geopandas.GeoDataFrame(geometry=track_session.track_layout).to_parquet(file_name +'.parquet')
+                    # this is a blocking function... no execution after this line, when optimizing...
+                    st.session_state['track_session'] = race_lap.optimize_laptime(
+                        track_session, intermediate_results, save_results)
 
-        st.write(f"final results saved to {filename_results=}")
-        #     best_time = race_lap.sim(track_session=track_session)
-
-        #     print(f'{race_car.name} - Simulated laptime = {time_to_str(best_time)}')
+                if st.session_state.optimization_running:  # if running stop te optimization
+                    st.session_state.optimization_running = False
+                    # status.update(state='running')
+                    placeholder_laptime.write('optimization is stopped')
