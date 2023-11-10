@@ -4,7 +4,7 @@ from typing import Callable
 import numpy as np
 import pandas as pd
 
-from track import TrackSession
+from tracksession import TrackSession
 
 
 def mag(vector):
@@ -23,11 +23,20 @@ def get_new_line_parameters(session: TrackSession) -> tuple[int, int, float]:
 
 
 def sim(track_session: TrackSession, raceline=None, verbose=False) -> float | np.ndarray:
-    car = track_session.car
-    line_coordinates = track_session.line_coords(raceline)
-    ds = mag(
-        np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T
-    )  # distance from previous
+    results = simulate(
+            car=track_session.car,
+            line_coordinates=track_session.line_coords(raceline),
+            slope=track_session.slope,
+            verbose=verbose)
+
+    if not verbose:
+        return results
+    return results_dataframe(track_session, *results)
+
+
+def simulate(car, line_coordinates, slope, verbose=False) -> float | np.ndarray:
+    # distance between nodes
+    ds = mag(np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T)
 
     # Calculate the first and second derivative of the points
     dX = np.gradient(line_coordinates, axis=0)
@@ -45,7 +54,7 @@ def sim(track_session: TrackSession, raceline=None, verbose=False) -> float | np
     # Rotate Tt 90deg CW in xy-plane
     Bt = Tt[:, [1, 0, 2]]
     Bt[:, 1] *= -1
-    Bt[:, 2] = track_session.slope  # align Bt with the track and normalize
+    Bt[:, 2] = slope  # align Bt with the track and normalize
     Bt = Bt / mag(Bt)[:, None]
     Nt = np.cross(Bt, Tt)
 
@@ -102,7 +111,7 @@ def sim(track_session: TrackSession, raceline=None, verbose=False) -> float | np
     if not verbose:
         return time[-1]
 
-    return results_dataframe(track_session, time, speed, Nk)
+    return time, speed, Nk
 
 
 def results_dataframe(track_session: TrackSession, time, speed, Nk) -> pd.DataFrame:

@@ -5,7 +5,7 @@ from laptime_sim import race_lap
 from laptime_sim import file_operations
 import pandas as pd
 
-from laptime_sim.track import TrackSession
+from tracksession import TrackSession
 
 PATH_TRACK = "./tracks/20191211_Bilsterberg.parquet"
 PATH_CAR = "./cars/Peugeot_205RFS.toml"

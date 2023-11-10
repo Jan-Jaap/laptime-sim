@@ -6,6 +6,6 @@ Use poetry to install to venv:
 poetry install
 ```
 Use streamlit to view tracks and control optimizations:
-```shellsession
+```console
 streamlit run streamlit_laptime_sim.py
 ```

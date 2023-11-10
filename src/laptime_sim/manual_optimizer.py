@@ -1,6 +1,6 @@
 import file_operations
 from car import Car
-from track import TrackSession
+from tracksession import TrackSession
 import race_lap
 
 NAME_CAR = 'Peugeot_205RFS'
@@ -28,11 +28,10 @@ def save_results(track_session, filename_results) -> None:
 
 def main():
 
-    filename_results = f"{NAME_CAR}_{NAME_TRACK}_simulated.csv"
     filename_track = file_operations.find_filename(NAME_TRACK, NAME_CAR)
-
-    # race_car = Car.from_json(f"./cars/{NAME_CAR}.json")
     race_car = Car.from_toml(f"./cars/{NAME_CAR}.toml")
+    filename_results = f"{NAME_CAR}_{NAME_TRACK}_simulated.csv"
+
     track_layout, best_line = file_operations.load_trackdata_from_file(filename_track)
     track_session = TrackSession(track_layout=track_layout, car=race_car, line_pos=best_line)
 
@@ -60,7 +59,8 @@ def main():
 
     except KeyboardInterrupt:
         print('Interrupted by CTRL+C, saving progress')
-        file_operations.save_results(race_lap.sim(track_session=track_session, verbose=True), filename_results)
+        results_dataframe = race_lap.sim(track_session=track_session, verbose=True)
+        file_operations.save_results(results_dataframe, filename_results)
 
         best_time = race_lap.sim(track_session=track_session)
 

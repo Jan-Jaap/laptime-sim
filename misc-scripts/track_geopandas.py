@@ -2,12 +2,13 @@
 import os
 from icecream import ic
 import pandas as pd
-from laptime_sim.track_data import gdf_from_df
+from laptime_sim.geodataframe_operations import df_to_geo
+
 from laptime_sim import get_best_known_raceline
 
-from track import Track
+from tracksession import Track
 
-PATH_TRACKS     = './tracks/'
+PATH_TRACKS = './tracks/'
 NAME_TRACK = '20191030_Circuit_Zandvoort'
 
 
@@ -17,7 +18,7 @@ if os.path.isfile(filename):
     df = pd.read_csv(filename)
     track = Track(
         name=NAME_TRACK,
-        geodataframe=gdf_from_df(df, crs=32631),
+        geodataframe=df_to_geo(df, crs=32631),
         best_line=get_best_known_raceline(df),
         min_clearance=0.85)
             

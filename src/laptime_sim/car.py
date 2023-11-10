@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import cached_property
 import numpy as np
 import json
 
@@ -9,14 +10,14 @@ import toml
 class Car:
     """
         Args:
-        mass:           Mass of car in kg
-        P_engine:       Engine power in HP
-        acc_limit:      grip limit in longitudinal direction under acceleration
-        dec_limit:      grip limit in longitudinal direction under braking
-        acc_grip_max:   float
-        c_drag:         float
-        c_roll:         float
-        name:           str = None
+        name:           Name of car
+        mass:           Mass of car [kg]
+        P_engine:       Engine power [HP]
+        acc_limit:      maximal longitudinal acceleration limited by tire grip  [m/s²]
+        dec_limit:      maximal longitudinal deceleration limited by tire grip = limit braking
+        acc_grip_max:   maximal lateral accelaration (lateral g-force)
+        c_drag:         aerodynamic drag
+        c_roll:         rolling resistance
         trail_braking:  float = 70
     """
     mass:           float
@@ -61,10 +62,13 @@ class Car:
         acc_lon += self.c_roll * 9.81      # rolling resistance
         return acc_lon
 
+    @cached_property
+    def P_engine_in_watt(self):
+        return self.P_engine / 1.3410 * 1000  # from hp to Watt
+
     def force_engine(self, v):
         '''return available engine force at given velocity'''
-        P_engine = self.P_engine / 1.3410 * 1000  # from hp to Watt
-        return P_engine / v   # tractive force (limited by engine power)
+        return self.P_engine_in_watt / v   # tractive force (limited by engine power)
 
     def get_gear(self, v):
         '''not implemented'''

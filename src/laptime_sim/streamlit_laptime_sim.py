@@ -11,7 +11,7 @@ import file_operations
 import geodataframe_operations
 from car import Car
 import race_lap
-from track import TrackSession
+from tracksession import TrackSession
 
 geopandas.options.io_engine = "pyogrio"
 
@@ -34,7 +34,7 @@ def time_to_str(seconds: float) -> str:
     return "{:02.0f}:{:06.03f}".format(seconds % 3600 // 60, seconds % 60)
 
 
-if __name__ == "__main__":
+def app():
     st.set_page_config(page_title="HSR Webracing", layout="wide")
 
     if 'optimization_running' not in st.session_state:
@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
     with tab3:
 
-        dir_name = os.path.dirname(file_name)
+        # dir_name = os.path.dirname(file_name)
         file_name = os.path.join(PATH_RESULTS_FILES, os.path.basename(file_name)+'.csv')
 
         track_session = TrackSession(
@@ -128,3 +128,7 @@ if __name__ == "__main__":
                     st.session_state.optimization_running = False
                     # status.update(state='running')
                     placeholder_laptime.write('optimization is stopped')
+
+
+if __name__ == "__main__":
+    app()
