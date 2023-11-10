@@ -1,0 +1,9 @@
+name = "BMW Z3M Viperwizard"
+P_engine = 208
+acc_grip_max = 13.243500000000001
+acc_limit = 4.370355000000001
+c_drag = 0.413031
+c_roll = 0.015
+dec_limit = 11.256975
+mass = 1_450
+trail_braking = 40
