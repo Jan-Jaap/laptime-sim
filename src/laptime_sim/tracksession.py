@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import functools
 import numpy as np
-from shapely import LineString
+from shapely import LineString, Point
 
 from geodataframe_operations import GeoSeries
 from car import Car
@@ -17,9 +17,12 @@ class TrackSession:
 
     def __post_init__(self):
         if self.line_pos is None:
-            self.line_pos = np.zeros_like(self.width) + 0.5
-
-        self.line_pos = self.clip_raceline(self.line_pos)
+            try:
+                self.line_pos = parametrize_raceline(self.track_layout)
+            except KeyError:
+                self.line_pos = np.zeros_like(self.width) + 0.5
+            finally:
+                self.line_pos = self.clip_raceline(self.line_pos)
 
         if self.heatmap is None:
             self.heatmap = np.ones_like(self.line_pos)
@@ -65,13 +68,17 @@ class TrackSession:
     def clip_raceline(self, raceline: np.ndarray) -> np.ndarray:
         return np.clip(raceline,  a_min=self._position_clearance, a_max=1 - self._position_clearance)
 
-    def update_best_line(self, new_line, improvement) -> None:
-        deviation = np.abs(self.line_pos - new_line)
-        self.heatmap += deviation / max(deviation) * improvement * 1e3
+    def update_line(self, new_line):
         self.line_pos = new_line
         line_coords = self.line_coords(new_line)
         self.track_layout.geometry['line'] = LineString(line_coords.tolist())
-        return self
+        # return self
+
+    def update(self, new_line, improvement) -> None:
+        deviation = np.abs(self.line_pos - new_line)
+        self.heatmap += deviation / max(deviation) * improvement * 1e3
+        self.update_line(new_line)
+        # return self
 
     def get_new_line(self, parameters):
 
@@ -86,3 +93,16 @@ class TrackSession:
 
 def get_line_coordinates(left_coords, right_coords, position: np.ndarray) -> np.ndarray:
     return left_coords + (right_coords - left_coords) * np.expand_dims(position, axis=1)
+
+
+def parametrize_raceline(geo):
+
+    def loc_line(point_left, point_right, point_line):
+        division = LineString([(point_left), (point_right)])
+        intersect = Point(point_line)
+        return division.project(intersect, normalized=True)
+
+    border_left = geo[['outer']].get_coordinates(include_z=False).to_numpy(na_value=0)
+    border_right = geo[['inner']].get_coordinates(include_z=False).to_numpy(na_value=0)
+    line = geo[['line']].get_coordinates(include_z=False).to_numpy(na_value=0)
+    return [loc_line(pl, pr, loc) for pl, pr, loc in zip(border_left, border_right, line)]

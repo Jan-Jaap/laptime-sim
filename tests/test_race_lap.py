@@ -10,9 +10,9 @@ from tracksession import TrackSession
 PATH_TRACK = "./tracks/20191211_Bilsterberg.parquet"
 PATH_CAR = "./cars/Peugeot_205RFS.toml"
 
-track_layout, line_pos = file_operations.load_trackdata_from_file(PATH_TRACK)
+track_layout = file_operations.load_trackdata_from_file(PATH_TRACK)
 race_car = Car.from_toml(PATH_CAR)
-track_session = TrackSession(track_layout=track_layout, car=race_car, line_pos=line_pos)
+track_session = TrackSession(track_layout=track_layout, car=race_car)
 
 
 def test_mag():

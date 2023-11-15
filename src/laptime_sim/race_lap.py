@@ -7,6 +7,17 @@ import pandas as pd
 from tracksession import TrackSession
 
 
+OUTPUT_COLUMNS_NAMES = dict(
+    distance='Distance (m)',
+    speed='Speed (m/s)',
+    speed_kph='Speed (km/h)',
+    a_lon='Longitudinal acceleration (m/s2)',
+    a_lat='Lateral acceleration (m/s2)',
+    # race_line_position='Race line',
+    time='Timestamp',
+    )
+
+
 def mag(vector):
     return np.sum(vector**2, 1) ** 0.5
 
@@ -31,6 +42,7 @@ def sim(track_session: TrackSession, raceline=None, verbose=False) -> float | np
 
     if not verbose:
         return results
+
     return results_dataframe(track_session, *results)
 
 
@@ -133,12 +145,12 @@ def results_dataframe(track_session: TrackSession, time, speed, Nk) -> pd.DataFr
     ).add_prefix("line_")
     # df3 = pd.DataFrame(data=track.line, columns=['x','y','z']).add_prefix('line_')
     df = pd.concat([df, df1, df2, df3], axis=1)
-    df["race_line_position"] = track_session.line_pos
     df["distance"] = ds.cumsum() - ds[0]
     df["a_lat"] = -(speed**2) * Nk[:, 0]
     df["a_lon"] = np.gradient(speed, df.distance) * speed
     df["speed"] = speed
-    return df
+    df["speed_kph"] = speed * 3.6
+    return df.rename(columns=OUTPUT_COLUMNS_NAMES)
 
 
 def optimize_laptime(
@@ -171,7 +183,7 @@ def optimize_laptime(
         dt = best_time - laptime
 
         if laptime < best_time:
-            track_session.update_best_line(new_line, improvement=dt)
+            track_session.update(new_line, improvement=dt)
             best_time = laptime
 
         track_session.heatmap = (track_session.heatmap + 0.0015) / 1.0015  # slowly to one
@@ -187,3 +199,7 @@ def optimize_laptime(
             timer2.reset()
 
     return track_session
+
+
+def time_to_str(seconds: float) -> str:
+    return "{:02.0f}:{:06.03f}".format(seconds % 3600 // 60, seconds % 60)
