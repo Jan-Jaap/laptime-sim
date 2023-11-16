@@ -50,8 +50,6 @@ class Car:
         '''load car parameters from TOML file'''
         return cls(**toml.load(filename))
 
-    
-
     @functools.cached_property
     def P_engine_in_watt(self):
         return self.P_engine / 1.3410 * 1000  # from hp to Watt

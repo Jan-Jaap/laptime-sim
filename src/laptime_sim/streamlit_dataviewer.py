@@ -13,7 +13,6 @@ from car import Car, DriverExperience
 import race_lap
 from tracksession import TrackSession
 
-
 SUPPORTED_FILETYPES = (".csv", ".geojson", ".parquet")
 PATH_TRACKS = ["./tracks/", "./simulated/"]
 PATH_CARS = ["./cars/"]
@@ -62,27 +61,34 @@ def app():
                 mime='text/csv'
                 )
 
-        # track_display = track_layout
+        track_layout = track_session.track_layout.geometry
+
         track_map = None
         if st.toggle("Show divisions"):
-            divisions = geodataframe_operations.get_divisions(track_display)
+            divisions = geodataframe_operations.get_divisions(track_layout)
             track_map = divisions.explore(m=track_map, style_kwds=dict(color="grey"))
 
-        track_map = track_layout[['line']].explore(m=track_map, style_kwds=dict(color="blue"))
+        if 'line' in track_layout.index:
+            track_map = track_layout[['line']].explore(m=track_map, style_kwds=dict(color="blue"))
 
         if st.toggle("Show intersections"):
-            if 'line' not in track_display.index:
-                st.error('Line not found in track')
-            else:
-                intersections = geodataframe_operations.get_intersections(track_display)
+            try:
+                intersections = geodataframe_operations.get_intersections(track_layout)
                 track_map = intersections.explore(m=track_map, style_kwds=dict(color="red"))
+            except KeyError:
+                st.error('no line')
 
         with st.expander("GeoDataFrame"):
             st.write(track_display.to_dict())
             st.write(track_display.is_ring.rename('is_ring'))
             st.write(f"{track_layout.crs=}")
 
-        track_map = track_layout[['inner', 'outer']].explore(m=track_map, style_kwds=dict(color="black"))
+        track_map = (track_session
+                     .track_layout
+                     .geometry
+                     .loc[['inner', 'outer']]
+                     .explore(m=track_map, style_kwds=dict(color="black"))
+                     )
         st_folium(track_map, use_container_width=True)
 
     elif dir_selected in PATH_CARS:

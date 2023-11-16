@@ -52,3 +52,7 @@ def get_divisions(geo: GeoSeries) -> GeoSeries:
 def get_intersections(geo: GeoSeries) -> GeoSeries:
     intersection = shapely.intersection_all([divisions(geo),  drop_z(geo['line'])])
     return GeoSeries(intersection, index=['intersections'], crs=geo.crs)
+
+
+def append(geo_list):
+    return pd.concat(geo_list)

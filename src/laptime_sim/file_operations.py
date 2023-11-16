@@ -23,16 +23,16 @@ def get_trackname_from_filename(filename: str) -> str:
     return None
 
 
-def load_trackdata_from_file(file_name: str) -> geopandas.GeoSeries:
+def load_trackdata_from_file(filename: str) -> geopandas.GeoSeries:
 
-    match file_name:
+    match filename:
         case s if s.endswith('.csv'):
-            df = pd.read_csv(file_name)
+            df = pd.read_csv(filename)
             return df_to_geo(df)
         case s if s.endswith('.geojson'):
-            return geopandas.read_file(file_name).geometry
+            return geopandas.read_file(filename)
         case s if s.endswith('.parquet'):
-            return geopandas.read_parquet(file_name).geometry
+            return geopandas.read_parquet(filename)
     return None
 
 
@@ -76,3 +76,7 @@ def save_csv(df: pd.DataFrame, filename_results: str):
 def save_parquet(track_layout, filename_results):
     f = os.path.join(PATH_RESULTS_, os.path.basename(filename_results))
     geopandas.GeoDataFrame(geometry=track_layout).to_parquet(strip_extension(f)+'.parquet')
+
+
+def load_parquet(track_dir):
+    return geopandas.read_parquet(track_dir)
