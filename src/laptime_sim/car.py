@@ -36,8 +36,8 @@ class Car:
     acc_grip_max:   float
     c_drag:         float
     c_roll:         float
+    trail_braking:  DriverExperience
     name:           str = None
-    trail_braking:  DriverExperience = 70
 
     @classmethod
     def from_json(cls, filename):
@@ -49,6 +49,8 @@ class Car:
     def from_toml(cls, filename):
         '''load car parameters from TOML file'''
         return cls(**toml.load(filename))
+
+    
 
     @functools.cached_property
     def P_engine_in_watt(self):
