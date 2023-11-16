@@ -1,9 +1,18 @@
 from dataclasses import dataclass
+from enum import IntEnum
 import functools
 import numpy as np
 import json
 
 import toml
+
+
+class DriverExperience(IntEnum):
+    '''Enum with trailbraking parameter corresponding with driver experience'''
+    AMATEUR = 30
+    BEGINNER = 50
+    EXPERIENCED = 70
+    PROFESSIONAL = 100
 
 
 @dataclass
@@ -28,7 +37,7 @@ class Car:
     c_drag:         float
     c_roll:         float
     name:           str = None
-    trail_braking:  float = 70
+    trail_braking:  DriverExperience = 70
 
     @classmethod
     def from_json(cls, filename):
@@ -68,6 +77,8 @@ class Car:
 
     def force_engine(self, v):
         '''return available engine force at given velocity'''
+        if v == 0:
+            return self.P_engine_in_watt
         return self.P_engine_in_watt / v   # tractive force (limited by engine power)
 
     def get_gear(self, v):

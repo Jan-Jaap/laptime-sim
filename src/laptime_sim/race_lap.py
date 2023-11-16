@@ -1,11 +1,12 @@
 import itertools
 import time
-from typing import Callable
+from typing import Callable, NamedTuple
 import numpy as np
 import pandas as pd
+from car import Car
 
 from tracksession import TrackSession
-
+from geopandas import GeoDataFrame
 
 OUTPUT_COLUMNS_NAMES = dict(
     distance='Distance (m)',
@@ -13,27 +14,21 @@ OUTPUT_COLUMNS_NAMES = dict(
     speed_kph='Speed (km/h)',
     a_lon='Longitudinal acceleration (m/s2)',
     a_lat='Lateral acceleration (m/s2)',
-    # race_line_position='Race line',
     time='Timestamp',
     )
 
+sim_results_type = NamedTuple('SimResults', [('time', np.ndarray), ('speed', np.ndarray), ('Nk', np.ndarray)])
 
-def mag(vector):
+
+def mag(vector: np.ndarray) -> np.ndarray:
     return np.sum(vector**2, 1) ** 0.5
 
 
-def dot(u, v):
+def dot(u: np.ndarray, v: np.ndarray) -> np.ndarray:
     return np.einsum("ij,ij->i", u, v)
 
 
-def get_new_line_parameters(session: TrackSession) -> tuple[int, int, float]:
-    location = np.random.choice(session.len, p=session.heatmap / sum(session.heatmap))
-    length = np.random.randint(1, 60)
-    deviation = np.random.randn() / 10
-    return location, length, deviation
-
-
-def sim(track_session: TrackSession, raceline=None, verbose=False) -> float | np.ndarray:
+def sim(track_session: TrackSession, raceline=None, verbose=False) -> float | pd.DataFrame:
     results = simulate(
             car=track_session.car,
             line_coordinates=track_session.line_coords(raceline),
@@ -43,10 +38,10 @@ def sim(track_session: TrackSession, raceline=None, verbose=False) -> float | np
     if not verbose:
         return results
 
-    return results_dataframe(track_session, *results)
+    return results_dataframe(track_session, results)
 
 
-def simulate(car, line_coordinates, slope, verbose=False) -> float | np.ndarray:
+def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=False) -> float | sim_results_type:
     # distance between nodes
     ds = mag(np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T)
 
@@ -123,40 +118,33 @@ def simulate(car, line_coordinates, slope, verbose=False) -> float | np.ndarray:
     if not verbose:
         return time[-1]
 
-    return time, speed, Nk
+    return sim_results_type(time, speed, Nk)
 
 
-def results_dataframe(track_session: TrackSession, time, speed, Nk) -> pd.DataFrame:
+def results_dataframe(track_session: TrackSession, sim: sim_results_type) -> pd.DataFrame:
     line_coordinates = track_session.line_coords()
     ds = mag(
         np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T
     )  # distance from previous
 
     df = pd.DataFrame()
-    df["time"] = time
-    df1 = pd.DataFrame(
-        data=track_session.border_right, columns=["x", "y", "z"]
-    ).add_prefix("inner_")
-    df2 = pd.DataFrame(
-        data=track_session.border_left, columns=["x", "y", "z"]
-    ).add_prefix("outer_")
-    df3 = pd.DataFrame(
-        data=track_session.line_coords(), columns=["x", "y", "z"]
-    ).add_prefix("line_")
-    # df3 = pd.DataFrame(data=track.line, columns=['x','y','z']).add_prefix('line_')
+    df["time"] = sim.time
+    df1 = pd.DataFrame(data=track_session.border_right, columns=["x", "y", "z"]).add_prefix("inner_")
+    df2 = pd.DataFrame(data=track_session.border_left, columns=["x", "y", "z"]).add_prefix("outer_")
+    df3 = pd.DataFrame(data=line_coordinates, columns=["x", "y", "z"]).add_prefix("line_")
     df = pd.concat([df, df1, df2, df3], axis=1)
     df["distance"] = ds.cumsum() - ds[0]
-    df["a_lat"] = -(speed**2) * Nk[:, 0]
-    df["a_lon"] = np.gradient(speed, df.distance) * speed
-    df["speed"] = speed
-    df["speed_kph"] = speed * 3.6
-    return df.rename(columns=OUTPUT_COLUMNS_NAMES)
+    df["a_lat"] = -(sim.speed**2) * sim.Nk[:, 0]
+    df["a_lon"] = np.gradient(sim.speed, df.distance) * sim.speed
+    df["speed"] = sim.speed
+    df["speed_kph"] = sim.speed * 3.6
+    return df.set_index('time').rename(columns=OUTPUT_COLUMNS_NAMES)
 
 
 def optimize_laptime(
     track_session: TrackSession,
     display_intermediate_results: Callable[[float, int], None],
-    save_intermediate_results: Callable[[pd.DataFrame], None],
+    save_intermediate_results: Callable[[GeoDataFrame], None],
 ):
     class Timer:
         def __init__(self):
@@ -173,29 +161,32 @@ def optimize_laptime(
     timer2 = Timer()
 
     best_time = sim(track_session=track_session)
-    save_intermediate_results(track_session)
+    display_intermediate_results(best_time, 0)
+    save_intermediate_results(track_session.track_layout)
 
     for nr_iterations in itertools.count():
-        new_line_parameters = get_new_line_parameters(session=track_session)
-        new_line = track_session.get_new_line(parameters=new_line_parameters)
+
+        if track_session.progress < 0.01:
+            display_intermediate_results(best_time, nr_iterations)
+            save_intermediate_results(track_session.track_layout)
+            return track_session
+
+        new_line = track_session.get_new_line()
         laptime = sim(track_session=track_session, raceline=new_line)
+        improvement = best_time - laptime
 
-        dt = best_time - laptime
-
-        if laptime < best_time:
-            track_session.update(new_line, improvement=dt)
+        if improvement > 0:
             best_time = laptime
 
-        track_session.heatmap = (track_session.heatmap + 0.0015) / 1.0015  # slowly to one
+        track_session.update(new_line, improvement=improvement)
 
         if timer1.elapsed_time > 3:
-            # pd.DataFrame(data=heatmap).to_csv('./simulated/optimized_results.csv', index=False)
-            display_intermediate_results(best_time, nr_iterations, track_session)
+            display_intermediate_results(best_time, nr_iterations)
             timer1.reset()
 
         if timer2.elapsed_time > 30:
-            # save_intermediate_results(sim(track_session=track_session, verbose=True))
-            save_intermediate_results(track_session)
+            display_intermediate_results(best_time, nr_iterations)
+            save_intermediate_results(track_session.track_layout)
             timer2.reset()
 
     return track_session

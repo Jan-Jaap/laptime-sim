@@ -14,6 +14,15 @@ if not os.path.exists(PATH_RESULTS_):
     os.makedirs(PATH_RESULTS_)
 
 
+def get_trackname_from_filename(filename: str) -> str:
+    for n in filename_iterator(PATH_TRACKS):
+        name_track = strip_filename(n)
+        if name_track in filename:
+            # name_track = strip_filename(filename_track)
+            return name_track
+    return None
+
+
 def load_trackdata_from_file(file_name: str) -> geopandas.GeoSeries:
 
     match file_name:
@@ -33,6 +42,11 @@ def filename_iterator(path, extensions=SUPPORTED_FILETYPES):
         yield track_name
 
 
+def strip_filename(filename: str) -> str:
+    filename = os.path.basename(filename).replace('_simulated', '')
+    return strip_extension(filename)
+
+
 def strip_extension(path: str) -> str:
     return os.path.splitext(path)[0]
 
@@ -48,7 +62,7 @@ def find_filename(track_name, name_car) -> str:
     # find track data from different file sources.
     for filename in filename_iterator(PATH_TRACKS, ('parquet')):
         match filename:
-            case f if track_name in f:
+            case f if track_name in f and name_car is None:
                 return f
 
     print('No track data found')
