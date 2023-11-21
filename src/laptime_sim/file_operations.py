@@ -65,8 +65,6 @@ def find_filename(track_name, name_car) -> str:
             case f if track_name in f and name_car is None:
                 return f
 
-    print('No track data found')
-
 
 def save_csv(df: pd.DataFrame, filename_results: str):
     f = os.path.join(PATH_RESULTS_, os.path.basename(filename_results))
@@ -75,7 +73,7 @@ def save_csv(df: pd.DataFrame, filename_results: str):
 
 def save_parquet(track_layout, filename_results):
     f = os.path.join(PATH_RESULTS_, os.path.basename(filename_results))
-    geopandas.GeoDataFrame(geometry=track_layout).to_parquet(strip_extension(f)+'.parquet')
+    track_layout.to_parquet(strip_extension(f)+'.parquet')
 
 
 def load_parquet(track_dir):

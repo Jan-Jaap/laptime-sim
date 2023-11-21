@@ -41,11 +41,7 @@ def main():
 
     try:
 
-        track_session = race_lap.optimize_laptime(
-            track_session=track_session,
-            display_intermediate_results=print_results,
-            save_intermediate_results=save_results,
-            )
+        track_session = race_lap.optimize_laptime(track_session, print_results, save_results)
         print(f'optimization finished. {track_session.progress=}')
 
     except KeyboardInterrupt:
@@ -59,7 +55,7 @@ def main():
         file_operations.save_parquet(track_session.track_layout, filename)
         print(f'final results saved to {filename=}')
 
-        best_time = race_lap.sim(track_session=track_session)
+        best_time = race_lap.sim(track_session)
 
         print(f'{race_car.name} - Simulated laptime = {time_to_str(best_time)}')
 

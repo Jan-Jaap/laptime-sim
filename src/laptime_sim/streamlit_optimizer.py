@@ -8,6 +8,9 @@ from tracksession import TrackSession
 import race_lap
 from race_lap import time_to_str
 
+from icecream import install
+install()
+
 PATH_TRACK_FILES = "./tracks/"
 PATH_RESULTS_FILES = "./simulated/"
 PATH_CAR_FILES = "./cars/"
@@ -27,6 +30,7 @@ def main():
 
     filename_track = st_select_file('Select Track', dir_selected, "parquet")
     track_layout = io.load_trackdata_from_file(filename_track)
+
     name_track = io.get_trackname_from_filename(filename_track)
 
     filename_car = st_select_file('Select Car', PATH_CAR_FILES, "toml")

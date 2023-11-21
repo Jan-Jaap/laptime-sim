@@ -15,7 +15,7 @@ from tracksession import TrackSession
 
 SUPPORTED_FILETYPES = (".csv", ".geojson", ".parquet")
 PATH_TRACKS = ["./tracks/", "./simulated/"]
-PATH_CARS = ["./cars/"]
+PATH_CARS = "./cars/"
 
 
 def st_select_file(dir, extensions):
@@ -27,7 +27,7 @@ def app():
     st.set_page_config(page_title="HSR Webracing", layout="wide")
 
     with st.sidebar:
-        dir_selected = st.radio("select directory", PATH_TRACKS+PATH_CARS)
+        dir_selected = st.radio("select directory", PATH_TRACKS + [PATH_CARS])
 
     if dir_selected in PATH_TRACKS:
 
@@ -61,21 +61,20 @@ def app():
                 mime='text/csv'
                 )
 
-        track_layout = track_session.track_layout.geometry
-
         track_map = None
         if st.toggle("Show divisions"):
             divisions = geodataframe_operations.get_divisions(track_layout)
             track_map = divisions.explore(m=track_map, style_kwds=dict(color="grey"))
 
-        if 'line' in track_layout.index:
-            track_map = track_layout[['line']].explore(m=track_map, style_kwds=dict(color="blue"))
+        # if any(idx := track_session.track_layout['type'] == 'line'):
+        if track_session.has_line:
+            track_map = track_session.line.explore(m=track_map, style_kwds=dict(color="blue"))
 
         if st.toggle("Show intersections"):
             try:
                 intersections = geodataframe_operations.get_intersections(track_layout)
                 track_map = intersections.explore(m=track_map, style_kwds=dict(color="red"))
-            except KeyError:
+            except IndexError:
                 st.error('no line')
 
         with st.expander("GeoDataFrame"):
@@ -83,10 +82,11 @@ def app():
             st.write(track_display.is_ring.rename('is_ring'))
             st.write(f"{track_layout.crs=}")
 
+        idx = track_session.track_layout['type'].isin(['inner', 'outer'])
         track_map = (track_session
                      .track_layout
                      .geometry
-                     .loc[['inner', 'outer']]
+                     .loc[idx]
                      .explore(m=track_map, style_kwds=dict(color="black"))
                      )
         st_folium(track_map, use_container_width=True)

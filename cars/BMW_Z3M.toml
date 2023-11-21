@@ -7,3 +7,4 @@ c_roll = 0.015
 dec_limit = 11.256975
 mass = 1_450
 trail_braking = 40
+has_diff = true

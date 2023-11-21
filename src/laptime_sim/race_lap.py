@@ -160,8 +160,9 @@ def optimize_laptime(
     timer1 = Timer()
     timer2 = Timer()
 
-    best_time = sim(track_session=track_session)
+    best_time = simulate(track_session.car, track_session.line_coords(), track_session.slope)
     display_intermediate_results(best_time, 0)
+    track_session.update_line(track_session.line_pos)  # update raceline (create one if not present)
     save_intermediate_results(track_session.track_layout)
 
     for nr_iterations in itertools.count():
@@ -172,7 +173,7 @@ def optimize_laptime(
             return track_session
 
         new_line = track_session.get_new_line()
-        laptime = sim(track_session=track_session, raceline=new_line)
+        laptime = simulate(track_session.car, track_session.line_coords(new_line), track_session.slope)
         improvement = best_time - laptime
 
         if improvement > 0:

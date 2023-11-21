@@ -1,10 +1,6 @@
 simulated/
+temp/
 *woonwerk*
-tracks/
-!tracks/*.csv
-!tracks/*.parquet
-!tracks/*.geojson
-
 
 
 

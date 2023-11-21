@@ -37,6 +37,7 @@ class Car:
     c_drag:         float
     c_roll:         float
     trail_braking:  DriverExperience
+    has_diff:       bool = False
     name:           str = None
 
     @classmethod
@@ -61,7 +62,12 @@ class Car:
             acc_lat:    lateral acceleration in m/s²
         '''
         # grip circle (no downforce accounted for)
-        acc_lon_max = self.acc_limit / self.acc_grip_max * (self.acc_grip_max**2 - acc_lat**2)**0.5
+        # n = self.shape_factor / 50  # =2 for has_diff, 1 for no diff
+        n = 2.0 if self.has_diff else 0.8
+        # acc_lon_max = self.acc_limit / self.acc_grip_max * (self.acc_grip_max**2 - acc_lat**2)**0.5
+        s = 1
+        acc_lon_max = (self.acc_limit-s) * (1 - (np.abs(acc_lat) / self.acc_grip_max)**n)**(1/n) + s
+
         # max lateral accceleration due to engine
         acc_lon = (self.force_engine(v) - (v**2 * self.c_drag)) / self.mass
         acc_lon -= self.c_roll * 9.81       # rolling resistance
@@ -70,7 +76,8 @@ class Car:
     def get_min_acc(self, v, acc_lat):
         '''maximum possible deceleration (limit braking)'''
         n = self.trail_braking / 50
-        acc_lon = self.dec_limit * (1 - (np.abs(acc_lat) / self.acc_grip_max)**n)**(1/n)
+        s = 1
+        acc_lon = (self.dec_limit+s) * (1 - (np.abs(acc_lat) / self.acc_grip_max)**n)**(1/n) - s
         acc_lon += v**2 * self.c_drag / self.mass
         acc_lon += self.c_roll * 9.81      # rolling resistance
         return acc_lon
