@@ -1,8 +1,7 @@
 import os
 import geopandas
-import pandas as pd
-
-from geodataframe_operations import df_to_geo
+from pandas import DataFrame
+from geopandas import GeoDataFrame
 
 geopandas.options.io_engine = "pyogrio"
 
@@ -23,23 +22,20 @@ def get_trackname_from_filename(filename: str) -> str:
     return None
 
 
-def load_trackdata_from_file(filename: str) -> geopandas.GeoSeries:
+def load_trackdata_from_file(filename: str) -> GeoDataFrame | None:
 
     match filename:
-        case s if s.endswith('.csv'):
-            df = pd.read_csv(filename)
-            return df_to_geo(df)
-        case s if s.endswith('.geojson'):
-            return geopandas.read_file(filename)
         case s if s.endswith('.parquet'):
             return geopandas.read_parquet(filename)
+        case s if s.endswith('.geojson'):
+            return geopandas.read_file(filename)
+
     return None
 
 
 def filename_iterator(path, extensions=SUPPORTED_FILETYPES):
-    tracks_in_dir = [os.path.join(path, s) for s in os.listdir(path) if s.endswith(extensions)]
-    for track_name in tracks_in_dir:
-        yield track_name
+    for filename in [os.path.join(path, s) for s in os.listdir(path) if s.endswith(extensions)]:
+        yield filename
 
 
 def strip_filename(filename: str) -> str:
@@ -51,7 +47,7 @@ def strip_extension(path: str) -> str:
     return os.path.splitext(path)[0]
 
 
-def find_filename(track_name, name_car) -> str:
+def find_raceline_filename(track_name, name_car) -> str:
 
     # first try to restart an existing simulation
     for filename in filename_iterator(PATH_RESULTS_, ('parquet')):
@@ -59,22 +55,17 @@ def find_filename(track_name, name_car) -> str:
             case f if track_name in f and name_car in f:
                 return f
 
+
+def find_track_filename(track_name, path=PATH_TRACKS) -> str:
     # find track data from different file sources.
-    for filename in filename_iterator(PATH_TRACKS, ('parquet')):
+    for filename in filename_iterator(path, ('parquet')):
         match filename:
-            case f if track_name in f and name_car is None:
+            case f if track_name in f:
                 return f
 
 
-def save_csv(df: pd.DataFrame, filename_results: str):
+def save_csv(df: DataFrame, filename_results: str):
     f = os.path.join(PATH_RESULTS_, os.path.basename(filename_results))
     df.to_csv(strip_extension(f)+'.csv', index=None, header=True)
 
 
-def save_parquet(track_layout, filename_results):
-    f = os.path.join(PATH_RESULTS_, os.path.basename(filename_results))
-    track_layout.to_parquet(strip_extension(f)+'.parquet')
-
-
-def load_parquet(track_dir):
-    return geopandas.read_parquet(track_dir)

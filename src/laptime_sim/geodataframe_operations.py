@@ -28,14 +28,14 @@ def df_to_geo(df, crs=None) -> geopandas.GeoSeries:
     return pd.concat([geo, GeoSeries([LinearRing(race_line.tolist())], ['line'], crs=crs)])
 
 
-def drop_z(geom: GeoSeries):
+def drop_z(geom: shapely.LineString):
     return shapely.wkb.loads(shapely.wkb.dumps(geom, output_dimension=2))
 
 
 def divisions(geo) -> shapely.MultiLineString:
     '''return track GeoSeries with divisions added'''
-    border_left = geo[geo['type'] == 'outer'].get_coordinates(include_z=False).to_numpy(na_value=0)
-    border_right = geo[geo['type'] == 'inner'].get_coordinates(include_z=False).to_numpy(na_value=0)
+    border_left = geo.outer.get_coordinates(include_z=False).to_numpy(na_value=0)
+    border_right = geo.inner.get_coordinates(include_z=False).to_numpy(na_value=0)
 
     lines = []
     for point_left, point_right in zip(border_left, border_right):
@@ -45,16 +45,11 @@ def divisions(geo) -> shapely.MultiLineString:
     return MultiLineString(lines=lines)
 
 
-def get_divisions(geo: GeoDataFrame) -> GeoDataFrame:
+def get_divisions(geo: GeoDataFrame) -> GeoSeries:
     return GeoSeries(divisions(geo), index=['divisions'], crs=geo.crs)
 
 
-def get_intersections(geo: GeoDataFrame) -> GeoDataFrame:
-    idx = geo['type'] == 'line'
-    line = geo.loc[idx].geometry.values[0]
+def get_intersections(geo: GeoDataFrame) -> GeoSeries:
+    line = geo.line.geometry.values[0]
     intersection = shapely.intersection_all([divisions(geo),  drop_z(line)])
     return GeoSeries(intersection, index=['intersections'], crs=geo.crs)
-
-
-def append(geo_list):
-    return pd.concat(geo_list)

@@ -6,93 +6,90 @@ import plotly.express as px
 from streamlit_folium import st_folium
 import streamlit as st
 
-import file_operations
+import geopandas as gpd
 import geodataframe_operations
 from car import Car, DriverExperience
 
-import race_lap
 from tracksession import TrackSession
 
 SUPPORTED_FILETYPES = (".csv", ".geojson", ".parquet")
-PATH_TRACKS = ["./tracks/", "./simulated/"]
+PATH_TRACKS = "./tracks/"
+PATH_LINES = "./simulated/"
 PATH_CARS = "./cars/"
 
 
 def st_select_file(dir, extensions):
     files_in_dir = [f for f in sorted(os.listdir(dir)) if f.endswith(extensions)]
-    return os.path.join(dir, st.radio(label="select track", options=files_in_dir))
+    return os.path.join(dir, st.radio(label="select file", options=files_in_dir))
 
 
 def app():
     st.set_page_config(page_title="HSR Webracing", layout="wide")
 
-    with st.sidebar:
-        dir_selected = st.radio("select directory", PATH_TRACKS + [PATH_CARS])
+    tab1, tab2 = st.tabs(['Track definitions', 'Car definitions'])
 
-    if dir_selected in PATH_TRACKS:
+    with tab1:
 
         st.header("Race track display")
 
-        file_name = st_select_file(dir_selected, SUPPORTED_FILETYPES)
-        track_layout = file_operations.load_trackdata_from_file(file_name)
+        filename_track = st_select_file(PATH_TRACKS, 'parquet')
+        if filename_track is None:
+            st.error("No track selected")
+            return
 
-        if track_layout is None:
-            st.error("No track selected for optimization")
+        track_layout = gpd.read_parquet(filename_track)
+        track_raceline = gpd.read_parquet(PATH_LINES)
 
-        if track_layout.crs is None:
-            track_layout = track_layout.set_crs(
-                st.number_input("CRS not in file. Set track crs to", value=32631)
-            )
+        # only show lines on the selected track
+        track_raceline = track_raceline[track_raceline.track == track_layout.name[0]]
 
-        file_name = os.path.splitext(file_name)[0]
-
-        track_display = track_layout
-
-        racecar = Car.from_toml("./cars/Peugeot_205RFS.toml")
-        track_session = TrackSession(track_layout, racecar)
-        results = race_lap.sim(track_session, verbose=True).to_csv().encode('utf-8')
-
-        st_download_button = st.empty()
-        if st_download_button.button("save results"):
-            st_download_button.download_button(
-                label='Download results',
-                data=results,
-                file_name='test.csv',
-                mime='text/csv'
+        with st.sidebar:
+            raceline_idx = st.radio(
+                label='raceline',
+                options=track_raceline.index,
+                format_func=lambda x: track_raceline.car[x]
                 )
+
+        if raceline_idx is None:
+            track_raceline = None
+        else:
+            track_raceline = track_raceline[track_raceline.index == raceline_idx]
+
+        # racecar = Car.from_toml("./cars/Peugeot_205RFS.toml")
+        # results = race_lap.sim(track_session, verbose=True).to_csv().encode('utf-8')
+
+        # st_download_button = st.empty()
+        # if st_download_button.button("save results"):
+        #     st_download_button.download_button(
+        #         label='Download results',
+        #         data=results,
+        #         file_name='test.csv',
+        #         mime='text/csv'
+        #         )
 
         track_map = None
         if st.toggle("Show divisions"):
             divisions = geodataframe_operations.get_divisions(track_layout)
             track_map = divisions.explore(m=track_map, style_kwds=dict(color="grey"))
 
-        # if any(idx := track_session.track_layout['type'] == 'line'):
-        if track_session.has_line:
-            track_map = track_session.line.explore(m=track_map, style_kwds=dict(color="blue"))
+        track_map = track_layout.inner.explore(m=track_map, style_kwds=dict(color="blue"))
+        track_map = track_layout.outer.explore(m=track_map, style_kwds=dict(color="blue"))
 
-        if st.toggle("Show intersections"):
-            try:
-                intersections = geodataframe_operations.get_intersections(track_layout)
-                track_map = intersections.explore(m=track_map, style_kwds=dict(color="red"))
-            except IndexError:
-                st.error('no line')
+        if track_raceline is not None:
+            track_map = track_raceline.explore(m=track_map, style_kwds=dict(color="red"))
 
-        with st.expander("GeoDataFrame"):
-            st.write(track_display.to_dict())
-            st.write(track_display.is_ring.rename('is_ring'))
-            st.write(f"{track_layout.crs=}")
-
-        idx = track_session.track_layout['type'].isin(['inner', 'outer'])
-        track_map = (track_session
-                     .track_layout
-                     .geometry
-                     .loc[idx]
-                     .explore(m=track_map, style_kwds=dict(color="black"))
-                     )
         st_folium(track_map, use_container_width=True)
 
-    elif dir_selected in PATH_CARS:
-        file_name = st_select_file(dir_selected, ('toml'))
+        with st.expander("GeoDataFrame"):
+            st.write(track_layout.to_dict())
+            st.write(track_layout.is_ring.rename('is_ring'))
+            st.write(f"{track_layout.crs=}")
+
+        with st.expander('TrackSession object description'):
+            st.write(TrackSession(track_layout.outer, track_layout.inner))
+
+    with tab2:
+        file_name = st_select_file(PATH_CARS, ('toml'))
         race_car = Car.from_toml(file_name)
 
         f = st.selectbox('Select driver experience', DriverExperience._member_names_, index=3)

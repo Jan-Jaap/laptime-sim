@@ -3,6 +3,8 @@ from datetime import datetime
 import streamlit as st
 from car import Car
 import file_operations as io
+import geopandas as gpd
+from geopandas import GeoDataFrame
 
 from tracksession import TrackSession
 import race_lap
@@ -29,7 +31,7 @@ def main():
         st.session_state['optimization_running'] = False
 
     filename_track = st_select_file('Select Track', dir_selected, "parquet")
-    track_layout = io.load_trackdata_from_file(filename_track)
+    track_layout = gpd.read_parquet(filename_track)
 
     name_track = io.get_trackname_from_filename(filename_track)
 
@@ -37,22 +39,24 @@ def main():
     race_car = Car.from_toml(filename_car)
     name_car = io.strip_filename(filename_car)
 
-    filename_results = '_'.join([name_car, name_track, 'simulated'])
+    filename_results = io.find_raceline_filename(name_track, name_car)
+    if filename_results is not None:
+        st.warning(f'Filename {filename_results} exists and will be overwritten')
+    else:
+        filename_results = os.path.join(PATH_RESULTS_FILES, '_'.join([name_car, name_track, 'simulated']) + '.parquet')
 
-    f = io.find_filename(name_track, name_car)
-    if f is not None:
-        st.warning(f'Filename {f} exists and will be overwritten')
-
-    track_session = TrackSession(track_layout, race_car)
+    track_session = TrackSession(
+        track_border_left=track_layout.outer.geometry,
+        track_border_right=track_layout.inner.geometry,
+        )
 
     def intermediate_results(time, itereration):
         placeholder_laptime.write(f"Laptime = {time_to_str(time)}  (iteration:{itereration})")
 
-    def save_results(track_layout) -> None:
-        filename = filename_results + '.parquet'
-        io.save_parquet(track_layout, filename)
+    def save_results(track_layout: GeoDataFrame) -> None:
+        track_layout.to_parquet(filename_results)
         placeholder_savefile.write(
-            f"{datetime.now().strftime('%H:%M:%S')}: results saved to {filename=}"
+            f"{datetime.now().strftime('%H:%M:%S')}: results saved to {filename_results=}"
         )
 
     with st.status("Raceline optimization", state='error', expanded=True) as status:
@@ -65,12 +69,10 @@ def main():
                 placeholder_laptime.write('optimization is started')
 
                 # this is a blocking function... no execution after this line, when optimizing...
-                # st.session_state['track_session'] =
-                race_lap.optimize_laptime(track_session, intermediate_results, save_results)
+                race_lap.optimize_laptime(track_session, race_car, intermediate_results, save_results)
 
             if st.session_state.optimization_running:  # if running stop te optimization
                 st.session_state.optimization_running = False
-                # status.update(state='running')
                 placeholder_laptime.write('optimization is stopped')
 
 

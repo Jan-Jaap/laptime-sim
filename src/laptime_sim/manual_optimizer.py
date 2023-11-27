@@ -1,61 +1,84 @@
+import os
+import geopandas as gpd
+from geopandas import GeoDataFrame, GeoSeries
+
 import file_operations
 from car import Car
 from tracksession import TrackSession
+
 import race_lap
 from race_lap import time_to_str
 
-NAME_CAR = 'Peugeot_205RFS'
+name_car = 'Peugeot_205RFS'
+# name_car = 'BMW_Z3M'
 # NAME_TRACK = "2020_zandvoort"
-# NAME_TRACK = "20191030_Circuit_Zandvoort"
-NAME_TRACK = "202209022_Circuit_Meppen"
+# name_track = "20191030_Circuit_Zandvoort"
+# NAME_TRACK = "202209022_Circuit_Meppen"
 # NAME_TRACK = "20191211_Bilsterberg"
 # NAME_TRACK = "20191128_Circuit_Assen"
-# NAME_TRACK = "20191220_Spa_Francorchamp"
+NAME_TRACK = "20191220_Spa_Francorchamp"
+PATH_RESULTS = "./simulated/"
+
+
+def load_track(name_track):
+    filename_track = file_operations.find_track_filename(name_track)
+    if filename_track is None:
+        return None
+    return gpd.read_parquet(filename_track)
+
+
+def load_raceline(name_track, name_car):
+
+    filename_raceline = file_operations.find_raceline_filename(name_track, name_car)
+    if filename_raceline is None:
+        track_layout = load_track(name_track)
+        track_session = TrackSession.from_layout(track_layout)
+        track_session.update_line()
+
+        gdf_raceline = GeoDataFrame(geometry=track_session.track_raceline)
+        gdf_raceline['car'] = name_car
+        gdf_raceline['track'] = name_track
+        return gdf_raceline
+    return gpd.read_parquet(filename_raceline)
+
+
+def load_racecar(name):
+    return Car.from_toml(f"./cars/{name}.toml")
 
 
 def main():
 
-    filename_track = file_operations.find_filename(NAME_TRACK, NAME_CAR)
-    if filename_track is None:
-        filename_track = file_operations.find_filename(NAME_TRACK, None)
+    track_layout = load_track(NAME_TRACK)
+    if track_layout is None:
+        FileNotFoundError('No track files found')
 
-    race_car = Car.from_toml(f"./cars/{NAME_CAR}.toml")
-    filename_results = f"{NAME_CAR}_{NAME_TRACK}_simulated"
+    gdf_raceline = load_raceline(name_track=NAME_TRACK, name_car=name_car)
+    print(gdf_raceline)
+    race_car = load_racecar(name_car)
+    track_session = TrackSession.from_layout(track_layout, gdf_raceline)
 
-    track_layout = file_operations.load_trackdata_from_file(filename_track)
-    track_session = TrackSession(track_layout=track_layout, car=race_car)
+    filename_output = os.path.join(PATH_RESULTS, f"{name_car}_{NAME_TRACK}_simulated.parquet")
 
-    if track_session is None:
-        return
-
-    print(f'Loaded track data from {filename_track}')
+    print(f'Loaded track data for {NAME_TRACK}')
     print(f'Track has {track_session.len} datapoints')
 
     def print_results(time, iteration) -> None:
         print(f"Laptime = {time_to_str(time)}  (iteration:{iteration}) (progress:{track_session.progress:.4f})")
 
-    def save_results(track_layout) -> None:
-        filename = filename_results + '.parquet'
-        file_operations.save_parquet(track_layout, filename)
-        print(f'intermediate results saved to {filename=}')
+    def save_results(track_raceline: GeoSeries) -> None:
+        gdf_raceline.set_geometry(track_raceline, inplace=True)
+        gdf_raceline.to_parquet(filename_output)
+        print(f'intermediate results saved to {filename_output=}')
 
     try:
-
-        track_session = race_lap.optimize_laptime(track_session, print_results, save_results)
+        track_session = race_lap.optimize_laptime(track_session, race_car, print_results, save_results)
         print(f'optimization finished. {track_session.progress=}')
 
     except KeyboardInterrupt:
         print('Interrupted by CTRL+C, saving progress')
-        # filename = filename_results + '.csv'
-        # results_dataframe = race_lap.sim(track_session=track_session, verbose=True)
-        # file_operations.save_csv(results_dataframe, filename)
-        # print(f'final results saved to {filename=}')
-
-        filename = filename_results + '.parquet'
-        file_operations.save_parquet(track_session.track_layout, filename)
-        print(f'final results saved to {filename=}')
-
-        best_time = race_lap.sim(track_session)
+        print(f'final results saved to {filename_output=}')
+        save_results(track_session.track_raceline)
+        best_time = race_lap.simulate(race_car, track_session.line_coords(), track_session.slope)
 
         print(f'{race_car.name} - Simulated laptime = {time_to_str(best_time)}')
 

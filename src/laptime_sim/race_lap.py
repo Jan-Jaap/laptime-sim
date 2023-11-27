@@ -6,7 +6,7 @@ import pandas as pd
 from car import Car
 
 from tracksession import TrackSession
-from geopandas import GeoDataFrame
+from geopandas import GeoSeries
 
 OUTPUT_COLUMNS_NAMES = dict(
     distance='Distance (m)',
@@ -26,19 +26,6 @@ def mag(vector: np.ndarray) -> np.ndarray:
 
 def dot(u: np.ndarray, v: np.ndarray) -> np.ndarray:
     return np.einsum("ij,ij->i", u, v)
-
-
-def sim(track_session: TrackSession, raceline=None, verbose=False) -> float | pd.DataFrame:
-    results = simulate(
-            car=track_session.car,
-            line_coordinates=track_session.line_coords(raceline),
-            slope=track_session.slope,
-            verbose=verbose)
-
-    if not verbose:
-        return results
-
-    return results_dataframe(track_session, results)
 
 
 def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=False) -> float | sim_results_type:
@@ -129,8 +116,8 @@ def results_dataframe(track_session: TrackSession, sim: sim_results_type) -> pd.
 
     df = pd.DataFrame()
     df["time"] = sim.time
-    df1 = pd.DataFrame(data=track_session.border_right, columns=["x", "y", "z"]).add_prefix("inner_")
-    df2 = pd.DataFrame(data=track_session.border_left, columns=["x", "y", "z"]).add_prefix("outer_")
+    df1 = pd.DataFrame(data=track_session.right_coords, columns=["x", "y", "z"]).add_prefix("inner_")
+    df2 = pd.DataFrame(data=track_session.left_coords, columns=["x", "y", "z"]).add_prefix("outer_")
     df3 = pd.DataFrame(data=line_coordinates, columns=["x", "y", "z"]).add_prefix("line_")
     df = pd.concat([df, df1, df2, df3], axis=1)
     df["distance"] = ds.cumsum() - ds[0]
@@ -143,8 +130,9 @@ def results_dataframe(track_session: TrackSession, sim: sim_results_type) -> pd.
 
 def optimize_laptime(
     track_session: TrackSession,
+    racecar: Car,
     display_intermediate_results: Callable[[float, int], None],
-    save_intermediate_results: Callable[[GeoDataFrame], None],
+    save_intermediate_results: Callable[[GeoSeries], None],
 ):
     class Timer:
         def __init__(self):
@@ -160,20 +148,20 @@ def optimize_laptime(
     timer1 = Timer()
     timer2 = Timer()
 
-    best_time = simulate(track_session.car, track_session.line_coords(), track_session.slope)
+    best_time = simulate(racecar, track_session.line_coords(), track_session.slope)
     display_intermediate_results(best_time, 0)
-    track_session.update_line(track_session.line_pos)  # update raceline (create one if not present)
-    save_intermediate_results(track_session.track_layout)
+    track_session.update_line()  # update raceline (create one if not present)
+    save_intermediate_results(track_session.track_raceline)
 
     for nr_iterations in itertools.count():
 
         if track_session.progress < 0.01:
             display_intermediate_results(best_time, nr_iterations)
-            save_intermediate_results(track_session.track_layout)
+            save_intermediate_results(track_session.track_raceline)
             return track_session
 
         new_line = track_session.get_new_line()
-        laptime = simulate(track_session.car, track_session.line_coords(new_line), track_session.slope)
+        laptime = simulate(racecar, track_session.line_coords(new_line), track_session.slope)
         improvement = best_time - laptime
 
         if improvement > 0:
@@ -187,7 +175,7 @@ def optimize_laptime(
 
         if timer2.elapsed_time > 30:
             display_intermediate_results(best_time, nr_iterations)
-            save_intermediate_results(track_session.track_layout)
+            save_intermediate_results(track_session.track_raceline)
             timer2.reset()
 
     return track_session
