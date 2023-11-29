@@ -9,12 +9,14 @@ from tracksession import TrackSession
 import race_lap
 from race_lap import time_to_str
 
-NAME_CAR = 'Peugeot_205RFS'
-# NAME_CAR = 'BMW_Z3M'
+# NAME_CAR = 'Peugeot_205RFS'
+NAME_CAR = 'BMW_Z3M'
+
+
 # NAME_TRACK = "2020_zandvoort"
-NAME_TRACK = "20191030_Circuit_Zandvoort"
+# NAME_TRACK = "20191030_Circuit_Zandvoort"
 # NAME_TRACK = "202209022_Circuit_Meppen"
-# NAME_TRACK = "20191211_Bilsterberg"
+NAME_TRACK = "20191211_Bilsterberg"
 # NAME_TRACK = "20191128_Circuit_Assen"
 # NAME_TRACK = "20191220_Spa_Francorchamp"
 PATH_RESULTS = "./simulated/"
@@ -28,7 +30,6 @@ def load_track(name_track):
 
 
 def load_raceline(name_track, name_car):
-
     filename_raceline = file_operations.find_raceline_filename(name_track, name_car)
     if filename_raceline is None:
         return init_raceline(name_track, name_car)
@@ -50,19 +51,21 @@ def load_racecar(name):
     return Car.from_toml(f"./cars/{name}.toml")
 
 
-def main():
+def main(name_track, name_car):
 
-    track_layout = load_track(NAME_TRACK)
+    name_track = NAME_TRACK
+    name_car = NAME_CAR
+    track_layout = load_track(name_track)
     if track_layout is None:
         FileNotFoundError('No track files found')
 
-    gdf_raceline = load_raceline(name_track=NAME_TRACK, name_car=NAME_CAR)
-    race_car = load_racecar(NAME_CAR)
+    gdf_raceline = load_raceline(name_track=name_track, name_car=name_car)
+    race_car = load_racecar(name_car)
     track_session = TrackSession.from_layout(track_layout, gdf_raceline)
 
-    filename_output = os.path.join(PATH_RESULTS, f"{NAME_CAR}_{NAME_TRACK}_simulated.parquet")
+    filename_output = os.path.join(PATH_RESULTS, f"{name_car}_{name_track}_simulated.parquet")
 
-    print(f'Loaded track data for {NAME_TRACK}')
+    print(f'Loaded track data for {name_track}')
     print(f'Track has {track_session.len} datapoints')
 
     def print_results(time, iteration) -> None:
@@ -87,4 +90,17 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main(NAME_TRACK, NAME_CAR)
+    cars = ['Peugeot_205RFS', 'BMW_Z3M']
+    tracks = [
+        "2020_zandvoort",
+        "20191030_Circuit_Zandvoort",
+        "202209022_Circuit_Meppen",
+        "20191211_Bilsterberg",
+        "20191128_Circuit_Assen",
+        "20191220_Spa_Francorchamp",
+    ]
+
+    for car in cars:
+        for racetrack in tracks:
+            main(racetrack, car)

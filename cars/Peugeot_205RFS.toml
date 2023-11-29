@@ -7,3 +7,4 @@ c_roll = 0.016
 dec_limit = 9.81
 mass = 1_045
 trail_braking = 70
+corner_acc = 50

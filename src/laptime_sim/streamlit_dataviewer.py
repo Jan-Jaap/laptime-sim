@@ -8,11 +8,9 @@ import streamlit as st
 
 import geopandas as gpd
 import geodataframe_operations
-from car import Car, DriverExperience
+from car import Car, Trailbraking, CornerAcceleration
 
 from tracksession import TrackSession
-
-from icecream import ic
 
 SUPPORTED_FILETYPES = (".csv", ".geojson", ".parquet")
 PATH_TRACKS = "./tracks/"
@@ -45,7 +43,6 @@ def app():
         # this results in wrong crs for some paths
         track_racelines = gpd.read_parquet(PATH_LINES, filters=[('track', '==', track_name)])
         # correct crs
-        track_racelines.set_crs(track_racelines.crs_backup[0], inplace=True, allow_override=True)
 
         with st.sidebar:
             idx_selected_line = st.radio(
@@ -53,7 +50,6 @@ def app():
                 options=track_racelines.index,
                 format_func=lambda x: track_racelines.car[x]
                 )
-            selected_line = track_racelines[track_racelines.index == idx_selected_line]
         # if raceline_idx is None:
         #     track_raceline = None
         # else:
@@ -79,7 +75,9 @@ def app():
         track_map = track_layout.outer.explore(m=track_map, style_kwds=dict(color="blue"))
 
         if len(track_racelines.index) > 0:
+            track_racelines.set_crs(track_racelines.crs_backup[0], inplace=True, allow_override=True)
             track_map = track_racelines.explore(m=track_map, style_kwds=dict(color="grey"))
+            selected_line = track_racelines[track_racelines.index == idx_selected_line]
             track_map = selected_line.explore(m=track_map, style_kwds=dict(color="black", dashArray='1 4'))
 
         st_folium(track_map, use_container_width=True, returned_objects=[])
@@ -96,8 +94,12 @@ def app():
         file_name = st_select_file(PATH_CARS, ('toml'))
         race_car = Car.from_toml(file_name)
 
-        f = st.selectbox('Select driver experience', DriverExperience._member_names_, index=3)
-        race_car.trail_braking = st.slider('Trail braking', min_value=30, max_value=100, value=DriverExperience[f])
+        f = st.selectbox('Trailbraking driver experience', Trailbraking._member_names_, index=3)
+        race_car.trail_braking = st.slider('Trail braking', min_value=30, max_value=100, value=Trailbraking[f])
+
+        f = st.selectbox('Select corner acceleration', CornerAcceleration._member_names_, index=3)
+        race_car.corner_acc = st.slider('Corner acceleration', min_value=30, max_value=100, value=CornerAcceleration[f])
+
         v = np.linspace(0, 250, 100)
         v1 = st.slider('Velocity in km/h', min_value=v.min(), max_value=v.max())
 
