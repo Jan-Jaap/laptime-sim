@@ -1858,18 +1858,18 @@ snowflake = ["snowflake-connector-python (>=2.8.0)", "snowflake-snowpark-python 
 
 [[package]]
 name = "streamlit-folium"
-version = "0.15.1"
+version = "0.16.0"
 description = "Render Folium objects in Streamlit"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "streamlit_folium-0.15.1-py3-none-any.whl", hash = "sha256:68d2e61311a6f8eb26fd5395d10b5048e33cbb5ae7ce6337d9b536335825f684"},
-    {file = "streamlit_folium-0.15.1.tar.gz", hash = "sha256:6e2539f6f0d0663f480a665890af02cb94103d678cf4d22a2d7f45c34d364203"},
+    {file = "streamlit_folium-0.16.0-py3-none-any.whl", hash = "sha256:75db00ff5afd6434845d9b4441929230518b289f459f29c941b5b9a0946d9841"},
+    {file = "streamlit_folium-0.16.0.tar.gz", hash = "sha256:cb23d33d5fe5bc41ebfb2e9665620170a7b7cbfc2bfff77bd01084ebf583cfff"},
 ]
 
 [package.dependencies]
 branca = "*"
-folium = ">=0.13"
+folium = ">=0.13,<0.15"
 jinja2 = "*"
 streamlit = ">=1.13.0"
 
@@ -2074,4 +2074,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "eef042837c519299ae4d3eeb314aa95d89cd52395d014a61616cf9008685f2ca"
+content-hash = "751db53a004c1664fa723065d8e4955698ec27534a4e691b939eecf5a4b357b6"

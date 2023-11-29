@@ -12,6 +12,8 @@ from car import Car, DriverExperience
 
 from tracksession import TrackSession
 
+from icecream import ic
+
 SUPPORTED_FILETYPES = (".csv", ".geojson", ".parquet")
 PATH_TRACKS = "./tracks/"
 PATH_LINES = "./simulated/"
@@ -38,22 +40,24 @@ def app():
             return
 
         track_layout = gpd.read_parquet(filename_track)
-        track_raceline = gpd.read_parquet(PATH_LINES)
+        track_name = track_layout.name[0]
 
-        # only show lines on the selected track
-        track_raceline = track_raceline[track_raceline.track == track_layout.name[0]]
+        # this results in wrong crs for some paths
+        track_racelines = gpd.read_parquet(PATH_LINES, filters=[('track', '==', track_name)])
+        # correct crs
+        track_racelines.set_crs(track_racelines.crs_backup[0], inplace=True, allow_override=True)
 
         with st.sidebar:
-            raceline_idx = st.radio(
+            idx_selected_line = st.radio(
                 label='raceline',
-                options=track_raceline.index,
-                format_func=lambda x: track_raceline.car[x]
+                options=track_racelines.index,
+                format_func=lambda x: track_racelines.car[x]
                 )
-
-        if raceline_idx is None:
-            track_raceline = None
-        else:
-            track_raceline = track_raceline[track_raceline.index == raceline_idx]
+            selected_line = track_racelines[track_racelines.index == idx_selected_line]
+        # if raceline_idx is None:
+        #     track_raceline = None
+        # else:
+        #     track_raceline = track_raceline[track_raceline.index == raceline_idx]
 
         # racecar = Car.from_toml("./cars/Peugeot_205RFS.toml")
         # results = race_lap.sim(track_session, verbose=True).to_csv().encode('utf-8')
@@ -66,7 +70,6 @@ def app():
         #         file_name='test.csv',
         #         mime='text/csv'
         #         )
-
         track_map = None
         if st.toggle("Show divisions"):
             divisions = geodataframe_operations.get_divisions(track_layout)
@@ -75,10 +78,11 @@ def app():
         track_map = track_layout.inner.explore(m=track_map, style_kwds=dict(color="blue"))
         track_map = track_layout.outer.explore(m=track_map, style_kwds=dict(color="blue"))
 
-        if track_raceline is not None:
-            track_map = track_raceline.explore(m=track_map, style_kwds=dict(color="red"))
+        if len(track_racelines.index) > 0:
+            track_map = track_racelines.explore(m=track_map, style_kwds=dict(color="grey"))
+            track_map = selected_line.explore(m=track_map, style_kwds=dict(color="black", dashArray='1 4'))
 
-        st_folium(track_map, use_container_width=True)
+        st_folium(track_map, use_container_width=True, returned_objects=[])
 
         with st.expander("GeoDataFrame"):
             st.write(track_layout.to_dict())

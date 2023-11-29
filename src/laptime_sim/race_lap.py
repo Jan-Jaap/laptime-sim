@@ -129,21 +129,11 @@ def results_dataframe(track_session: TrackSession, sim: sim_results_type) -> pd.
 
 
 def optimize_laptime(
-    track_session: TrackSession,
-    racecar: Car,
-    display_intermediate_results: Callable[[float, int], None],
-    save_intermediate_results: Callable[[GeoSeries], None],
-):
-    class Timer:
-        def __init__(self):
-            self.time = time.time()
-
-        def reset(self):
-            self.time = time.time()
-
-        @property
-        def elapsed_time(self):
-            return time.time() - self.time
+        track_session: TrackSession,
+        racecar: Car,
+        display_intermediate_results: Callable[[float, int], None],
+        save_intermediate_results: Callable[[GeoSeries], None],
+        ) -> TrackSession:
 
     timer1 = Timer()
     timer2 = Timer()
@@ -154,11 +144,6 @@ def optimize_laptime(
     save_intermediate_results(track_session.track_raceline)
 
     for nr_iterations in itertools.count():
-
-        if track_session.progress < 0.01:
-            display_intermediate_results(best_time, nr_iterations)
-            save_intermediate_results(track_session.track_raceline)
-            return track_session
 
         new_line = track_session.get_new_line()
         laptime = simulate(racecar, track_session.line_coords(new_line), track_session.slope)
@@ -178,7 +163,24 @@ def optimize_laptime(
             save_intermediate_results(track_session.track_raceline)
             timer2.reset()
 
+        if track_session.progress < 0.005:
+            display_intermediate_results(best_time, nr_iterations)
+            save_intermediate_results(track_session.track_raceline)
+            return track_session
+
     return track_session
+
+
+class Timer:
+    def __init__(self):
+        self.time = time.time()
+
+    def reset(self):
+        self.time = time.time()
+
+    @property
+    def elapsed_time(self):
+        return time.time() - self.time
 
 
 def time_to_str(seconds: float) -> str:

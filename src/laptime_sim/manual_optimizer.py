@@ -9,14 +9,14 @@ from tracksession import TrackSession
 import race_lap
 from race_lap import time_to_str
 
-name_car = 'Peugeot_205RFS'
-# name_car = 'BMW_Z3M'
+NAME_CAR = 'Peugeot_205RFS'
+# NAME_CAR = 'BMW_Z3M'
 # NAME_TRACK = "2020_zandvoort"
-# name_track = "20191030_Circuit_Zandvoort"
+NAME_TRACK = "20191030_Circuit_Zandvoort"
 # NAME_TRACK = "202209022_Circuit_Meppen"
 # NAME_TRACK = "20191211_Bilsterberg"
 # NAME_TRACK = "20191128_Circuit_Assen"
-NAME_TRACK = "20191220_Spa_Francorchamp"
+# NAME_TRACK = "20191220_Spa_Francorchamp"
 PATH_RESULTS = "./simulated/"
 
 
@@ -31,15 +31,19 @@ def load_raceline(name_track, name_car):
 
     filename_raceline = file_operations.find_raceline_filename(name_track, name_car)
     if filename_raceline is None:
-        track_layout = load_track(name_track)
-        track_session = TrackSession.from_layout(track_layout)
-        track_session.update_line()
-
-        gdf_raceline = GeoDataFrame(geometry=track_session.track_raceline)
-        gdf_raceline['car'] = name_car
-        gdf_raceline['track'] = name_track
-        return gdf_raceline
+        return init_raceline(name_track, name_car)
     return gpd.read_parquet(filename_raceline)
+
+
+def init_raceline(name_track, name_car):
+    track_layout = load_track(name_track)
+    track_session = TrackSession.from_layout(track_layout)
+    track_session.update_line()
+
+    gdf_raceline = GeoDataFrame(geometry=track_session.track_raceline, crs=track_session.track_raceline.crs)
+    gdf_raceline['car'] = name_car
+    gdf_raceline['track'] = name_track
+    return gdf_raceline
 
 
 def load_racecar(name):
@@ -52,12 +56,11 @@ def main():
     if track_layout is None:
         FileNotFoundError('No track files found')
 
-    gdf_raceline = load_raceline(name_track=NAME_TRACK, name_car=name_car)
-    print(gdf_raceline)
-    race_car = load_racecar(name_car)
+    gdf_raceline = load_raceline(name_track=NAME_TRACK, name_car=NAME_CAR)
+    race_car = load_racecar(NAME_CAR)
     track_session = TrackSession.from_layout(track_layout, gdf_raceline)
 
-    filename_output = os.path.join(PATH_RESULTS, f"{name_car}_{NAME_TRACK}_simulated.parquet")
+    filename_output = os.path.join(PATH_RESULTS, f"{NAME_CAR}_{NAME_TRACK}_simulated.parquet")
 
     print(f'Loaded track data for {NAME_TRACK}')
     print(f'Track has {track_session.len} datapoints')
@@ -67,6 +70,7 @@ def main():
 
     def save_results(track_raceline: GeoSeries) -> None:
         gdf_raceline.set_geometry(track_raceline, inplace=True)
+        gdf_raceline['crs_backup'] = gdf_raceline.crs.to_epsg()
         gdf_raceline.to_parquet(filename_output)
         print(f'intermediate results saved to {filename_output=}')
 
@@ -79,7 +83,6 @@ def main():
         print(f'final results saved to {filename_output=}')
         save_results(track_session.track_raceline)
         best_time = race_lap.simulate(race_car, track_session.line_coords(), track_session.slope)
-
         print(f'{race_car.name} - Simulated laptime = {time_to_str(best_time)}')
 
 
