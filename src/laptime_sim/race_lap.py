@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 from car import Car
 
+# from icecream import ic
+
 from tracksession import TrackSession
 from geopandas import GeoSeries
 
@@ -73,42 +75,66 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=
 
         # max possible speed accelerating out of corners
         if v_a[j] < v_max[j]:  # check if previous speed was lower than max
-            acc_lat = (
-                v_a[j] ** 2 * k_car[j] + g_car[j, 1]
-            )  # calc lateral acceleration based on
-            acc_lon = car.get_max_acc(v_a[j], acc_lat)
+            acc_lat = v_a[j] ** 2 * k_car[j] + g_car[j, 1]  # calc lateral acceleration based on
+            # acc_lon = car.get_max_acc(v_a[j], acc_lat)
+            acc_lon = get_acceleration(
+                P_engine_in_watt=car.P_engine_in_watt,
+                c_roll=car.c_roll,
+                mass=car.mass,
+                c_drag=car.c_drag,
+                acc_grip_max=car.acc_grip_max,
+                acc_limit=car.acc_limit,
+                corner_acc=car.corner_acc,
+                v=v_a[j],
+                acc_lat=acc_lat
+            )
+
             acc_lon -= g_car[j, 0]
             v1 = (v_a[j] ** 2 + 2 * acc_lon * ds[i]) ** 0.5
             v_a[i] = min(v1, v_max[i])
         else:  # if corner speed was maximal, all grip is used for lateral acceleration (=cornering)
-            acc_lon = 0  # no grip available for longitudinal acceleration
+            acc_lon = g_car[j, 0]  # no grip available for longitudinal acceleration
             v_a[i] = min(v_a[j], v_max[i])  # speed remains the same
 
         # max possible speed braking into corners (backwards lap)
         v0 = v_b[j]
         if v0 < v_max[::-1][j]:
             acc_lat = v0**2 * k_car[::-1][j] + g_car[::-1][j, 1]
-            acc_lon = car.get_min_acc(v0, acc_lat)
+            # acc_lon = car.get_min_acc(v0, acc_lat)
+
+            acc_lon = get_acceleration(
+                P_engine_in_watt=0,
+                c_roll=-car.c_roll,
+                mass=car.mass,
+                c_drag=-car.c_drag,
+                acc_grip_max=car.acc_grip_max,
+                acc_limit=car.dec_limit,
+                corner_acc=car.trail_braking,
+                v=v0,
+                acc_lat=acc_lat
+                )
+
             acc_lon += g_car[::-1][j, 0]
             v1 = (v0**2 + 2 * acc_lon * ds[::-1][i]) ** 0.5
             v_b[i] = min(v1, v_max[::-1][i])
 
         else:
-            acc_lon = 0
+            acc_lon = g_car[::-1][j, 0]
             v_b[i] = min(v0, v_max[::-1][i])
 
     v_b = v_b[::-1]  # flip the braking matrix
     speed = np.fmin(v_a, v_b)
     dt = 2 * ds / (speed + np.roll(speed, 1))
-    time = dt.cumsum()
+    t_lap = dt.cumsum()
 
     if not verbose:
-        return time[-1]
+        return t_lap[-1]
 
-    return sim_results_type(time, speed, Nk)
+    return sim_results_type(t_lap, speed, Nk)
 
 
 def results_dataframe(track_session: TrackSession, sim: sim_results_type) -> pd.DataFrame:
+
     line_coordinates = track_session.line_coords()
     ds = mag(
         np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T
@@ -116,9 +142,9 @@ def results_dataframe(track_session: TrackSession, sim: sim_results_type) -> pd.
 
     df = pd.DataFrame()
     df["time"] = sim.time
-    df1 = pd.DataFrame(data=track_session.right_coords, columns=["x", "y", "z"]).add_prefix("inner_")
-    df2 = pd.DataFrame(data=track_session.left_coords, columns=["x", "y", "z"]).add_prefix("outer_")
-    df3 = pd.DataFrame(data=line_coordinates, columns=["x", "y", "z"]).add_prefix("line_")
+    df1 = pd.DataFrame(data=track_session.left_coords(), columns=["x", "y", "z"]).add_prefix("left_")
+    df2 = pd.DataFrame(data=track_session.right_coords(), columns=["x", "y", "z"]).add_prefix("right_")
+    df3 = pd.DataFrame(data=track_session.line_coords(), columns=["x", "y", "z"]).add_prefix("line_")
     df = pd.concat([df, df1, df2, df3], axis=1)
     df["distance"] = ds.cumsum() - ds[0]
     df["a_lat"] = -(sim.speed**2) * sim.Nk[:, 0]
@@ -133,6 +159,7 @@ def optimize_laptime(
         racecar: Car,
         display_intermediate_results: Callable[[float, int], None],
         save_intermediate_results: Callable[[GeoSeries], None],
+        tolerance=0.005,
         ) -> TrackSession:
 
     timer1 = Timer()
@@ -163,7 +190,7 @@ def optimize_laptime(
             save_intermediate_results(track_session.track_raceline)
             timer2.reset()
 
-        if track_session.progress < 0.005:
+        if track_session.progress < tolerance:
             display_intermediate_results(best_time, nr_iterations)
             save_intermediate_results(track_session.track_raceline)
             return track_session
@@ -185,3 +212,28 @@ class Timer:
 
 def time_to_str(seconds: float) -> str:
     return "{:02.0f}:{:06.03f}".format(seconds % 3600 // 60, seconds % 60)
+
+
+def get_acceleration_wrapper(car: Car, v, acc_lat, braking=False):
+    if braking:
+        return get_acceleration(0, -car.c_roll, car.mass, -car.c_drag,
+                                car.acc_grip_max, car.dec_limit, car.trail_braking, v, acc_lat)
+    return get_acceleration(P_engine_in_watt=car.P_engine_in_watt, **car.dict(), v=v, acc_lat=acc_lat)
+
+
+def get_acceleration(P_engine_in_watt, c_roll, mass, c_drag, acc_grip_max, acc_limit, corner_acc, v, acc_lat, **kwargs):
+    '''maximum possible acceleration (flooring it)
+    args:
+        v:          velocity in m/s
+        acc_lat:    lateral acceleration in m/s²
+    '''
+    # grip circle (no downforce accounted for)
+    n = corner_acc / 50
+    max_acc_grip = (acc_limit) * (1 - (np.abs(acc_lat) / acc_grip_max)**n)**(1/n)
+
+    force_engine = v and P_engine_in_watt / v or 0
+    # max_acc_engine = force_engine / mass
+    acceleration_max = force_engine and min(max_acc_grip, force_engine / mass) or max_acc_grip
+    aero_drag = v**2 * c_drag / mass
+    rolling_drag = c_roll * 9.81       # rolling resistance
+    return acceleration_max - aero_drag - rolling_drag

@@ -67,5 +67,3 @@ def find_track_filename(track_name, path=PATH_TRACKS) -> str:
 def save_csv(df: DataFrame, filename_results: str):
     f = os.path.join(PATH_RESULTS_, os.path.basename(filename_results))
     df.to_csv(strip_extension(f)+'.csv', index=None, header=True)
-
-

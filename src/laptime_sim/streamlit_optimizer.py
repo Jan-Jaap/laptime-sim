@@ -10,9 +10,6 @@ from tracksession import TrackSession
 import race_lap
 from race_lap import time_to_str
 
-from icecream import install
-install()
-
 PATH_TRACK_FILES = "./tracks/"
 PATH_RESULTS_FILES = "./simulated/"
 PATH_CAR_FILES = "./cars/"
@@ -46,8 +43,8 @@ def main():
         filename_results = os.path.join(PATH_RESULTS_FILES, '_'.join([name_car, name_track, 'simulated']) + '.parquet')
 
     track_session = TrackSession(
-        track_border_left=track_layout.outer.geometry,
-        track_border_right=track_layout.inner.geometry,
+        track_border_left=track_layout.left.geometry,
+        track_border_right=track_layout.right.geometry,
         )
 
     def intermediate_results(time, itereration):

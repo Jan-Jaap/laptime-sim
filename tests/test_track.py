@@ -1,5 +1,6 @@
 
 import geopandas
+import pandas as pd
 import laptime_sim.file_operations as fo
 from shapely.geometry import Polygon
 
@@ -15,14 +16,14 @@ def test_trackfiles_has_geometry():
 
 def test_inner_outer():
     for filename in fo.filename_iterator(PATH_TRACK_FILES):
-        track_layout = fo.load_trackdata_from_file(filename)
-        inner = Polygon(track_layout['inner'])
-        outer = Polygon(track_layout['outer'])
-        assert outer.contains_properly(inner)
-        assert not inner.contains_properly(outer)
+        track_layout = geopandas.read_parquet(filename)
+        right = Polygon(track_layout.right[0])
+        left = Polygon(track_layout.left[0])
+        assert left.contains_properly(right) or right.contains_properly(left)
 
 
 def test_is_ring():
     for filename in fo.filename_iterator(PATH_TRACK_FILES):
-        geo, _ = fo.load_trackdata_from_file(filename)
-        assert geo.is_ring
+        geo = fo.load_trackdata_from_file(filename)
+        assert geo.left[0].is_ring
+        assert geo.right[0].is_ring

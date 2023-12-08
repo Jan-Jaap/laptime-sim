@@ -1,10 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import IntEnum
 import functools
-import numpy as np
 import json
 
 import toml
+# from numba import njit
 
 
 class Trailbraking(IntEnum):
@@ -65,37 +65,13 @@ class Car:
     def P_engine_in_watt(self):
         return self.P_engine / 1.3410 * 1000  # from hp to Watt
 
-    def get_max_acc(self, v, acc_lat):
-        '''maximum possible acceleration (flooring it)
-        args:
-            v:          velocity in m/s
-            acc_lat:    lateral acceleration in m/s²
-        '''
-        # grip circle (no downforce accounted for)
-        # n = self.shape_factor / 50  # =2 for has_diff, 1 for no diff
-        n = self.corner_acc / 50
-        # acc_lon_max = self.acc_limit / self.acc_grip_max * (self.acc_grip_max**2 - acc_lat**2)**0.5
-        acc_lon_max = (self.acc_limit) * (1 - (np.abs(acc_lat) / self.acc_grip_max)**n)**(1/n)
-
-        # max lateral accceleration due to engine
-        acc_lon = (self.force_engine(v) - (v**2 * self.c_drag)) / self.mass
-        acc_lon -= self.c_roll * 9.81       # rolling resistance
-        return min(acc_lon_max, acc_lon)
-
-    def get_min_acc(self, v, acc_lat):
-        '''maximum possible deceleration (limit braking)'''
-        n = self.trail_braking / 50
-        acc_lon = (self.dec_limit) * (1 - (np.abs(acc_lat) / self.acc_grip_max)**n)**(1/n)
-        acc_lon += v**2 * self.c_drag / self.mass
-        acc_lon += self.c_roll * 9.81      # rolling resistance
-        return acc_lon
-
     def force_engine(self, v):
         '''return available engine force at given velocity'''
-        if v == 0:
-            return self.P_engine_in_watt
-        return self.P_engine_in_watt / v   # tractive force (limited by engine power)
+        return v and self.P_engine_in_watt / v or 0  # tractive force (limited by engine power)
 
     def get_gear(self, v):
         '''not implemented'''
         pass
+
+    def dict(self):
+        return asdict(self)

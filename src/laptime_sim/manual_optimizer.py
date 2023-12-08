@@ -9,17 +9,19 @@ from tracksession import TrackSession
 import race_lap
 from race_lap import time_to_str
 
-# NAME_CAR = 'Peugeot_205RFS'
-NAME_CAR = 'BMW_Z3M'
+# from icecream import ic
 
-
-# NAME_TRACK = "2020_zandvoort"
-# NAME_TRACK = "20191030_Circuit_Zandvoort"
-# NAME_TRACK = "202209022_Circuit_Meppen"
-NAME_TRACK = "20191211_Bilsterberg"
-# NAME_TRACK = "20191128_Circuit_Assen"
-# NAME_TRACK = "20191220_Spa_Francorchamp"
+CARS = ['Peugeot_205RFS', 'BMW_Z3M']
+TRACKS = [
+    # "2020_zandvoort",
+    "20191030_Circuit_Zandvoort",
+    "202209022_Circuit_Meppen",
+    "20191211_Bilsterberg",
+    "20191128_Circuit_Assen",
+    "20191220_Spa_Francorchamp",
+    ]
 PATH_RESULTS = "./simulated/"
+TOLERANCE = 0.01
 
 
 def load_track(name_track):
@@ -29,7 +31,7 @@ def load_track(name_track):
     return gpd.read_parquet(filename_track)
 
 
-def load_raceline(name_track, name_car):
+def load_raceline(name_track, name_car) -> GeoDataFrame:
     filename_raceline = file_operations.find_raceline_filename(name_track, name_car)
     if filename_raceline is None:
         return init_raceline(name_track, name_car)
@@ -51,14 +53,9 @@ def load_racecar(name):
     return Car.from_toml(f"./cars/{name}.toml")
 
 
-def main(name_track, name_car):
+def main(track_layout: GeoDataFrame, name_car: str):
 
-    name_track = NAME_TRACK
-    name_car = NAME_CAR
-    track_layout = load_track(name_track)
-    if track_layout is None:
-        FileNotFoundError('No track files found')
-
+    name_track = track_layout.name[0]
     gdf_raceline = load_raceline(name_track=name_track, name_car=name_car)
     race_car = load_racecar(name_car)
     track_session = TrackSession.from_layout(track_layout, gdf_raceline)
@@ -78,7 +75,13 @@ def main(name_track, name_car):
         print(f'intermediate results saved to {filename_output=}')
 
     try:
-        track_session = race_lap.optimize_laptime(track_session, race_car, print_results, save_results)
+        track_session = race_lap.optimize_laptime(
+            track_session,
+            race_car,
+            print_results,
+            save_results,
+            tolerance=TOLERANCE
+            )
         print(f'optimization finished. {track_session.progress=}')
 
     except KeyboardInterrupt:
@@ -86,21 +89,18 @@ def main(name_track, name_car):
         print(f'final results saved to {filename_output=}')
         save_results(track_session.track_raceline)
         best_time = race_lap.simulate(race_car, track_session.line_coords(), track_session.slope)
+        # results = race_lap.(track_session, verbose=True).to_csv().encode('utf-8')
+        best_time = race_lap.simulate(race_car, track_session.line_coords(), track_session.slope)
+
         print(f'{race_car.name} - Simulated laptime = {time_to_str(best_time)}')
 
 
 if __name__ == '__main__':
-    # main(NAME_TRACK, NAME_CAR)
-    cars = ['Peugeot_205RFS', 'BMW_Z3M']
-    tracks = [
-        "2020_zandvoort",
-        "20191030_Circuit_Zandvoort",
-        "202209022_Circuit_Meppen",
-        "20191211_Bilsterberg",
-        "20191128_Circuit_Assen",
-        "20191220_Spa_Francorchamp",
-    ]
+    # track_layout = load_track('20191220_Spa_Francorchamp')
+    # main(track_layout, 'BMW_Z3M')
 
-    for car in cars:
-        for racetrack in tracks:
-            main(racetrack, car)
+    for racetrack in TRACKS:
+        for car in CARS:
+            # ic(racetrack, car)
+            track_layout = load_track(racetrack)
+            main(track_layout, car)
