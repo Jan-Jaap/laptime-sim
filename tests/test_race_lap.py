@@ -5,14 +5,14 @@ from laptime_sim import race_lap
 from laptime_sim import file_operations
 import pandas as pd
 
-from tracksession import TrackSession
+from track import TrackInterface
 
 PATH_TRACK = "./tracks/20191211_Bilsterberg.parquet"
 PATH_CAR = "./cars/Peugeot_205RFS.toml"
 
 track_layout = file_operations.load_trackdata_from_file(PATH_TRACK)
 race_car = Car.from_toml(PATH_CAR)
-track_session = TrackSession(track_layout=track_layout, car=race_car)
+track_session = TrackInterface(track_layout=track_layout, car=race_car)
 
 
 def test_mag():

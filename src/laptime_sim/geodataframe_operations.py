@@ -58,21 +58,3 @@ def get_intersections(geo: GeoDataFrame) -> GeoSeries:
     line = geo.line.geometry.values[0]
     intersection = shapely.intersection_all([divisions(geo),  drop_z(line)])
     return GeoSeries(intersection, index=['intersections'], crs=geo.crs)
-
-
-def parametrize_raceline(
-        track_border_left: GeoSeries,
-        track_border_right: GeoSeries,
-        track_raceline: GeoSeries
-        ):
-
-    left_coords = track_border_left.get_coordinates(include_z=False).to_numpy(na_value=0)
-    right_coords = track_border_right.get_coordinates(include_z=False).to_numpy(na_value=0)
-    line_coords = track_raceline.get_coordinates(include_z=False).to_numpy(na_value=0)
-
-    def loc_line(point_left, point_right, point_line):
-        division = LineString([(point_left), (point_right)])
-        intersect = Point(point_line)
-        return division.project(intersect, normalized=True)
-
-    return [loc_line(pl, pr, loc) for pl, pr, loc in zip(left_coords, right_coords, line_coords)]

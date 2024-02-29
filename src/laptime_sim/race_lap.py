@@ -3,12 +3,13 @@ import time
 from typing import Callable, NamedTuple
 import numpy as np
 import pandas as pd
-# from car import Car
 
 # from icecream import ic
 
-# from tracksession import TrackSession
-from geopandas import GeoSeries
+from geopandas import GeoDataFrame
+
+from laptime_sim.car import Car
+from laptime_sim.track import TrackInterface
 
 OUTPUT_COLUMNS_NAMES = dict(
     distance='Distance (m)',
@@ -30,7 +31,7 @@ def dot(u: np.ndarray, v: np.ndarray) -> np.ndarray:
     return np.einsum("ij,ij->i", u, v)
 
 
-def simulate(car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=False) -> float | sim_results_type:
+def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=False) -> float | sim_results_type:
     # distance between nodes
     ds = mag(np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T)
 
@@ -152,31 +153,30 @@ def results_dataframe(track_session, sim: sim_results_type) -> pd.DataFrame:
 
 
 def optimize_laptime(
-        track_session,
-        racecar,
+        track: TrackInterface,
+        racecar: Car,
         display_intermediate_results: Callable[[float, int], None],
-        save_intermediate_results: Callable[[GeoSeries], None],
+        save_intermediate_results: Callable[[GeoDataFrame], None],
         tolerance=0.005,
         ):
 
     timer1 = Timer()
     timer2 = Timer()
 
-    best_time = simulate(racecar, track_session.line_coords(), track_session.slope)
+    best_time = simulate(racecar, track.line_coords(), track.slope)
     display_intermediate_results(best_time, 0)
-    track_session.update_line()  # update raceline (create one if not present)
-    save_intermediate_results(track_session.track_raceline)
+    # track_raceline = track_session.get_raceline()  # update raceline (create one if not present)
+    save_intermediate_results(track.get_raceline())
 
     for nr_iterations in itertools.count():
 
-        new_line = track_session.get_new_line()
-        laptime = simulate(racecar, track_session.line_coords(new_line), track_session.slope)
-        improvement = best_time - laptime
+        new_line = track.get_new_line()
+        laptime = simulate(racecar, track.line_coords(new_line), track.slope)
 
-        if improvement > 0:
+        if improvement := laptime < best_time:
             best_time = laptime
 
-        track_session.update(new_line, improvement=improvement)
+        track.update(new_line, improvement)
 
         if timer1.elapsed_time > 3:
             display_intermediate_results(best_time, nr_iterations)
@@ -184,15 +184,15 @@ def optimize_laptime(
 
         if timer2.elapsed_time > 30:
             display_intermediate_results(best_time, nr_iterations)
-            save_intermediate_results(track_session.track_raceline)
+            save_intermediate_results(track.get_raceline())
             timer2.reset()
 
-        if track_session.progress < tolerance:
+        if track.progress < tolerance:
             display_intermediate_results(best_time, nr_iterations)
-            save_intermediate_results(track_session.track_raceline)
-            return track_session
+            save_intermediate_results(track.get_raceline())
+            return track
 
-    return track_session
+    return track
 
 
 class Timer:

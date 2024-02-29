@@ -1,13 +1,13 @@
 import os
 import geopandas as gpd
-from geopandas import GeoDataFrame, GeoSeries
+from geopandas import GeoDataFrame
 
-import file_operations
-from car import Car
-from tracksession import TrackSession
+from laptime_sim import file_operations
+from laptime_sim.car import Car
+from laptime_sim.track import TrackInterface
 
-import race_lap
-from race_lap import time_to_str
+from laptime_sim import race_lap
+from laptime_sim.race_lap import time_to_str
 
 # from icecream import ic
 
@@ -34,19 +34,8 @@ def load_track(name_track):
 def load_raceline(name_track, name_car) -> GeoDataFrame:
     filename_raceline = file_operations.find_raceline_filename(name_track, name_car)
     if filename_raceline is None:
-        return init_raceline(name_track, name_car)
+        return None
     return gpd.read_parquet(filename_raceline)
-
-
-def init_raceline(name_track, name_car):
-    track_layout = load_track(name_track)
-    track_session = TrackSession.from_layout(track_layout)
-    track_session.update_line()
-
-    gdf_raceline = GeoDataFrame(geometry=track_session.track_raceline, crs=track_session.track_raceline.crs)
-    gdf_raceline['car'] = name_car
-    gdf_raceline['track'] = name_track
-    return gdf_raceline
 
 
 def load_racecar(name):
@@ -58,7 +47,7 @@ def main(track_layout: GeoDataFrame, name_car: str):
     name_track = track_layout.name[0]
     gdf_raceline = load_raceline(name_track=name_track, name_car=name_car)
     race_car = load_racecar(name_car)
-    track_session = TrackSession.from_layout(track_layout, gdf_raceline)
+    track_session = TrackInterface.from_layout(track_layout, gdf_raceline)
 
     filename_output = os.path.join(PATH_RESULTS, f"{name_car}_{name_track}_simulated.parquet")
 
@@ -68,10 +57,12 @@ def main(track_layout: GeoDataFrame, name_car: str):
     def print_results(time, iteration) -> None:
         print(f"Laptime = {time_to_str(time)}  (iteration:{iteration}) (progress:{track_session.progress:.4f})")
 
-    def save_results(track_raceline: GeoSeries) -> None:
-        gdf_raceline.set_geometry(track_raceline, inplace=True)
-        gdf_raceline['crs_backup'] = gdf_raceline.crs.to_epsg()
-        gdf_raceline.to_parquet(filename_output)
+    def save_results(track_raceline: GeoDataFrame) -> None:
+        # track_raceline.set_geometry(track_raceline, inplace=True)
+        track_raceline['crs_backup'] = track_raceline.crs.to_epsg()
+        track_raceline['track'] = name_track
+        track_raceline['car'] = name_car
+        track_raceline.to_parquet(filename_output)
         print(f'intermediate results saved to {filename_output=}')
 
     try:
@@ -87,7 +78,7 @@ def main(track_layout: GeoDataFrame, name_car: str):
     except KeyboardInterrupt:
         print('Interrupted by CTRL+C, saving progress')
         print(f'final results saved to {filename_output=}')
-        save_results(track_session.track_raceline)
+        save_results(track_session.get_raceline())
         best_time = race_lap.simulate(race_car, track_session.line_coords(), track_session.slope)
         # results = race_lap.(track_session, verbose=True).to_csv().encode('utf-8')
         best_time = race_lap.simulate(race_car, track_session.line_coords(), track_session.slope)
@@ -96,11 +87,11 @@ def main(track_layout: GeoDataFrame, name_car: str):
 
 
 if __name__ == '__main__':
-    # track_layout = load_track('20191220_Spa_Francorchamp')
-    # main(track_layout, 'BMW_Z3M')
+    track_layout = load_track('20191030_Circuit_Zandvoort')
+    main(track_layout, 'BMW_Z3M')
 
-    for racetrack in TRACKS:
-        for car in CARS:
-            # ic(racetrack, car)
-            track_layout = load_track(racetrack)
-            main(track_layout, car)
+    # for racetrack in TRACKS:
+    #     for car in CARS:
+    #         # ic(racetrack, car)
+    #         track_layout = load_track(racetrack)
+    #         main(track_layout, car)

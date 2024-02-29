@@ -7,25 +7,17 @@ import plotly.express as px
 
 import folium
 from streamlit_folium import st_folium
-
 import geopandas as gpd
-from laptime_sim import geodataframe_operations
 
+from laptime_sim import geodataframe_operations
 from laptime_sim.car import Car, Trailbraking, CornerAcceleration
 from laptime_sim import race_lap
-from laptime_sim.tracksession import TrackSession
+from laptime_sim.track import TrackInterface
 from laptime_sim import file_operations as fo
-
-PATH_TRACKS = './tracks/'
-
-
-# from st_graphs.st_racetrack_display import st_racetrack_display
-# from st_graphs.st_car_ggv_display import st_car_ggv_display
 
 PATH_TRACKS = "./tracks/"
 PATH_LINES = "./simulated/"
 PATH_CARS = "./cars/"
-
 
 G = 9.81  # m/s²
 
@@ -97,7 +89,7 @@ def st_racetrack_display(track_layout, track_racelines, idx_selected_line):
         race_line = track_racelines[track_racelines.index == idx_selected_line]
         race_car_name = race_line.car.iloc[0]
         race_car = Car.from_toml(f"./cars/{race_car_name}.toml")
-        track_session = TrackSession.from_layout(track_layout, race_line)
+        track_session = TrackInterface.from_layout(track_layout, race_line)
 
         sim_results = race_lap.simulate(race_car, track_session.line_coords(), track_session.slope, verbose=True)
         st.subheader(f'Simulated laptime for {race_car_name}: {race_lap.time_to_str(sim_results.time[-1])}')
