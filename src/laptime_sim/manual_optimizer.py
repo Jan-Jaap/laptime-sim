@@ -12,23 +12,9 @@ from laptime_sim.race_lap import time_to_str
 # from icecream import ic
 
 CARS = ['Peugeot_205RFS', 'BMW_Z3M']
-TRACKS = [
-    # "2020_zandvoort",
-    "20191030_Circuit_Zandvoort",
-    "202209022_Circuit_Meppen",
-    "20191211_Bilsterberg",
-    "20191128_Circuit_Assen",
-    "20191220_Spa_Francorchamp",
-    ]
 PATH_RESULTS = "./simulated/"
+PATH_TRACKS = './tracks/'
 TOLERANCE = 0.01
-
-
-def load_track(name_track):
-    filename_track = file_operations.find_track_filename(name_track)
-    if filename_track is None:
-        return None
-    return gpd.read_parquet(filename_track)
 
 
 def load_raceline(name_track, name_car) -> GeoDataFrame:
@@ -42,7 +28,7 @@ def load_racecar(name):
     return Car.from_toml(f"./cars/{name}.toml")
 
 
-def main(track_layout: GeoDataFrame, name_car: str):
+def optimize(track_layout: GeoDataFrame, name_car: str):
 
     name_track = track_layout.name[0]
     gdf_raceline = load_raceline(name_track=name_track, name_car=name_car)
@@ -86,12 +72,20 @@ def main(track_layout: GeoDataFrame, name_car: str):
         print(f'{race_car.name} - Simulated laptime = {time_to_str(best_time)}')
 
 
-if __name__ == '__main__':
-    track_layout = load_track('20191030_Circuit_Zandvoort')
-    main(track_layout, 'BMW_Z3M')
+def main2():
+    filename = file_operations.find_track_filename(track_name='20191030_Circuit_Zandvoort', path=PATH_TRACKS)
+    track_layout = file_operations.load_trackdata_from_file(filename)
+    optimize(track_layout, name_car='BMW_Z3M')
 
-    # for racetrack in TRACKS:
-    #     for car in CARS:
-    #         # ic(racetrack, car)
-    #         track_layout = load_track(racetrack)
-    #         main(track_layout, car)
+
+def main():
+    for filename_racetrack in file_operations.filename_iterator(PATH_TRACKS, ('parquet')):
+        for car in CARS:
+            # ic(racetrack, car)
+            track_layout = file_operations.load_trackdata_from_file(filename_racetrack)
+            optimize(track_layout, car)
+
+
+if __name__ == '__main__':
+    main()
+    # main2()

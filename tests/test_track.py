@@ -1,6 +1,6 @@
 
 import geopandas
-import pandas as pd
+# import pandas as pd
 import laptime_sim.file_operations as fo
 from shapely.geometry import Polygon
 
