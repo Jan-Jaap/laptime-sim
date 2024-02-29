@@ -5,7 +5,11 @@ Use poetry to install to venv:
 ```console 
 poetry install
 ```
-Use streamlit to view tracks and control optimizations:
+Launch streamlit webapp to view tracks:
 ```console
-streamlit run streamlit_laptime_sim.py
+streamlit run src/streamlit_apps/streamlit_dataviewer.py
+```
+Launch streamlit webapp to control optimizations:
+```console
+streamlit run src/streamlit_apps/streamlit_optimizer.py
 ```
