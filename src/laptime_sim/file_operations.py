@@ -59,9 +59,8 @@ def find_raceline_filename(track_name, name_car) -> str:
 def find_track_filename(track_name, path=PATH_TRACKS) -> str:
     # find track data from different file sources.
     for filename in filename_iterator(path, ('parquet')):
-        match filename:
-            case f if track_name in f:
-                return f
+        if track_name in filename:
+            return filename
 
 
 def save_csv(df: DataFrame, filename_results: str):

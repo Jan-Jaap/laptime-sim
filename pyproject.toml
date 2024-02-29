@@ -17,6 +17,7 @@ folium = "^0.14.0"
 matplotlib = "^3.8.1"
 mapclassify = "^2.6.1"
 pyogrio = "^0.7.2"
+altair = "^5.2.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.4.3"

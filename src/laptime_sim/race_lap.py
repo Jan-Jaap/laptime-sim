@@ -70,26 +70,24 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=
     )  # simulated speed maximum acceleration (ones to avoid division by zero)
     v_b = np.ones(len(v_max))  # simulated speed maximum braking
 
-    for i in range(-100, len(v_max)):  # negative index to simulate running start....
+    for i in range(-90, len(v_max)):  # negative index to simulate running start....
         j = i - 1  # index to previous timestep
 
         # max possible speed accelerating out of corners
         if v_a[j] < v_max[j]:  # check if previous speed was lower than max
             acc_lat = v_a[j] ** 2 * k_car[j] + g_car[j, 1]  # calc lateral acceleration based on
-            # acc_lon = car.get_max_acc(v_a[j], acc_lat)
-            acc_lon = get_acceleration(
-                P_engine_in_watt=car.P_engine_in_watt,
-                c_roll=car.c_roll,
-                mass=car.mass,
-                c_drag=car.c_drag,
-                acc_grip_max=car.acc_grip_max,
-                acc_limit=car.acc_limit,
-                corner_acc=car.corner_acc,
-                v=v_a[j],
-                acc_lat=acc_lat
-            )
 
-            acc_lon -= g_car[j, 0]
+            # grip circle (no downforce accounted for)
+            n = car.corner_acc / 50
+            max_acc_grip = (car.acc_limit) * (1 - (np.abs(acc_lat) / car.acc_grip_max)**n)**(1/n)
+
+            force_engine = v_a[j] and car.P_engine_in_watt / v_a[j] or 0
+            # max_acc_engine = force_engine / mass
+            acc_lon = force_engine and min(max_acc_grip, force_engine / car.mass) or max_acc_grip
+            aero_drag = v_a[j]**2 * car.c_drag / car.mass
+            rolling_drag = car.c_roll * 9.81       # rolling resistance
+            acc_lon -= aero_drag + rolling_drag + g_car[j, 0]
+
             v1 = (v_a[j] ** 2 + 2 * acc_lon * ds[i]) ** 0.5
             v_a[i] = min(v1, v_max[i])
         else:  # if corner speed was maximal, all grip is used for lateral acceleration (=cornering)
@@ -98,23 +96,22 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=
 
         # max possible speed braking into corners (backwards lap)
         v0 = v_b[j]
+
         if v0 < v_max[::-1][j]:
             acc_lat = v0**2 * k_car[::-1][j] + g_car[::-1][j, 1]
-            # acc_lon = car.get_min_acc(v0, acc_lat)
 
-            acc_lon = get_acceleration(
-                P_engine_in_watt=0,
-                c_roll=-car.c_roll,
-                mass=car.mass,
-                c_drag=-car.c_drag,
-                acc_grip_max=car.acc_grip_max,
-                acc_limit=car.dec_limit,
-                corner_acc=car.trail_braking,
-                v=v0,
-                acc_lat=acc_lat
-                )
+            # grip circle (no downforce accounted for)
+            n = car.trail_braking / 50
+            max_acc_grip = (car.dec_limit) * (1 - (np.abs(acc_lat) / car.acc_grip_max)**n)**(1/n)
 
-            acc_lon += g_car[::-1][j, 0]
+            force_engine = 0
+            # max_acc_engine = force_engine / mass
+            acc_lon = max_acc_grip
+            aero_drag = v0**2 * car.c_drag / car.mass
+            rolling_drag = car.c_roll * 9.81       # rolling resistance
+            acc_lon += aero_drag + rolling_drag + g_car[::-1][j, 0]
+
+            # acc_lon += g_car[::-1][j, 0]
             v1 = (v0**2 + 2 * acc_lon * ds[::-1][i]) ** 0.5
             v_b[i] = min(v1, v_max[::-1][i])
 
@@ -214,26 +211,41 @@ def time_to_str(seconds: float) -> str:
     return "{:02.0f}:{:06.03f}".format(seconds % 3600 // 60, seconds % 60)
 
 
-def get_acceleration_wrapper(car: Car, v, acc_lat, braking=False):
-    if braking:
-        return get_acceleration(0, -car.c_roll, car.mass, -car.c_drag,
-                                car.acc_grip_max, car.dec_limit, car.trail_braking, v, acc_lat)
+def get_max_acceleration(car: Car, v: float, acc_lat):
+    '''Return the acceleration limit using the performance envelope
+
+    Args:
+        car (Car): Car parameters
+        v (float): velocity [m/s]
+        acc_lat (float): lateral acceleration, a_y [m/s²]
+
+    Returns:
+        float: maximum longitudinal acceleration, a_x [m/s²]
+    '''
     return get_acceleration(P_engine_in_watt=car.P_engine_in_watt, **car.dict(), v=v, acc_lat=acc_lat)
 
 
-def get_acceleration(P_engine_in_watt, c_roll, mass, c_drag, acc_grip_max, acc_limit, corner_acc, v, acc_lat, **kwargs):
-    '''maximum possible acceleration (flooring it)
-    args:
-        v:          velocity in m/s
-        acc_lat:    lateral acceleration in m/s²
+def get_max_deceleration(car: Car, v, acc_lat):
+    '''Return the deceleration limit using the performance envelope
+
+    Args:
+        car (Car): Car parameters
+        v (float): velocity [m/s]
+        acc_lat (float): lateral acceleration, a_y [m/s²]
+
+    Returns:
+        float: maximum longitudinal deceleration, -a_x [m/s²]
     '''
-    # grip circle (no downforce accounted for)
+    return get_acceleration(0, -car.c_roll, car.mass, -car.c_drag,
+                            car.acc_grip_max, car.dec_limit, car.trail_braking, v, acc_lat)
+
+
+def get_acceleration(P_engine_in_watt, c_roll, mass, c_drag, acc_grip_max, acc_limit, corner_acc, v, acc_lat, **kwargs):
+
     n = corner_acc / 50
     max_acc_grip = (acc_limit) * (1 - (np.abs(acc_lat) / acc_grip_max)**n)**(1/n)
-
     force_engine = v and P_engine_in_watt / v or 0
-    # max_acc_engine = force_engine / mass
     acceleration_max = force_engine and min(max_acc_grip, force_engine / mass) or max_acc_grip
     aero_drag = v**2 * c_drag / mass
-    rolling_drag = c_roll * 9.81       # rolling resistance
+    rolling_drag = c_roll * 9.81
     return acceleration_max - aero_drag - rolling_drag
