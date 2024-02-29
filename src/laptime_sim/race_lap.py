@@ -3,11 +3,11 @@ import time
 from typing import Callable, NamedTuple
 import numpy as np
 import pandas as pd
-from car import Car
+# from car import Car
 
 # from icecream import ic
 
-from tracksession import TrackSession
+# from tracksession import TrackSession
 from geopandas import GeoSeries
 
 OUTPUT_COLUMNS_NAMES = dict(
@@ -30,7 +30,7 @@ def dot(u: np.ndarray, v: np.ndarray) -> np.ndarray:
     return np.einsum("ij,ij->i", u, v)
 
 
-def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=False) -> float | sim_results_type:
+def simulate(car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=False) -> float | sim_results_type:
     # distance between nodes
     ds = mag(np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T)
 
@@ -130,7 +130,7 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=
     return sim_results_type(t_lap, speed, Nk)
 
 
-def results_dataframe(track_session: TrackSession, sim: sim_results_type) -> pd.DataFrame:
+def results_dataframe(track_session, sim: sim_results_type) -> pd.DataFrame:
 
     line_coordinates = track_session.line_coords()
     ds = mag(
@@ -152,12 +152,12 @@ def results_dataframe(track_session: TrackSession, sim: sim_results_type) -> pd.
 
 
 def optimize_laptime(
-        track_session: TrackSession,
-        racecar: Car,
+        track_session,
+        racecar,
         display_intermediate_results: Callable[[float, int], None],
         save_intermediate_results: Callable[[GeoSeries], None],
         tolerance=0.005,
-        ) -> TrackSession:
+        ):
 
     timer1 = Timer()
     timer2 = Timer()
@@ -211,7 +211,7 @@ def time_to_str(seconds: float) -> str:
     return "{:02.0f}:{:06.03f}".format(seconds % 3600 // 60, seconds % 60)
 
 
-def get_max_acceleration(car: Car, v: float, acc_lat):
+def get_max_acceleration(car, v: float, acc_lat):
     '''Return the acceleration limit using the performance envelope
 
     Args:
@@ -225,7 +225,7 @@ def get_max_acceleration(car: Car, v: float, acc_lat):
     return get_acceleration(P_engine_in_watt=car.P_engine_in_watt, **car.dict(), v=v, acc_lat=acc_lat)
 
 
-def get_max_deceleration(car: Car, v, acc_lat):
+def get_max_deceleration(car, v, acc_lat):
     '''Return the deceleration limit using the performance envelope
 
     Args:

@@ -1,6 +1,6 @@
 from typing import NamedTuple
 from geopandas import GeoSeries, GeoDataFrame
-from geodataframe_operations import parametrize_raceline
+from laptime_sim.geodataframe_operations import parametrize_raceline
 from dataclasses import dataclass
 import functools
 import numpy as np

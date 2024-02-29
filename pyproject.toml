@@ -4,7 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["JanJaapvandeVelde <janjaap.vandevelde@gmail.com>"]
 readme = "README.md"
-packages = [{include = "laptime_sim", from = "src"}]
+# packages = [{include = "laptime_sim", from = "src"}]
 # packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
@@ -29,5 +29,5 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-addopts = ["--import-mode=importlib",]
-pythonpath = [".", "tests", "src/laptime_sim"]
+# addopts = ["--import-mode=importlib",]
+pythonpath = ["src"]

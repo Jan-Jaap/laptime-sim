@@ -1,15 +1,62 @@
+"""This module creates a streamlit app"""
+
+import streamlit as st
+import os
+import numpy as np
+import plotly.express as px
+
 import folium
 from streamlit_folium import st_folium
-import streamlit as st
 
 import geopandas as gpd
-import geodataframe_operations
-import car
-import race_lap
-from tracksession import TrackSession
-import file_operations as fo
+from laptime_sim import geodataframe_operations
+
+from laptime_sim.car import Car, Trailbraking, CornerAcceleration
+from laptime_sim import race_lap
+from laptime_sim.tracksession import TrackSession
+from laptime_sim import file_operations as fo
 
 PATH_TRACKS = './tracks/'
+
+
+# from st_graphs.st_racetrack_display import st_racetrack_display
+# from st_graphs.st_car_ggv_display import st_car_ggv_display
+
+PATH_TRACKS = "./tracks/"
+PATH_LINES = "./simulated/"
+PATH_CARS = "./cars/"
+
+
+G = 9.81  # m/s²
+
+
+def plot_car_lon(race_car, v1):
+    v = np.linspace(0, 300, 100)
+    fig = px.line(dict(
+        v=v,
+        acc=[race_lap.get_max_acceleration(race_car, v=v0/3.6, acc_lat=0)/G for v0 in v],
+        dec=[-race_lap.get_max_deceleration(race_car, v=v0/3.6, acc_lat=0)/G for v0 in v],
+        ), x=['acc', 'dec'], y='v')
+    fig.add_vline(x=0)
+    fig.add_hline(y=v1)
+    return fig
+
+
+def plot_car_lat(race_car, v1):
+
+    x = np.linspace(-race_car.acc_grip_max, race_car.acc_grip_max, 100)
+
+    fig = px.line(dict(
+        x=x/G,
+        acc=[race_lap.get_max_acceleration(race_car, v=v1/3.6, acc_lat=lat)/G for lat in x],
+        dec=[-race_lap.get_max_deceleration(race_car, v=v1/3.6, acc_lat=lat)/G for lat in x],
+        ), x='x', y=['acc', 'dec'])
+    fig.add_vline(x=0)
+    fig.add_vline(x=race_car.acc_grip_max/G)
+    fig.add_vline(x=-race_car.acc_grip_max/G)
+    fig.add_hline(y=0)
+    fig.add_hline(y=0)
+    return fig
 
 
 def filename_from_name(track_name, path_tracks=PATH_TRACKS):
@@ -41,21 +88,7 @@ def st_select_raceline(path_racelines, track_name):
     return track_racelines, idx_selected_line
 
 
-def st_racetrack_display(path_tracks, path_racelines):
-
-    header = st.empty()
-    filename_track = st_select_track_layout(path_tracks)
-    if filename_track is None:
-        return st.error("No track selected")
-
-    track_layout = gpd.read_parquet(filename_track)
-
-    track_name = track_layout.name[0]
-    header.header(f"Race track display - {track_name}")
-
-    # this results in wrong crs for some paths (if not all crs are the same)
-    # we correct for this by saving the crs in columns crs_backup
-    track_racelines, idx_selected_line = st_select_raceline(path_racelines, track_name)
+def st_racetrack_display(track_layout, track_racelines, idx_selected_line):
 
     st_trackmap = st.empty()
 
@@ -63,7 +96,7 @@ def st_racetrack_display(path_tracks, path_racelines):
 
         race_line = track_racelines[track_racelines.index == idx_selected_line]
         race_car_name = race_line.car.iloc[0]
-        race_car = car.Car.from_toml(f"./cars/{race_car_name}.toml")
+        race_car = Car.from_toml(f"./cars/{race_car_name}.toml")
         track_session = TrackSession.from_layout(track_layout, race_line)
 
         sim_results = race_lap.simulate(race_car, track_session.line_coords(), track_session.slope, verbose=True)
@@ -121,3 +154,46 @@ def folium_track_map(track_layout, track_racelines, idx_selected_line):
 
     folium.LayerControl().add_to(track_map)
     return track_map
+
+
+def app():
+    st.set_page_config(page_title="HSR Webracing", layout="wide")
+
+    tab1, tab2 = st.tabs(['Track definitions', 'Car definitions'])
+    with tab1:
+        header = st.empty()
+
+        filename_track = st_select_track_layout(PATH_TRACKS)
+        if filename_track is None:
+            return st.error("No track selected")
+
+        track_layout = gpd.read_parquet(filename_track)
+        track_name = track_layout.name[0]
+        track_racelines, idx_selected_line = st_select_raceline(PATH_LINES, track_name)
+
+        header.header(f"Race track display - {track_name}")
+        st_racetrack_display(track_layout, track_racelines, idx_selected_line)
+
+    with tab2:
+        files_in_dir = [f for f in sorted(os.listdir(PATH_CARS)) if f.endswith('toml')]
+        filename_car = st.radio(label="select file", options=files_in_dir)
+        race_car = Car.from_toml(os.path.join(PATH_CARS, filename_car))
+
+        f = st.selectbox('Trailbraking driver experience', Trailbraking._member_names_, index=3)
+        race_car.trail_braking = Trailbraking[f]
+
+        f = st.selectbox('Select corner acceleration', CornerAcceleration._member_names_, index=3)
+        race_car.corner_acc = CornerAcceleration[f]
+
+        v1 = st.slider('Velocity in km/h', min_value=0, max_value=300)
+
+        col1, col2 = st.columns(2)
+        col1.plotly_chart(plot_car_lon(race_car, v1), use_container_width=True, )
+        col2.plotly_chart(plot_car_lat(race_car, v1), use_container_width=True, )
+
+        with st.expander('Car parameters'):
+            st.write(race_car)
+
+
+if __name__ == "__main__":
+    app()
