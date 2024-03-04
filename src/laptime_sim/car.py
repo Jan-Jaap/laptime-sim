@@ -2,9 +2,10 @@ from dataclasses import dataclass, asdict
 from enum import IntEnum
 import functools
 import json
-
 import toml
 # from numba import njit
+
+PATH_CAR_FILES = "./cars/"
 
 
 class Trailbraking(IntEnum):

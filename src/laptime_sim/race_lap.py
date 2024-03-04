@@ -4,12 +4,10 @@ from typing import Callable, NamedTuple
 import numpy as np
 import pandas as pd
 
-# from icecream import ic
-
 from geopandas import GeoDataFrame
 
 from laptime_sim.car import Car
-from laptime_sim.track import TrackInterface
+from laptime_sim.raceline import Raceline
 
 OUTPUT_COLUMNS_NAMES = dict(
     distance='Distance (m)',
@@ -153,8 +151,7 @@ def results_dataframe(track_session, sim: sim_results_type) -> pd.DataFrame:
 
 
 def optimize_laptime(
-        track: TrackInterface,
-        racecar: Car,
+        raceline: Raceline,
         display_intermediate_results: Callable[[float, int], None],
         save_intermediate_results: Callable[[GeoDataFrame], None],
         tolerance=0.005,
@@ -163,20 +160,18 @@ def optimize_laptime(
     timer1 = Timer()
     timer2 = Timer()
 
-    best_time = simulate(racecar, track.line_coords(), track.slope)
+    racecar = raceline.car
+
+    best_time = simulate(racecar, raceline.line_coords(), raceline.slope)
     display_intermediate_results(best_time, 0)
     # track_raceline = track_session.get_raceline()  # update raceline (create one if not present)
-    save_intermediate_results(track.get_raceline())
+    save_intermediate_results(raceline.get_dataframe())
 
     for nr_iterations in itertools.count():
 
-        new_line = track.get_new_line()
-        laptime = simulate(racecar, track.line_coords(new_line), track.slope)
-
-        if improvement := laptime < best_time:
-            best_time = laptime
-
-        track.update(new_line, improvement)
+        new_line = raceline.get_new_line()
+        laptime = simulate(racecar, raceline.line_coords(new_line), raceline.slope)
+        raceline.update(new_line, laptime)
 
         if timer1.elapsed_time > 3:
             display_intermediate_results(best_time, nr_iterations)
@@ -184,15 +179,15 @@ def optimize_laptime(
 
         if timer2.elapsed_time > 30:
             display_intermediate_results(best_time, nr_iterations)
-            save_intermediate_results(track.get_raceline())
+            save_intermediate_results(raceline.get_dataframe())
             timer2.reset()
 
-        if track.progress < tolerance:
+        if raceline.progress < tolerance:
             display_intermediate_results(best_time, nr_iterations)
-            save_intermediate_results(track.get_raceline())
-            return track
+            save_intermediate_results(raceline.get_dataframe())
+            return raceline
 
-    return track
+    return raceline
 
 
 class Timer:
