@@ -2,7 +2,7 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "flake8.args": [
-        "--max-line-length=120"]
+        "--max-line-length=128"]
      ,
     "editor.defaultFormatter": "ms-python.black-formatter",
 }

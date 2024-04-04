@@ -5,9 +5,9 @@ Use poetry to install to venv:
 ```console 
 poetry install
 ```
-Launch streamlit webapp to view tracks:
+Launch streamlit webapp to start the UI:
 ```console
-streamlit run src/streamlit_apps/streamlit_dataviewer.py
+streamlit run src/streamlit_apps/Welcome.py
 ```
 
 ![alt text](/images/streamlit_trackview.png)

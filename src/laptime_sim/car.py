@@ -1,9 +1,9 @@
-from dataclasses import dataclass, asdict
+import numpy as np
+from dataclasses import dataclass
 from enum import IntEnum
 import functools
 import json
 import toml
-# from numba import njit
 
 PATH_CAR_FILES = "./cars/"
 
@@ -18,10 +18,10 @@ class Trailbraking(IntEnum):
 
 class CornerAcceleration(IntEnum):
     '''Enum with trailbraking parameter corresponding with driver experience'''
-    NO_DIFFERENTIAL_FWD = 40
-    NO_DIFFERENTIAL_RWD = 60
+    NO_DIFFERENTIAL_FWD = 50
     DIFFERENTIAL_FWD = 80
-    DIFFERENTIAL_RWD = 100
+    NO_DIFFERENTIAL_RWD = 60
+    DIFFERENTIAL_RWD = 90
 
 
 @dataclass
@@ -74,5 +74,23 @@ class Car:
         '''not implemented'''
         pass
 
-    def dict(self):
-        return asdict(self)
+    # def dict(self):
+    #     return asdict(self)
+
+    def get_acceleration(self, v, acc_lat):
+
+        n = self.corner_acc / 50
+        max_acc_grip = (self.acc_limit) * (1 - (np.abs(acc_lat) / self.acc_grip_max)**n)**(1/n)
+        force_engine = v and self.P_engine_in_watt / v or 0
+        acceleration_max = force_engine and min(max_acc_grip, force_engine / self.mass) or max_acc_grip
+        aero_drag = v**2 * self.c_drag / self.mass
+        rolling_drag = self.c_roll * 9.81
+        return acceleration_max - aero_drag - rolling_drag
+
+    def get_deceleration(self, v, acc_lat):
+
+        n = self.trail_braking / 50
+        max_dec_grip = (self.dec_limit) * (1 - (np.abs(acc_lat) / self.acc_grip_max)**n)**(1/n)
+        aero_drag = v**2 * self.c_drag / self.mass
+        rolling_drag = self.c_roll * 9.81
+        return max_dec_grip + aero_drag + rolling_drag

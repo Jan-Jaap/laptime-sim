@@ -1,5 +1,6 @@
-from geopandas import GeoDataFrame, read_parquet
+from geopandas import GeoDataFrame, GeoSeries, read_parquet
 from dataclasses import dataclass
+from laptime_sim.geodataframe_operations import divisions
 import functools
 import numpy as np
 
@@ -24,11 +25,19 @@ class Track:
     def slope(self):
         return (self.right_coords()[:, 2] - self.left_coords()[:, 2]) / self.width
 
+    @property
+    def left(self) -> GeoSeries:
+        return self.layout.left
+
+    @property
+    def right(self) -> GeoSeries:
+        return self.layout.right
+
     def left_coords(self, include_z=True):
-        return self.layout.left.get_coordinates(include_z=include_z).to_numpy(na_value=0)
+        return self.left.get_coordinates(include_z=include_z).to_numpy(na_value=0)
 
     def right_coords(self, include_z=True):
-        return self.layout.right.get_coordinates(include_z=include_z).to_numpy(na_value=0)
+        return self.right.get_coordinates(include_z=include_z).to_numpy(na_value=0)
 
     @property
     def name(self):
@@ -41,3 +50,7 @@ class Track:
     @property
     def crs(self):
         return self.layout.crs
+
+    @property
+    def divisions(self):
+        return GeoSeries(divisions(self.layout), index=['divisions'], crs=self.crs)

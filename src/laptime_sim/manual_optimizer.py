@@ -4,12 +4,13 @@ import geopandas
 from laptime_sim import file_operations
 from laptime_sim import race_lap
 from laptime_sim import Car, Track, Raceline, time_to_str
+
 # from icecream import ic
 
 CARS = ["Peugeot_205RFS", "BMW_Z3M"]
 PATH_RESULTS = "./simulated/"
 PATH_TRACKS = "./tracks/"
-TOLERANCE = .001
+TOLERANCE = 0.001
 
 
 def load_racecar(name):
@@ -67,7 +68,9 @@ def main2():
 
 
 def main():
-    for filename_racetrack in file_operations.filename_iterator(PATH_TRACKS, ("parquet")):
+    for filename_racetrack in file_operations.filename_iterator(
+        PATH_TRACKS, ("parquet")
+    ):
         track = Track.from_parquet(filename_racetrack)
         for car in CARS:
             optimize(track, car)
