@@ -41,7 +41,7 @@ class Raceline:
             self.track.right_coords(include_z=False),
             raceline_gdf.get_coordinates(include_z=False).to_numpy(na_value=0),
         )
-        self._best_time = raceline_gdf.best_time[0]
+        self.best_time = raceline_gdf.best_time[0]
         return self
 
     @functools.cached_property
@@ -51,11 +51,6 @@ class Raceline:
     @property
     def len(self):
         return len(self._position_clearance)
-
-    # @property
-    # def best_time(self):
-    #     seconds = self.best_time
-    #     return "{:02.0f}:{:06.03f}".format(seconds % 3600 // 60, seconds % 60)
 
     @property
     def slope(self):
@@ -81,17 +76,17 @@ class Raceline:
         gdf_raceline['crs_backup'] = self.track.crs.to_epsg()
         gdf_raceline['track'] = self.track.name
         gdf_raceline['car'] = self.car.name
-        gdf_raceline['best_time'] = self._best_time
+        gdf_raceline['best_time'] = self.best_time
         return gdf_raceline
 
     def update(self, position, laptime: float) -> None:
 
-        if self._best_time is None:
-            self._best_time = laptime
+        if self.best_time is None:
+            self.best_time = laptime
 
-        if laptime < self._best_time:
-            improvement = self._best_time - laptime
-            self._best_time = laptime
+        if laptime < self.best_time:
+            improvement = self.best_time - laptime
+            self.best_time = laptime
             self.line_pos = position
             deviation = np.abs(self.line_pos - position)
             max_deviation = max(deviation)

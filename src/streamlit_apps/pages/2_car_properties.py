@@ -62,14 +62,14 @@ def main() -> None:
         label="Trailbraking driver experience",
         options=Trailbraking,
         index=list(Trailbraking).index(race_car.trail_braking),
-        format_func=lambda x: Trailbraking(x).name
+        format_func=lambda x: Trailbraking(x).name,
     )
 
     race_car.corner_acc = st.selectbox(
         label="Select corner acceleration",
         options=CornerAcceleration,
         index=list(CornerAcceleration).index(race_car.corner_acc),
-        format_func=lambda x: CornerAcceleration(x).name
+        format_func=lambda x: CornerAcceleration(x).name,
     )
 
     v1 = st.slider("Velocity in km/h", min_value=0, max_value=300)

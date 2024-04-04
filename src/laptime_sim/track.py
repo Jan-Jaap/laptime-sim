@@ -1,8 +1,8 @@
 from geopandas import GeoDataFrame, GeoSeries, read_parquet
 from dataclasses import dataclass
-from laptime_sim.geodataframe_operations import divisions
 import functools
 import numpy as np
+import shapely
 
 
 @dataclass
@@ -33,10 +33,10 @@ class Track:
     def right(self) -> GeoSeries:
         return self.layout.right
 
-    def left_coords(self, include_z=True):
+    def left_coords(self, include_z=True) -> np.ndarray:
         return self.left.get_coordinates(include_z=include_z).to_numpy(na_value=0)
 
-    def right_coords(self, include_z=True):
+    def right_coords(self, include_z=True) -> np.ndarray:
         return self.right.get_coordinates(include_z=include_z).to_numpy(na_value=0)
 
     @property
@@ -53,4 +53,19 @@ class Track:
 
     @property
     def divisions(self):
-        return GeoSeries(divisions(self.layout), index=['divisions'], crs=self.crs)
+
+        border = zip(self.left_coords(include_z=False), self.right_coords(include_z=False))
+        lines = []
+        for point_left, point_right in border:
+            lines.append(([(point_left), (point_right)]))
+
+        return GeoSeries(shapely.MultiLineString(lines=lines), index=['divisions'], crs=self.crs)
+
+    def intersections(self, line):
+        line = drop_z(line.geometry.values[0])
+        intersection = shapely.intersection_all([self.divisions, line])
+        return GeoSeries(intersection, index=['intersections'], crs=self.crs)
+
+
+def drop_z(geom: shapely.LineString) -> shapely.LineString:
+    return shapely.wkb.loads(shapely.wkb.dumps(geom, output_dimension=2))

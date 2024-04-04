@@ -162,8 +162,10 @@ def optimize_laptime(
 
     racecar = raceline.car
 
-    best_time = simulate(racecar, raceline.line_coords(), raceline.slope)
-    display_intermediate_results(best_time, 0)
+    raceline.best_time = simulate(racecar, raceline.line_coords(), raceline.slope)
+    # raceline.best_time = best_time
+
+    display_intermediate_results(raceline.best_time, 0)
     # track_raceline = track_session.get_raceline()  # update raceline (create one if not present)
     save_intermediate_results(raceline.get_dataframe())
 
@@ -174,16 +176,16 @@ def optimize_laptime(
         raceline.update(new_line, laptime)
 
         if timer1.elapsed_time > 3:
-            display_intermediate_results(best_time, nr_iterations)
+            display_intermediate_results(raceline.best_time, nr_iterations)
             timer1.reset()
 
         if timer2.elapsed_time > 30:
-            display_intermediate_results(best_time, nr_iterations)
+            display_intermediate_results(raceline.best_time, nr_iterations)
             save_intermediate_results(raceline.get_dataframe())
             timer2.reset()
 
         if raceline.progress < tolerance:
-            display_intermediate_results(best_time, nr_iterations)
+            display_intermediate_results(raceline.best_time, nr_iterations)
             save_intermediate_results(raceline.get_dataframe())
             return raceline
 
@@ -204,43 +206,3 @@ class Timer:
 
 def time_to_str(seconds: float) -> str:
     return "{:02.0f}:{:06.03f}".format(seconds % 3600 // 60, seconds % 60)
-
-
-def get_max_acceleration(car, v: float, acc_lat):
-    '''Return the acceleration limit using the performance envelope
-
-    Args:
-        car (Car): Car parameters
-        v (float): velocity [m/s]
-        acc_lat (float): lateral acceleration, a_y [m/s²]
-
-    Returns:
-        float: maximum longitudinal acceleration, a_x [m/s²]
-    '''
-    return get_acceleration(P_engine_in_watt=car.P_engine_in_watt, **car.dict(), v=v, acc_lat=acc_lat)
-
-
-def get_max_deceleration(car, v, acc_lat):
-    '''Return the deceleration limit using the performance envelope
-
-    Args:
-        car (Car): Car parameters
-        v (float): velocity [m/s]
-        acc_lat (float): lateral acceleration, a_y [m/s²]
-
-    Returns:
-        float: maximum longitudinal deceleration, -a_x [m/s²]
-    '''
-    return get_acceleration(0, -car.c_roll, car.mass, -car.c_drag,
-                            car.acc_grip_max, car.dec_limit, car.trail_braking, v, acc_lat)
-
-
-def get_acceleration(P_engine_in_watt, c_roll, mass, c_drag, acc_grip_max, acc_limit, corner_acc, v, acc_lat, **kwargs):
-
-    n = corner_acc / 50
-    max_acc_grip = (acc_limit) * (1 - (np.abs(acc_lat) / acc_grip_max)**n)**(1/n)
-    force_engine = v and P_engine_in_watt / v or 0
-    acceleration_max = force_engine and min(max_acc_grip, force_engine / mass) or max_acc_grip
-    aero_drag = v**2 * c_drag / mass
-    rolling_drag = c_roll * 9.81
-    return acceleration_max - aero_drag - rolling_drag

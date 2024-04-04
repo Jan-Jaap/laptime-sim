@@ -3,83 +3,17 @@
 import streamlit as st
 import os
 
-
 import folium
 import xyzservices.providers as xyz
 from streamlit_folium import st_folium
 import geopandas as gpd
 
 import laptime_sim
-
 import laptime_sim.file_operations as fo
-import laptime_sim.geodataframe_operations
 
 PATH_TRACKS = "./tracks/"
 PATH_LINES = "./simulated/"
 PATH_CARS = "./cars/"
-
-# G = 9.81  # m/s²
-
-
-# def plot_car_lon(race_car, v1):
-#     v = np.linspace(0, 300, 100)
-#     fig = px.line(
-#         dict(
-#             v=v,
-#             acc=[
-#                 laptime_sim.race_lap.get_max_acceleration(
-#                     race_car, v=v0 / 3.6, acc_lat=0
-#                 )
-#                 / G
-#                 for v0 in v
-#             ],
-#             dec=[
-#                 -laptime_sim.race_lap.get_max_deceleration(
-#                     race_car, v=v0 / 3.6, acc_lat=0
-#                 )
-#                 / G
-#                 for v0 in v
-#             ],
-#         ),
-#         x=["acc", "dec"],
-#         y="v",
-#     )
-#     fig.add_vline(x=0)
-#     fig.add_hline(y=v1)
-#     return fig
-
-
-# def plot_car_lat(race_car, v1):
-
-#     x = np.linspace(-race_car.acc_grip_max, race_car.acc_grip_max, 100)
-
-#     fig = px.line(
-#         dict(
-#             x=x / G,
-#             acc=[
-#                 laptime_sim.race_lap.get_max_acceleration(
-#                     race_car, v=v1 / 3.6, acc_lat=lat
-#                 )
-#                 / G
-#                 for lat in x
-#             ],
-#             dec=[
-#                 -laptime_sim.race_lap.get_max_deceleration(
-#                     race_car, v=v1 / 3.6, acc_lat=lat
-#                 )
-#                 / G
-#                 for lat in x
-#             ],
-#         ),
-#         x="x",
-#         y=["acc", "dec"],
-#     )
-#     fig.add_vline(x=0)
-#     fig.add_vline(x=race_car.acc_grip_max / G)
-#     fig.add_vline(x=-race_car.acc_grip_max / G)
-#     fig.add_hline(y=0)
-#     fig.add_hline(y=0)
-#     return fig
 
 
 def st_get_car(path=PATH_CARS):
@@ -125,8 +59,7 @@ def folium_track_map(track: laptime_sim.Track, all_track_racelines, selected_lin
     )
 
     folium.TileLayer(xyz.Esri.WorldImagery).add_to(my_map)
-    folium.TileLayer('openstreetmap').add_to(my_map)
-    # folium.TileLayer('CartoDB Voyager').add_to(my_map)
+    folium.TileLayer("openstreetmap").add_to(my_map)
     folium.LayerControl().add_to(my_map)
 
     return my_map
@@ -154,7 +87,7 @@ def main() -> None:
     raceline_gdf = gpd.read_parquet(filename_raceline)
 
     st.write(
-        f"Simulated laptime - {laptime_sim.race_lap.time_to_str(raceline_gdf.best_time[0])}"
+        f"Simulated laptime - {laptime_sim.time_to_str(raceline_gdf.best_time[0])}"
     )
 
     track_map = folium_track_map(track, all_racelines_gdf, raceline_gdf)

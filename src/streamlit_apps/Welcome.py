@@ -7,7 +7,7 @@ def main() -> None:
         '''
             **Laptime Simulator\n
             by: Jan-Jaap van de Velde
-            
+
             https://github.com/Jan-Jaap/laptime-sim
         '''
     )
