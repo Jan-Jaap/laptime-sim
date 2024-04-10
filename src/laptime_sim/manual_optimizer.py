@@ -8,7 +8,7 @@ import laptime_sim
 CARS = ["Peugeot_205RFS", "BMW_Z3M"]
 PATH_RESULTS = "./simulated/"
 PATH_TRACKS = "./tracks/"
-TOLERANCE = 0.1
+TOLERANCE = 0.001
 
 
 def load_racecar(name):
@@ -49,9 +49,6 @@ def optimize(track: laptime_sim.Track, name_car: str):
         print("Interrupted by CTRL+C, saving progress")
         print(f"final results saved to {filename_output=}")
         save_results(raceline.get_dataframe())
-        # best_time = simulate(race_car, raceline.line_coords(), raceline.slope)
-
-        # print(f"{race_car.name} - Simulated laptime = {laptime_sim.time_to_str(best_time)}")
         print(f"{race_car.name} - Saved laptime = {laptime_sim.time_to_str(raceline.best_time)}")
 
 

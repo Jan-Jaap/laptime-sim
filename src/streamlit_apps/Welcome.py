@@ -2,6 +2,10 @@ import streamlit as st
 
 
 def main() -> None:
+    '''
+    Multipage app
+    Pages are in /pages folder
+    '''
     st.set_page_config('Laptime Simulator')
     st.markdown(
         '''

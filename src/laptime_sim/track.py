@@ -1,17 +1,29 @@
+from typing import Self
 from geopandas import GeoDataFrame, GeoSeries, read_parquet
 from dataclasses import dataclass
 import functools
 import numpy as np
 import shapely
 
+PATH_TRACKS = "./tracks/"
+
 
 @dataclass
 class Track:
     layout: GeoDataFrame
 
+    def __post_init__(self):
+        utm_crs = self.layout.estimate_utm_crs()
+        self.layout = self.layout.to_crs(utm_crs)
+
     @classmethod
-    def from_parquet(cls, filename: str):
+    def from_parquet(cls, filename: str) -> Self:
         return cls(layout=read_parquet(filename))
+
+    @classmethod
+    def from_track_name(cls, track_name: str) -> Self:
+        filter = [("track_name", "==", track_name)]
+        return cls(layout=read_parquet(PATH_TRACKS, filters=filter))
 
     @functools.cached_property
     def _position_clearance(self):
@@ -27,11 +39,11 @@ class Track:
 
     @property
     def left(self) -> GeoSeries:
-        return self.layout.left
+        return self.layout[self.layout['geom_type'] == 'left']
 
     @property
     def right(self) -> GeoSeries:
-        return self.layout.right
+        return self.layout[self.layout['geom_type'] == 'right']
 
     def left_coords(self, include_z=True) -> np.ndarray:
         return self.left.get_coordinates(include_z=include_z).to_numpy(na_value=0)
@@ -41,7 +53,7 @@ class Track:
 
     @property
     def name(self):
-        return self.layout.name[0]
+        return self.layout.track_name[0]
 
     @property
     def len(self):

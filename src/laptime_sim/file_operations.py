@@ -5,12 +5,12 @@ from geopandas import GeoDataFrame
 
 geopandas.options.io_engine = "pyogrio"
 
-PATH_RESULTS_ = './simulated/'
+PATH_RESULTS = './simulated/'
 PATH_TRACKS = './tracks/'
 SUPPORTED_FILETYPES = ('.csv', '.geojson', '.parquet')
 
-if not os.path.exists(PATH_RESULTS_):
-    os.makedirs(PATH_RESULTS_)
+if not os.path.exists(PATH_RESULTS):
+    os.makedirs(PATH_RESULTS)
 
 
 def get_trackname_from_filename(filename: str) -> str:
@@ -50,7 +50,7 @@ def strip_extension(path: str) -> str:
 def find_raceline_filename(track_name, name_car) -> str:
 
     # first try to restart an existing simulation
-    for filename in filename_iterator(PATH_RESULTS_, ('parquet')):
+    for filename in filename_iterator(PATH_RESULTS, ('parquet')):
         match filename:
             case f if track_name in f and name_car in f:
                 return f
@@ -64,5 +64,5 @@ def find_track_filename(track_name, path=PATH_TRACKS) -> str:
 
 
 def save_csv(df: DataFrame, filename_results: str):
-    f = os.path.join(PATH_RESULTS_, os.path.basename(filename_results))
+    f = os.path.join(PATH_RESULTS, os.path.basename(filename_results))
     df.to_csv(strip_extension(f)+'.csv', index=None, header=True)

@@ -1,7 +1,6 @@
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
-import functools
 import json
 import toml
 
@@ -50,6 +49,10 @@ class Car:
     trail_braking:  Trailbraking
     corner_acc:     CornerAcceleration
     name:           str = None
+    P_engine_in_watt: float = field(init=False)
+
+    def __post_init__(self):
+        self.P_engine_in_watt = self.P_engine / 1.3410 * 1000
 
     @classmethod
     def from_json(cls, filename):
@@ -62,10 +65,6 @@ class Car:
         '''load car parameters from TOML file'''
         return cls(**toml.load(filename))
 
-    @functools.cached_property
-    def P_engine_in_watt(self):
-        return self.P_engine / 1.3410 * 1000  # from hp to Watt
-
     def force_engine(self, v):
         '''return available engine force at given velocity'''
         return v and self.P_engine_in_watt / v or 0  # tractive force (limited by engine power)
@@ -73,9 +72,6 @@ class Car:
     def get_gear(self, v):
         '''not implemented'''
         pass
-
-    # def dict(self):
-    #     return asdict(self)
 
     def get_acceleration(self, v, acc_lat):
 

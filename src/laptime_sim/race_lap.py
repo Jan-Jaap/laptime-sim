@@ -1,9 +1,9 @@
 import itertools
 import time
 from typing import Callable, NamedTuple
+from functools import partial
 import numpy as np
 import pandas as pd
-
 from geopandas import GeoDataFrame
 
 from laptime_sim.car import Car
@@ -161,22 +161,22 @@ def optimize_laptime(
     timer2 = Timer()
 
     racecar = raceline.car
+    sim_car = partial(simulate, racecar)
 
-    raceline.best_time = simulate(racecar, raceline.line_coords(), raceline.slope)
-    # raceline.best_time = best_time
+    raceline.best_time = sim_car(raceline.line_coords(), raceline.slope)
 
     display_intermediate_results(raceline.best_time, 0)
-    # track_raceline = track_session.get_raceline()  # update raceline (create one if not present)
     save_intermediate_results(raceline.get_dataframe())
 
     for nr_iterations in itertools.count():
 
         new_line = raceline.get_new_line()
-        laptime = simulate(racecar, raceline.line_coords(new_line), raceline.slope)
+        laptime = sim_car(raceline.line_coords(new_line), raceline.slope)
         raceline.update(new_line, laptime)
 
         if timer1.elapsed_time > 3:
             display_intermediate_results(raceline.best_time, nr_iterations)
+
             timer1.reset()
 
         if timer2.elapsed_time > 30:

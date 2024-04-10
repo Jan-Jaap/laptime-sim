@@ -1,20 +1,22 @@
 from typing import NamedTuple
+import functools
+import numpy as np
+from geopandas import GeoDataFrame
+
+from shapely import LineString, Point
+from dataclasses import dataclass
 
 from laptime_sim.car import Car
 from laptime_sim.track import Track
 
+# from icecream import ic
 
-import numpy as np
-from geopandas import GeoDataFrame, GeoSeries
-from shapely import LineString, Point
-
-import functools
-from dataclasses import dataclass
-
-param_type = NamedTuple("RandomLineParameters", [("location", int), ("length", int), ("deviation", float)])
+param_type = NamedTuple(
+    "RandomLineParameters", [("location", int), ("length", int), ("deviation", float)]
+)
 
 # annealing factor
-f_anneal = 0.01 ** (1/10000)  # from 1 to 0.01 in 10000 iterations without improvement
+f_anneal = 0.01 ** (1 / 10000)  # from 1 to 0.01 in 10000 iterations without improvement
 
 
 @dataclass
@@ -35,13 +37,14 @@ class Raceline:
         if self.heatmap is None:
             self.heatmap = np.ones_like(self.line_pos)
 
-    def parametrize_raceline(self, raceline_gdf):
+    def parametrize_raceline(self, raceline: GeoDataFrame):
+        raceline = raceline.to_crs(self.track.crs)
         self.line_pos = parametrize_raceline(
             self.track.left_coords(include_z=False),
             self.track.right_coords(include_z=False),
-            raceline_gdf.get_coordinates(include_z=False).to_numpy(na_value=0),
+            raceline.get_coordinates(include_z=False).to_numpy(na_value=0),
         )
-        self.best_time = raceline_gdf.best_time[0]
+        self.best_time = raceline.best_time[0]
         return self
 
     @functools.cached_property
@@ -56,10 +59,6 @@ class Raceline:
     def slope(self):
         return self.track.slope
 
-    @property
-    def crs(self):
-        return self.track.crs
-
     def line_coords(self, position: np.ndarray = None, include_z=True) -> np.ndarray:
         if position is None:
             position = self.line_pos
@@ -68,16 +67,16 @@ class Raceline:
         return left + (right - left) * np.expand_dims(position, axis=1)
 
     def get_dataframe(self) -> GeoDataFrame:
-        line_coords = self.line_coords()
-        # return GeoSeries(data=LineString(line_coords.tolist()), name='line', crs=self.track_border_left.crs)
-        track_raceline = GeoSeries(data=LineString(line_coords.tolist()), name='line', crs=self.track.crs)
+        geom = LineString(self.line_coords().tolist())
+        data = dict(
+            track_name=self.track.name,
+            car=self.car.name,
+            best_time=self.best_time,
+        )
 
-        gdf_raceline = GeoDataFrame(geometry=track_raceline, crs=track_raceline.crs)
-        gdf_raceline['crs_backup'] = self.track.crs.to_epsg()
-        gdf_raceline['track'] = self.track.name
-        gdf_raceline['car'] = self.car.name
-        gdf_raceline['best_time'] = self.best_time
-        return gdf_raceline
+        return GeoDataFrame.from_dict(
+            data=[data], geometry=[geom], crs=self.track.crs
+        ).to_crs(epsg=4326)
 
     def update(self, position, laptime: float) -> None:
 
@@ -95,16 +94,20 @@ class Raceline:
             self.progress += improvement
 
         self.heatmap = (self.heatmap + 0.0015) / 1.0015  # slowly to one
-        self.progress *= f_anneal                        # slowly to zero
+        self.progress *= f_anneal  # slowly to zero
 
     def get_new_line(self):
         line_param = get_new_line_parameters(self.heatmap)
-        line_adjust = 1 - np.cos(np.linspace(0, 2*np.pi, line_param.length))
+        line_adjust = 1 - np.cos(np.linspace(0, 2 * np.pi, line_param.length))
         position = np.zeros_like(self.line_pos)
-        position[:line_param.length] = line_adjust * line_param.deviation
-        position = np.roll(position, line_param.location - line_param.length//2)
+        position[: line_param.length] = line_adjust * line_param.deviation
+        position = np.roll(position, line_param.location - line_param.length // 2)
         test_line = self.line_pos + position / self.track.width
-        return np.clip(test_line,  a_min=self._position_clearance, a_max=1 - self._position_clearance)
+        return np.clip(
+            test_line,
+            a_min=self._position_clearance,
+            a_max=1 - self._position_clearance,
+        )
 
 
 def get_new_line_parameters(p) -> param_type:
@@ -121,4 +124,7 @@ def parametrize_raceline(left_coords, right_coords, line_coords):
         intersect = Point(point_line)
         return division.project(intersect, normalized=True)
 
-    return [loc_line(pl, pr, loc) for pl, pr, loc in zip(left_coords, right_coords, line_coords)]
+    return [
+        loc_line(pl, pr, loc)
+        for pl, pr, loc in zip(left_coords, right_coords, line_coords)
+    ]

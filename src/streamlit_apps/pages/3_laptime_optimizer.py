@@ -34,7 +34,7 @@ def main():
     if filename_results is not None:
         st.warning(f"Filename {filename_results} exists and will be overwritten")
         raceline_gdf = gpd.read_parquet(filename_results)
-        raceline = raceline.parametrize_raceline(raceline_gdf=raceline_gdf)
+        raceline = raceline.parametrize_raceline(raceline=raceline_gdf)
     else:
         filename_results = os.path.join(
             PATH_RESULTS_FILES,

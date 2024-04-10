@@ -4,6 +4,7 @@
     "flake8.args": [
         "--max-line-length=128"]
      ,
+    "black-formatter.args": ["--line-length=128"],
     "editor.defaultFormatter": "ms-python.black-formatter",
     "[jsonc]": {
         "editor.defaultFormatter": "vscode.json-language-features"
