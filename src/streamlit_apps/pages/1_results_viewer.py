@@ -38,11 +38,12 @@ def main() -> None:
 
     st.header("Race track display")
 
-    sim_results = gpd.read_parquet(PATH_LINES)
+    sim_results = gpd.read_parquet(laptime_sim.track.PATH_TRACKS)
     track_name = st.radio("select track", options=sim_results.track_name.unique())
     track = laptime_sim.Track.from_track_name(track_name)
 
-    sim_results: gpd.GeoDataFrame = sim_results[sim_results.track_name == track_name]
+    filters = [("track_name", "==", track_name)]
+    sim_results = gpd.read_parquet(PATH_LINES, filters=filters)
 
     def format_results(x):
         x = sim_results.loc[x]
