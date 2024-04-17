@@ -22,11 +22,12 @@ def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataF
     my_map = track.right.explore(m=my_map, name="right", control=False, style_kwds=style_kwds)
     my_map = track.left.explore(m=my_map, name="left", control=False, style_kwds=style_kwds)
 
-    style_kwds = dict(color="black", dashArray="2 5", opacity=0.6)
-    my_map = all_track_racelines.explore(m=my_map, name="results", control=False, style_kwds=style_kwds)
+    if not all_track_racelines.empty:
+        style_kwds = dict(color="black", dashArray="2 5", opacity=0.6)
+        my_map = all_track_racelines.explore(m=my_map, name="results", control=False, style_kwds=style_kwds)
 
-    style_kwds = dict(color="blue")
-    race_line.explore(m=my_map, name=race_line.car.iloc[0], style_kwds=style_kwds)
+    if not race_line.empty:
+        race_line.explore(m=my_map, name=race_line.car.iloc[0], style_kwds=dict(color="blue"))
 
     folium.TileLayer(xyz.Esri.WorldImagery).add_to(my_map)
     folium.TileLayer("openstreetmap").add_to(my_map)
@@ -51,7 +52,6 @@ def main() -> None:
 
     p = st.radio("select result", options=sim_results.index, format_func=format_results)
     race_line = sim_results[sim_results.index == p]
-
     track_map = folium_track_map(track, sim_results, race_line)
 
     st_folium(track_map, returned_objects=[], use_container_width=True)
