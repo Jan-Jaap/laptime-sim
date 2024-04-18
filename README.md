@@ -22,4 +22,10 @@ streamlit run src/streamlit_apps/Welcome.py
 
 ```
 
-![alt text](/images/streamlit_trackview.png)
+Use the webapp running on [localhost](http://localhost:8501)
+
+![streamlit_trackview](/images/streamlit_trackview.png)
+
+![streamlit_car_properties](/images/streamlit_car_properties.png)
+
+![streamlit_laptime_optimizer](/images/streamlit_laptime_optimizer.png)
