@@ -18,7 +18,7 @@ poetry install
 Open a shell and launch streamlit webapp to start the WebApp:
 ```console
 poetry shell
-streamlit run src/streamlit_apps/Welcome.py
+streamlit run src\streamlit_apps\Welcome.py
 
 ```
 
