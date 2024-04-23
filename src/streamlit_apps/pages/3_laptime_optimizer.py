@@ -7,7 +7,6 @@ import laptime_sim.file_operations as io
 import geopandas as gpd
 from geopandas import GeoDataFrame
 
-PATH_TRACK_FILES = "./tracks/"
 PATH_RESULTS_FILES = "./simulated/"
 PATH_CAR_FILES = "./cars/"
 
@@ -21,8 +20,9 @@ def main():
     if "optimization_running" not in st.session_state:
         st.session_state["optimization_running"] = False
 
-    filename_track = st_select_file("Select Track", PATH_TRACK_FILES, "parquet")
-    track = laptime_sim.Track.from_parquet(filename_track)
+    sim_results = gpd.read_parquet(laptime_sim.track.PATH_TRACKS)
+    track_name = st.radio("select track", options=sim_results.track_name.unique())
+    track = laptime_sim.Track.from_track_name(track_name)
 
     filename_car = st_select_file("Select Car", PATH_CAR_FILES, "toml")
     race_car = laptime_sim.Car.from_toml(filename_car)
