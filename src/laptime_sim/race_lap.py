@@ -1,7 +1,6 @@
 import itertools
 import time
 from typing import Callable, NamedTuple
-from functools import partial
 import numpy as np
 import pandas as pd
 from geopandas import GeoDataFrame
@@ -19,9 +18,6 @@ OUTPUT_COLUMNS_NAMES = dict(
 )
 
 
-sim_results_type = NamedTuple("SimResults", [("time", np.ndarray), ("speed", np.ndarray), ("Nk", np.ndarray)])
-
-
 class SimResults(NamedTuple):
     time: np.ndarray
     speed: np.ndarray
@@ -36,7 +32,7 @@ def dot(u: np.ndarray, v: np.ndarray) -> np.ndarray:
     return np.einsum("ij,ij->i", u, v)
 
 
-def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=False) -> float | sim_results_type:
+def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=False) -> float | SimResults:
     # distance between nodes
     ds = mag(np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T)
 
@@ -131,10 +127,10 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=
     if not verbose:
         return t_lap[-1]
 
-    return sim_results_type(t_lap, speed, Nk)
+    return SimResults(t_lap, speed, Nk)
 
 
-def results_dataframe(track_session, sim: sim_results_type) -> pd.DataFrame:
+def results_dataframe(track_session, sim: SimResults) -> pd.DataFrame:
 
     line_coordinates = track_session.line_coords()
     ds = mag(np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T)  # distance from previous
@@ -163,9 +159,7 @@ def optimize_laptime(
     timer1 = Timer()
     timer2 = Timer()
 
-    sim_car = partial(simulate, raceline.car)
-
-    raceline.best_time = sim_car(raceline.line_coords(), raceline.slope)
+    raceline.best_time = simulate(raceline.car, raceline.line_coords(), raceline.slope)
 
     display_intermediate_results(raceline.best_time, 0)
     save_intermediate_results(raceline.get_dataframe())
@@ -173,7 +167,7 @@ def optimize_laptime(
     for nr_iterations in itertools.count():
 
         new_line = raceline.get_new_line()
-        laptime = sim_car(raceline.line_coords(new_line), raceline.slope)
+        laptime = simulate(raceline.car, raceline.line_coords(new_line), raceline.slope)
         raceline.update(new_line, laptime)
 
         if timer1.elapsed_time > 3:
