@@ -13,7 +13,7 @@ def main():
     track = st.radio("select track", options=laptime_sim.get_all_tracks(), format_func=lambda x: x.name)
     race_car = st.radio(label="Select Car", options=laptime_sim.get_all_cars(), format_func=lambda x: x.name)
 
-    raceline = laptime_sim.Raceline.from_results(track, race_car)
+    raceline = laptime_sim.Raceline(track, race_car).load_results()
 
     if os.path.exists(raceline.filename_results):
         st.warning(f"Filename {raceline.filename_results} exists and will be overwritten")

@@ -31,19 +31,21 @@ class Raceline:
 
     def __post_init__(self):
 
+        # if os.path.exists(self.filename_results):
+        #     results = read_parquet(self.filename_results)
+        #     self.line_pos = self.track.parametrize_line_coords(results)
+
         if self.line_pos is None:
             self.line_pos = np.zeros_like(self.track.width) + 0.5
 
         if self.heatmap is None:
             self.heatmap = np.ones_like(self.line_pos)
 
-    @classmethod
-    def from_results(cls, track: Track, car):
-        raceline = cls(track, car)
-        if os.path.exists(raceline.filename_results):
-            results = read_parquet(raceline.filename_results)
-            raceline.line_pos = track.parametrize_line_coords(results)
-        return raceline
+    def load_results(self):
+        if os.path.exists(self.filename_results):
+            results = read_parquet(self.filename_results)
+            self.line_pos = self.track.parametrize_line_coords(results)
+        return self
 
     @functools.cached_property
     def _position_clearance(self):
@@ -57,7 +59,7 @@ class Raceline:
     def slope(self):
         return self.track.slope
 
-    @property
+    @functools.cached_property
     def filename_results(self):
         return os.path.join(PATH_RESULTS, f"{self.car.file_name}_{self.track.name}_simulated.parquet")
 
@@ -75,7 +77,6 @@ class Raceline:
             car=self.car.name,
             best_time=self.best_time,
         )
-
         return GeoDataFrame.from_dict(data=[data], geometry=[geom], crs=self.track.crs).to_crs(epsg=4326)
 
     def update(self, position, laptime: float) -> None:

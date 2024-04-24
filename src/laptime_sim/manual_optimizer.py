@@ -7,6 +7,10 @@ from laptime_sim import Raceline
 TOLERANCE = 0.001
 
 
+def load_racecar(name):
+    return laptime_sim.Car.from_toml(f"./cars/{name}.toml")
+
+
 def optimize(raceline: Raceline):
 
     def print_results(time, iteration) -> None:
@@ -35,7 +39,7 @@ def main() -> None:
             print(f"Loaded track data for {track.name}")
             print(f"Track has {track.len} datapoints")
 
-            optimize(Raceline.from_results(track=track, car=car))
+            optimize(Raceline(track=track, car=car).load_results())
 
 
 if __name__ == "__main__":
