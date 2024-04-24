@@ -1,19 +1,19 @@
+import os
 from typing import NamedTuple
 import functools
 import numpy as np
-from geopandas import GeoDataFrame
+from geopandas import GeoDataFrame, read_parquet
 
-from shapely import LineString, Point
+from shapely import LineString
 from dataclasses import dataclass
 
 from laptime_sim.car import Car
 from laptime_sim.track import Track
 
-# from icecream import ic
 
-param_type = NamedTuple(
-    "RandomLineParameters", [("location", int), ("length", int), ("deviation", float)]
-)
+PATH_RESULTS = "./simulated/"
+
+param_type = NamedTuple("RandomLineParameters", [("location", int), ("length", int), ("deviation", float)])
 
 # annealing factor
 f_anneal = 0.01 ** (1 / 10000)  # from 1 to 0.01 in 10000 iterations without improvement
@@ -37,15 +37,13 @@ class Raceline:
         if self.heatmap is None:
             self.heatmap = np.ones_like(self.line_pos)
 
-    def parametrize_raceline(self, raceline: GeoDataFrame):
-        raceline = raceline.to_crs(self.track.crs)
-        self.line_pos = parametrize_raceline(
-            self.track.left_coords(include_z=False),
-            self.track.right_coords(include_z=False),
-            raceline.get_coordinates(include_z=False).to_numpy(na_value=0),
-        )
-        self.best_time = raceline.best_time[0]
-        return self
+    @classmethod
+    def from_results(cls, track: Track, car):
+        raceline = cls(track, car)
+        if os.path.exists(raceline.filename_results):
+            results = read_parquet(raceline.filename_results)
+            raceline.line_pos = track.parametrize_line_coords(results)
+        return raceline
 
     @functools.cached_property
     def _position_clearance(self):
@@ -58,6 +56,10 @@ class Raceline:
     @property
     def slope(self):
         return self.track.slope
+
+    @property
+    def filename_results(self):
+        return os.path.join(PATH_RESULTS, f"{self.car.file_name}_{self.track.name}_simulated.parquet")
 
     def line_coords(self, position: np.ndarray = None, include_z=True) -> np.ndarray:
         if position is None:
@@ -74,9 +76,7 @@ class Raceline:
             best_time=self.best_time,
         )
 
-        return GeoDataFrame.from_dict(
-            data=[data], geometry=[geom], crs=self.track.crs
-        ).to_crs(epsg=4326)
+        return GeoDataFrame.from_dict(data=[data], geometry=[geom], crs=self.track.crs).to_crs(epsg=4326)
 
     def update(self, position, laptime: float) -> None:
 
@@ -115,16 +115,3 @@ def get_new_line_parameters(p) -> param_type:
     length = np.random.randint(1, 60)
     deviation = np.random.randn() / 10
     return param_type(location, length, deviation)
-
-
-def parametrize_raceline(left_coords, right_coords, line_coords):
-
-    def loc_line(point_left, point_right, point_line):
-        division = LineString([(point_left), (point_right)])
-        intersect = Point(point_line)
-        return division.project(intersect, normalized=True)
-
-    return [
-        loc_line(pl, pr, loc)
-        for pl, pr, loc in zip(left_coords, right_coords, line_coords)
-    ]

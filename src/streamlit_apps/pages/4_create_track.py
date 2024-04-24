@@ -11,10 +11,6 @@ from streamlit_folium import st_folium, folium_static
 import geopandas as gpd
 import shapely
 
-from icecream import ic
-
-# KNOWN_TRACKS = {"Spa Franchorchamps": [50.444, 5.965], "Circuit Zolder ": [50.994, 5.263]}
-
 
 def main() -> None:
     st.set_page_config("Create Track layout")
@@ -39,10 +35,10 @@ def main() -> None:
     my_map = track.explore(name="track", style_kwds={"color": "blue"})
     my_map = track.extract_unique_points().explore(m=my_map, name="track_points")
 
-    track = hackey_offset_curve(track)
-    my_map = track.explore(m=my_map, name="track_offset", style_kwds={"color": "red"})
+    track_offset = hackey_offset_curve(track)
+    my_map = track_offset.explore(m=my_map, name="track_offset", style_kwds={"color": "red"})
 
-    outer, inner = track.geometry
+    outer, inner = track_offset.geometry
     s_inner = inner.line_locate_point(start_finish)
     s_outer = outer.line_locate_point(start_finish)
 

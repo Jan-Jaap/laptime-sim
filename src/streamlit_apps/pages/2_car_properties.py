@@ -1,14 +1,11 @@
 """This module creates a streamlit app"""
 
 import streamlit as st
-import os
 import numpy as np
 import plotly.express as px
 
 import laptime_sim
 from laptime_sim.car import Trailbraking, CornerAcceleration
-
-PATH_CARS = "./cars/"
 
 G = 9.81  # m/s²
 
@@ -54,9 +51,7 @@ def main() -> None:
     st.set_page_config(page_title="HSR Webracing", layout="wide")
     st.header("Display car properties")
 
-    files_in_dir = [f for f in sorted(os.listdir(PATH_CARS)) if f.endswith("toml")]
-    filename_car = st.radio(label="select file", options=files_in_dir)
-    race_car = laptime_sim.Car.from_toml(os.path.join(PATH_CARS, filename_car))
+    race_car = st.radio(label="select file", options=laptime_sim.get_all_cars(), format_func=lambda x: x.name)
 
     race_car.trail_braking = st.selectbox(
         label="Trailbraking driver experience",

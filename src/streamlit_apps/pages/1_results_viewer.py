@@ -35,23 +35,21 @@ def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataF
     return my_map
 
 
+def format_results(x):
+    return f"{x['car']} ({time_to_str(x['best_time'])})"
+
+
 def main() -> None:
 
     st.header("Race track display")
 
-    sim_results = gpd.read_parquet(laptime_sim.track.PATH_TRACKS)
-    track_name = st.radio("select track", options=sim_results.track_name.unique())
-    track = laptime_sim.Track.from_track_name(track_name)
+    with st.sidebar:
+        track = st.radio("select track", options=laptime_sim.get_all_tracks(), format_func=lambda x: x.name)
 
-    filters = [("track_name", "==", track_name)]
-    sim_results = gpd.read_parquet(PATH_LINES, filters=filters)
+    sim_results = gpd.read_parquet(PATH_LINES, filters=[("track_name", "==", track.name)])
+    d = st.radio("select result", options=sim_results.to_dict(orient="records"), format_func=format_results)
+    race_line = sim_results.from_dict([d])
 
-    def format_results(x):
-        x = sim_results.loc[x]
-        return f"{x.car} ({time_to_str(x.best_time)})"
-
-    p = st.radio("select result", options=sim_results.index, format_func=format_results)
-    race_line = sim_results[sim_results.index == p]
     track_map = folium_track_map(track, sim_results, race_line)
 
     st_folium(track_map, returned_objects=[], use_container_width=True)

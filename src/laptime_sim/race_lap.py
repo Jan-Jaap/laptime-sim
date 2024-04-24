@@ -10,15 +10,22 @@ from laptime_sim.car import Car
 from laptime_sim.raceline import Raceline
 
 OUTPUT_COLUMNS_NAMES = dict(
-    distance='Distance (m)',
-    speed='Speed (m/s)',
-    speed_kph='Speed (km/h)',
-    a_lon='Longitudinal acceleration (m/s2)',
-    a_lat='Lateral acceleration (m/s2)',
-    time='Timestamp',
-    )
+    distance="Distance (m)",
+    speed="Speed (m/s)",
+    speed_kph="Speed (km/h)",
+    a_lon="Longitudinal acceleration (m/s2)",
+    a_lat="Lateral acceleration (m/s2)",
+    time="Timestamp",
+)
 
-sim_results_type = NamedTuple('SimResults', [('time', np.ndarray), ('speed', np.ndarray), ('Nk', np.ndarray)])
+
+sim_results_type = NamedTuple("SimResults", [("time", np.ndarray), ("speed", np.ndarray), ("Nk", np.ndarray)])
+
+
+class SimResults(NamedTuple):
+    time: np.ndarray
+    speed: np.ndarray
+    Nk: np.ndarray
 
 
 def mag(vector: np.ndarray) -> np.ndarray:
@@ -64,9 +71,7 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=
 
     v_max = np.abs((car.acc_grip_max - np.sign(k_car) * g_car[:, 1]) / k_car) ** 0.5
 
-    v_a = np.ones(
-        len(v_max)
-    )  # simulated speed maximum acceleration (ones to avoid division by zero)
+    v_a = np.ones(len(v_max))  # simulated speed maximum acceleration (ones to avoid division by zero)
     v_b = np.ones(len(v_max))  # simulated speed maximum braking
 
     for i in range(-90, len(v_max)):  # negative index to simulate running start....
@@ -78,13 +83,13 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=
 
             # grip circle (no downforce accounted for)
             n = car.corner_acc / 50
-            max_acc_grip = (car.acc_limit) * (1 - (np.abs(acc_lat) / car.acc_grip_max)**n)**(1/n)
+            max_acc_grip = (car.acc_limit) * (1 - (np.abs(acc_lat) / car.acc_grip_max) ** n) ** (1 / n)
 
             force_engine = v_a[j] and car.P_engine_in_watt / v_a[j] or 0
             # max_acc_engine = force_engine / mass
             acc_lon = force_engine and min(max_acc_grip, force_engine / car.mass) or max_acc_grip
-            aero_drag = v_a[j]**2 * car.c_drag / car.mass
-            rolling_drag = car.c_roll * 9.81       # rolling resistance
+            aero_drag = v_a[j] ** 2 * car.c_drag / car.mass
+            rolling_drag = car.c_roll * 9.81  # rolling resistance
             acc_lon -= aero_drag + rolling_drag + g_car[j, 0]
 
             v1 = (v_a[j] ** 2 + 2 * acc_lon * ds[i]) ** 0.5
@@ -101,13 +106,13 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=
 
             # grip circle (no downforce accounted for)
             n = car.trail_braking / 50
-            max_acc_grip = (car.dec_limit) * (1 - (np.abs(acc_lat) / car.acc_grip_max)**n)**(1/n)
+            max_acc_grip = (car.dec_limit) * (1 - (np.abs(acc_lat) / car.acc_grip_max) ** n) ** (1 / n)
 
             force_engine = 0
             # max_acc_engine = force_engine / mass
             acc_lon = max_acc_grip
             aero_drag = v0**2 * car.c_drag / car.mass
-            rolling_drag = car.c_roll * 9.81       # rolling resistance
+            rolling_drag = car.c_roll * 9.81  # rolling resistance
             acc_lon += aero_drag + rolling_drag + g_car[::-1][j, 0]
 
             # acc_lon += g_car[::-1][j, 0]
@@ -132,9 +137,7 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=
 def results_dataframe(track_session, sim: sim_results_type) -> pd.DataFrame:
 
     line_coordinates = track_session.line_coords()
-    ds = mag(
-        np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T
-    )  # distance from previous
+    ds = mag(np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T)  # distance from previous
 
     df = pd.DataFrame()
     df["time"] = sim.time
@@ -147,21 +150,20 @@ def results_dataframe(track_session, sim: sim_results_type) -> pd.DataFrame:
     df["a_lon"] = np.gradient(sim.speed, df.distance) * sim.speed
     df["speed"] = sim.speed
     df["speed_kph"] = sim.speed * 3.6
-    return df.set_index('time').rename(columns=OUTPUT_COLUMNS_NAMES)
+    return df.set_index("time").rename(columns=OUTPUT_COLUMNS_NAMES)
 
 
 def optimize_laptime(
-        raceline: Raceline,
-        display_intermediate_results: Callable[[float, int], None],
-        save_intermediate_results: Callable[[GeoDataFrame], None],
-        tolerance=0.005,
-        ):
+    raceline: Raceline,
+    display_intermediate_results: Callable[[float, int], None],
+    save_intermediate_results: Callable[[GeoDataFrame], None],
+    tolerance=0.005,
+):
 
     timer1 = Timer()
     timer2 = Timer()
 
-    racecar = raceline.car
-    sim_car = partial(simulate, racecar)
+    sim_car = partial(simulate, raceline.car)
 
     raceline.best_time = sim_car(raceline.line_coords(), raceline.slope)
 
