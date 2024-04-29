@@ -1,7 +1,7 @@
 # import pytest
 import numpy as np
 from laptime_sim.car import Car
-from laptime_sim import race_lap
+from laptime_sim import simulate
 from laptime_sim import file_operations
 import pandas as pd
 
@@ -17,16 +17,16 @@ track_session = TrackInterface(track_layout=track_layout, car=race_car)
 
 def test_mag():
     test_data = np.array([[3.0, 4.0]])
-    assert race_lap.mag(test_data) is not None
-    assert race_lap.mag(test_data) == 5.0
+    assert simulate.mag(test_data) is not None
+    assert simulate.mag(test_data) == 5.0
 
 
 def test_full_race():
-    race_output = race_lap.sim(track_session=track_session)
+    race_output = simulate.sim(track_session=track_session)
     assert isinstance(race_output, float)
     assert race_output > 0
 
 
 def test_full_race_verbose():
-    race_output = race_lap.sim(track_session=track_session, verbose=True)
+    race_output = simulate.sim(track_session=track_session, verbose=True)
     assert isinstance(race_output, pd.DataFrame)

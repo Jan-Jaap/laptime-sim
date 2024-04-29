@@ -8,12 +8,13 @@ from streamlit_folium import st_folium
 import geopandas as gpd
 
 import laptime_sim
-from laptime_sim import time_to_str
+from laptime_sim.simulate import simulate
+from matplotlib import pyplot as plt
 
 PATH_LINES = "./simulated/"
 
 
-def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataFrame, race_line):
+def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataFrame, results):
 
     my_map = None
     my_map = track.divisions.explore(m=my_map, name="divisions", show=False, style_kwds=dict(color="grey"))
@@ -26,8 +27,8 @@ def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataF
         style_kwds = dict(color="black", dashArray="2 5", opacity=0.6)
         my_map = all_track_racelines.explore(m=my_map, name="results", control=False, style_kwds=style_kwds)
 
-    if not race_line.empty:
-        race_line.explore(m=my_map, name=race_line.car.iloc[0], style_kwds=dict(color="blue"))
+    if not results.empty:
+        results.explore(m=my_map, name=results.car.iloc[0], style_kwds=dict(color="blue"))
 
     folium.TileLayer(xyz.Esri.WorldImagery).add_to(my_map)
     folium.TileLayer("openstreetmap").add_to(my_map)
@@ -36,7 +37,8 @@ def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataF
 
 
 def format_results(x):
-    return f"{x['car']} ({time_to_str(x['best_time'])})"
+    best_time = x["best_time"]
+    return f"{x['car']} ({best_time % 3600 // 60:02.0f}:{best_time % 60:06.03f})"
 
 
 def main() -> None:
@@ -46,18 +48,37 @@ def main() -> None:
     with st.sidebar:
         track = st.radio("select track", options=laptime_sim.get_all_tracks(), format_func=lambda x: x.name)
 
-    sim_results = gpd.read_parquet(PATH_LINES, filters=[("track_name", "==", track.name)])
-    d = st.radio("select result", options=sim_results.to_dict(orient="records"), format_func=format_results)
-    race_line = sim_results.from_dict([d])
+    all_racelines = gpd.read_parquet(PATH_LINES, filters=[("track_name", "==", track.name)])
+    d = st.radio("select result", options=all_racelines.to_dict(orient="records"), format_func=format_results)
+    selected_raceline = all_racelines.from_dict([d]).set_crs(epsg=4326)
+    selected_raceline.to_crs(track.crs, inplace=True)
 
-    track_map = folium_track_map(track, sim_results, race_line)
-
+    track_map = folium_track_map(track, all_racelines, selected_raceline)
     st_folium(track_map, returned_objects=[], use_container_width=True)
 
-    with st.expander("track_layout: GeoDataFrame"):
-        st.write(track.layout.to_dict(orient="records"))
-        st.write(track.layout.is_ring.rename("is_ring"))
-        st.write(f"{track.layout.crs=}")
+    race_car = [f for f in laptime_sim.get_all_cars() if f.name == selected_raceline.iloc[0].car][0]
+
+    coords = selected_raceline.get_coordinates(include_z=True).to_numpy(na_value=0)
+    sim_results = simulate(race_car, coords, track.slope)
+
+    # st.write(saved_raceline.best_time_str)
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax = plt.subplot(211)
+    ax.plot(sim_results.distance, sim_results.speed)
+    # ax2 = plt.subplot(223)
+    # ax2.plot(saved_raceline.distance, saved_raceline.speed)
+    # ax3 = plt.subplot(224)
+    # ax3.plot(track.left_coords())
+
+    st.pyplot(fig)
+    with st.expander("Selected Raceline"):
+        st.write(selected_raceline)
+    with st.expander("SimResults"):
+        st.write(sim_results)
+    with st.expander("Race Car"):
+        st.write(race_car)
+    with st.expander("Race Track"):
+        st.write(track)
 
 
 if __name__ == "__main__":

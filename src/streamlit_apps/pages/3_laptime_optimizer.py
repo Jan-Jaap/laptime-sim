@@ -1,9 +1,6 @@
-from datetime import datetime
 import os
 import streamlit as st
-
 import laptime_sim
-from geopandas import GeoDataFrame
 
 
 def main():
@@ -13,23 +10,16 @@ def main():
     track = st.radio("select track", options=laptime_sim.get_all_tracks(), format_func=lambda x: x.name)
     race_car = st.radio(label="Select Car", options=laptime_sim.get_all_cars(), format_func=lambda x: x.name)
 
-    raceline = laptime_sim.Raceline(track, race_car).load_results()
+    raceline = laptime_sim.Raceline(track, race_car).load_raceline()
 
     if os.path.exists(raceline.filename_results):
         st.warning(f"Filename {raceline.filename_results} exists and will be overwritten")
 
-    def intermediate_results(time, itereration):
-        placeholder_laptime.write(f"Laptime = {laptime_sim.time_to_str(time)}  (iteration:{itereration})")
-
-    def save_results(raceline_gdf: GeoDataFrame) -> None:
-        raceline_gdf.to_parquet(raceline.filename_results)
-        now = datetime.now().strftime("%H:%M")
-        lap_time = laptime_sim.time_to_str(raceline_gdf.best_time[0])
-        placeholder_savefile.write(f"{now}: results {lap_time} saved to {raceline.filename_results}")
+    def show_laptime_and_nr_iterations(laptime: str, itererations: int) -> None:
+        placeholder_laptime.write(f"Laptime = {laptime}  (iteration:{itererations})")
 
     with st.status("Raceline optimization", state="error", expanded=True) as status:
         placeholder_laptime = st.empty()
-        placeholder_savefile = st.empty()
         if st.button("Start/Stop - Optimize raceline"):
             if not st.session_state.optimization_running:  # if not running start te optimization
                 st.session_state.optimization_running = True
@@ -37,7 +27,7 @@ def main():
                 placeholder_laptime.write("optimization is started")
 
                 # this is a blocking function... no execution after this line, when optimizing...
-                laptime_sim.race_lap.optimize_laptime(raceline, intermediate_results, save_results)
+                laptime_sim.optimize_raceline(raceline, show_laptime_and_nr_iterations)
 
             if st.session_state.optimization_running:  # if running stop te optimization
                 st.session_state.optimization_running = False

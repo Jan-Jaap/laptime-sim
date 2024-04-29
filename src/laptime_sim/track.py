@@ -14,13 +14,14 @@ def get_all_tracks(path=PATH_TRACKS):
     return [Track.from_parquet(f) for f in track_files]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Track:
     layout: GeoDataFrame
 
     def __post_init__(self):
         utm_crs = self.layout.estimate_utm_crs()
-        self.layout = self.layout.to_crs(utm_crs)
+        super.__setattr__(self, "layout", self.layout.to_crs(utm_crs))
+        # self.layout = self.layout.to_crs(utm_crs)
 
     @classmethod
     def from_parquet(cls, filename: str) -> Self:
@@ -36,22 +37,18 @@ class Track:
         return cls(layout=read_parquet(PATH_TRACKS, filters=[("track_name", "==", track_name)]))
 
     @functools.cached_property
-    def _position_clearance(self):
-        return self.min_clearance / self.width
-
-    @functools.cached_property
-    def width(self):
+    def width(self) -> np.ndarray:
         return np.sum((self.left_coords() - self.right_coords()) ** 2, 1) ** 0.5
 
     @functools.cached_property
-    def slope(self):
+    def slope(self) -> np.ndarray:
         return (self.right_coords()[:, 2] - self.left_coords()[:, 2]) / self.width
 
-    @property
+    @functools.cached_property
     def left(self) -> GeoSeries:
         return self.layout[self.layout["geom_type"] == "left"]
 
-    @property
+    @functools.cached_property
     def right(self) -> GeoSeries:
         return self.layout[self.layout["geom_type"] == "right"]
 
@@ -61,12 +58,12 @@ class Track:
     def right_coords(self, include_z=True) -> np.ndarray:
         return self.right.get_coordinates(include_z=include_z).to_numpy(na_value=0)
 
-    @property
-    def name(self):
+    @functools.cached_property
+    def name(self) -> str:
         return self.layout.track_name[0]
 
-    @property
-    def len(self):
+    @functools.cached_property
+    def len(self) -> int:
         return len(self.width)
 
     @property

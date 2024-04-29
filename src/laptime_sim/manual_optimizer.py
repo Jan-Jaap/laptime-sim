@@ -1,6 +1,6 @@
 import geopandas
 
-from laptime_sim.race_lap import optimize_laptime
+from laptime_sim.simulate import optimize_raceline
 import laptime_sim
 from laptime_sim import Raceline
 
@@ -21,7 +21,7 @@ def optimize(raceline: Raceline):
         print(f"intermediate results saved to {raceline.filename_results}")
 
     try:
-        raceline = optimize_laptime(raceline, print_results, save_results, tolerance=TOLERANCE)
+        raceline = optimize_raceline(raceline, print_results, save_results, tolerance=TOLERANCE)
         print(f"optimization finished. {raceline.progress=}")
 
     except KeyboardInterrupt:
@@ -39,7 +39,7 @@ def main() -> None:
             print(f"Loaded track data for {track.name}")
             print(f"Track has {track.len} datapoints")
 
-            optimize(Raceline(track=track, car=car).load_results())
+            optimize(Raceline(track=track, car=car).load_raceline())
 
 
 if __name__ == "__main__":

@@ -1,12 +1,8 @@
-import itertools
-import time
-from typing import Callable, NamedTuple
+import dataclasses
 import numpy as np
 import pandas as pd
-from geopandas import GeoDataFrame
 
 from laptime_sim.car import Car
-from laptime_sim.raceline import Raceline
 
 OUTPUT_COLUMNS_NAMES = dict(
     distance="Distance (m)",
@@ -18,21 +14,48 @@ OUTPUT_COLUMNS_NAMES = dict(
 )
 
 
-class SimResults(NamedTuple):
-    time: np.ndarray
+@dataclasses.dataclass
+class SimResults:
+    laptime: np.ndarray
     speed: np.ndarray
     Nk: np.ndarray
+    ds: np.ndarray
+
+    @property
+    def best_time(self):
+        return self.laptime[-1]
+
+    def __str__(self) -> str:
+        return f"{self.best_time % 3600 // 60:02.0f}:{self.best_time % 60:06.03f}"
+
+    @property
+    def a_lat(self):
+        return -(self.speed**2) * self.Nk[:, 0]
+
+    @property
+    def a_lon(self):
+        return np.gradient(self.speed, self.distance) * self.speed
+
+    @property
+    def distance(self):
+        return self.ds.cumsum() - self.ds[0]
+
+    def get_dataframe(self) -> pd.DataFrame:
+        df = pd.DataFrame()
+        df["time"] = self.laptime
+        # df1 = pd.DataFrame(data=track_session.left_coords(), columns=["x", "y", "z"]).add_prefix("left_")
+        # df2 = pd.DataFrame(data=track_session.right_coords(), columns=["x", "y", "z"]).add_prefix("right_")
+        # df3 = pd.DataFrame(data=track_session.line_coords(), columns=["x", "y", "z"]).add_prefix("line_")
+        # df = pd.concat([df, df1, df2, df3], axis=1)
+        df["distance"] = self.distance
+        df["a_lat"] = self.a_lat
+        df["a_lon"] = self.a_lon
+        df["speed"] = self.speed
+        df["speed_kph"] = self.speed * 3.6
+        return df.set_index("time").rename(columns=OUTPUT_COLUMNS_NAMES)
 
 
-def mag(vector: np.ndarray) -> np.ndarray:
-    return np.sum(vector**2, 1) ** 0.5
-
-
-def dot(u: np.ndarray, v: np.ndarray) -> np.ndarray:
-    return np.einsum("ij,ij->i", u, v)
-
-
-def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=False) -> float | SimResults:
+def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimResults:
     # distance between nodes
     ds = mag(np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T)
 
@@ -122,83 +145,19 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray, verbose=
     v_b = v_b[::-1]  # flip the braking matrix
     speed = np.fmin(v_a, v_b)
     dt = 2 * ds / (speed + np.roll(speed, 1))
-    t_lap = dt.cumsum()
+    laptime = dt.cumsum()
 
-    if not verbose:
-        return t_lap[-1]
-
-    return SimResults(t_lap, speed, Nk)
+    return SimResults(laptime, speed, Nk, ds)
 
 
-def results_dataframe(track_session, sim: SimResults) -> pd.DataFrame:
-
-    line_coordinates = track_session.line_coords()
-    ds = mag(np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T)  # distance from previous
-
-    df = pd.DataFrame()
-    df["time"] = sim.time
-    df1 = pd.DataFrame(data=track_session.left_coords(), columns=["x", "y", "z"]).add_prefix("left_")
-    df2 = pd.DataFrame(data=track_session.right_coords(), columns=["x", "y", "z"]).add_prefix("right_")
-    df3 = pd.DataFrame(data=track_session.line_coords(), columns=["x", "y", "z"]).add_prefix("line_")
-    df = pd.concat([df, df1, df2, df3], axis=1)
-    df["distance"] = ds.cumsum() - ds[0]
-    df["a_lat"] = -(sim.speed**2) * sim.Nk[:, 0]
-    df["a_lon"] = np.gradient(sim.speed, df.distance) * sim.speed
-    df["speed"] = sim.speed
-    df["speed_kph"] = sim.speed * 3.6
-    return df.set_index("time").rename(columns=OUTPUT_COLUMNS_NAMES)
+def mag(vector: np.ndarray) -> np.ndarray:
+    return np.sum(vector**2, 1) ** 0.5
 
 
-def optimize_laptime(
-    raceline: Raceline,
-    display_intermediate_results: Callable[[float, int], None],
-    save_intermediate_results: Callable[[GeoDataFrame], None],
-    tolerance=0.005,
-):
-
-    timer1 = Timer()
-    timer2 = Timer()
-
-    raceline.best_time = simulate(raceline.car, raceline.line_coords(), raceline.slope)
-
-    display_intermediate_results(raceline.best_time, 0)
-    save_intermediate_results(raceline.get_dataframe())
-
-    for nr_iterations in itertools.count():
-
-        new_line = raceline.get_new_line()
-        laptime = simulate(raceline.car, raceline.line_coords(new_line), raceline.slope)
-        raceline.update(new_line, laptime)
-
-        if timer1.elapsed_time > 3:
-            display_intermediate_results(raceline.best_time, nr_iterations)
-
-            timer1.reset()
-
-        if timer2.elapsed_time > 30:
-            display_intermediate_results(raceline.best_time, nr_iterations)
-            save_intermediate_results(raceline.get_dataframe())
-            timer2.reset()
-
-        if raceline.progress < tolerance:
-            display_intermediate_results(raceline.best_time, nr_iterations)
-            save_intermediate_results(raceline.get_dataframe())
-            return raceline
-
-    return raceline
+def dot(u: np.ndarray, v: np.ndarray) -> np.ndarray:
+    return np.einsum("ij,ij->i", u, v)
 
 
-class Timer:
-    def __init__(self):
-        self.time = time.time()
-
-    def reset(self):
-        self.time = time.time()
-
-    @property
-    def elapsed_time(self):
-        return time.time() - self.time
-
-
-def time_to_str(seconds: float) -> str:
-    return "{:02.0f}:{:06.03f}".format(seconds % 3600 // 60, seconds % 60)
+if __name__ == "__main__":
+    # simulate(Car)
+    pass
