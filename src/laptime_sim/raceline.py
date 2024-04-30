@@ -62,7 +62,8 @@ class Raceline:
         return self
 
     def save_raceline(self) -> None:
-        self.get_dataframe().to_parquet(self.filename_results)
+        filename = self.filename_results
+        self.get_dataframe().to_parquet(filename)
 
     @functools.cached_property
     def _position_clearance(self):
@@ -128,9 +129,13 @@ class Raceline:
         )
 
 
+def display_callback(sim_results: SimResults, nr_iterations: int, saved: bool):
+    pass
+
+
 def optimize_raceline(
     raceline: Raceline,
-    display_callback: Callable[[SimResults, int], None] = lambda *args: None,
+    display_callback: Callable[[SimResults, int, bool], None] = display_callback,
     tolerance=0.005,
 ):
 
@@ -138,8 +143,8 @@ def optimize_raceline(
     timer2 = Timer()
 
     sim_results = simulate(raceline.car, raceline.line_coords(), raceline.slope)
-    display_callback(sim_results, 0)
     raceline.save_raceline()
+    display_callback(sim_results, 0, saved=True)
 
     for nr_iterations in itertools.count():
 
@@ -151,11 +156,11 @@ def optimize_raceline(
             break
 
         if timer1.elapsed_time > 3:
-            display_callback(sim_results, nr_iterations)
+            display_callback(sim_results, nr_iterations, saved=False)
             timer1.reset()
 
         if timer2.elapsed_time > 30:
-            display_callback(f"Saved results with laptime:{sim_results}", nr_iterations)
+            display_callback(sim_results, nr_iterations, saved=True)
             raceline.save_raceline()
             timer2.reset()
 

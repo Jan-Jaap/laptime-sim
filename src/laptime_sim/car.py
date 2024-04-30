@@ -5,12 +5,8 @@ import json
 import toml
 import os
 
-from laptime_sim.file_operations import strip_filename
 
-PATH_CAR_FILES = "./cars/"
-
-
-def get_all_cars(path=PATH_CAR_FILES):
+def get_all_cars(path):
     car_files = [os.path.join(path, f) for f in sorted(os.listdir(path)) if f.endswith("toml")]
     return [Car.from_toml(f) for f in car_files]
 
@@ -104,3 +100,12 @@ class Car:
         aero_drag = v**2 * self.c_drag / self.mass
         rolling_drag = self.c_roll * 9.81
         return max_dec_grip + aero_drag + rolling_drag
+
+
+def strip_filename(filename: str) -> str:
+    filename = os.path.basename(filename).replace("_simulated", "")
+    return strip_extension(filename)
+
+
+def strip_extension(path: str) -> str:
+    return os.path.splitext(path)[0]

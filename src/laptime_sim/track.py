@@ -1,4 +1,4 @@
-from typing import Self
+from typing import Self, Union
 from geopandas import GeoDataFrame, GeoSeries, read_parquet
 from dataclasses import dataclass
 import functools
@@ -6,10 +6,8 @@ import numpy as np
 import shapely
 import os
 
-PATH_TRACKS = "./tracks/"
 
-
-def get_all_tracks(path=PATH_TRACKS):
+def get_all_tracks(path: Union[str, os.PathLike]):
     track_files = [os.path.join(path, f) for f in sorted(os.listdir(path)) if f.endswith("parquet")]
     return [Track.from_parquet(f) for f in track_files]
 
@@ -33,8 +31,8 @@ class Track:
         return self.name == other.name
 
     @classmethod
-    def from_track_name(cls, track_name: str) -> Self:
-        return cls(layout=read_parquet(PATH_TRACKS, filters=[("track_name", "==", track_name)]))
+    def from_track_name(cls, track_name: str, path: Union[str, os.PathLike]) -> Self:
+        return cls(layout=read_parquet(path, filters=[("track_name", "==", track_name)]))
 
     @functools.cached_property
     def width(self) -> np.ndarray:

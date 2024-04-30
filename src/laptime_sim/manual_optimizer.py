@@ -1,27 +1,24 @@
-import geopandas
-
-from laptime_sim.simulate import optimize_raceline
 import laptime_sim
-from laptime_sim import Raceline
+from laptime_sim.raceline import Raceline, optimize_raceline
+from laptime_sim.simulate import SimResults
+
+PATH_TRACKS = "./tracks/"
+PATH_CARS = "./cars/"
 
 TOLERANCE = 0.001
 
 
-def load_racecar(name):
-    return laptime_sim.Car.from_toml(f"./cars/{name}.toml")
-
-
 def optimize(raceline: Raceline):
 
-    def print_results(time, iteration) -> None:
+    def print_results(time, iteration, saved) -> None:
         print(f"Laptime = {laptime_sim.time_to_str(time)}  (iteration:{iteration}) (progress:{raceline.progress:.4f})")
 
-    def save_results(raceline_dataframe: geopandas.GeoDataFrame) -> None:
-        raceline_dataframe.to_parquet(raceline.filename_results)
+    def save_results(sim_results: SimResults) -> None:
+        # raceline_dataframe.to_parquet(raceline.filename_results)
         print(f"intermediate results saved to {raceline.filename_results}")
 
     try:
-        raceline = optimize_raceline(raceline, print_results, save_results, tolerance=TOLERANCE)
+        raceline = optimize_raceline(raceline, print_results, tolerance=TOLERANCE)
         print(f"optimization finished. {raceline.progress=}")
 
     except KeyboardInterrupt:
@@ -33,8 +30,8 @@ def optimize(raceline: Raceline):
 
 def main() -> None:
 
-    for car in laptime_sim.get_all_cars():
-        for track in laptime_sim.get_all_tracks():
+    for track in laptime_sim.get_all_tracks(PATH_TRACKS):
+        for car in laptime_sim.get_all_cars(PATH_CARS):
 
             print(f"Loaded track data for {track.name}")
             print(f"Track has {track.len} datapoints")
