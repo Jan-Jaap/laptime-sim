@@ -1,9 +1,11 @@
 import os
 import streamlit as st
 import laptime_sim
+from laptime_sim.raceline import Raceline
 
 PATH_TRACKS = "./tracks/"
 PATH_CARS = "./cars/"
+PATH_RESULTS = "./simulated/"
 
 
 def main():
@@ -12,17 +14,19 @@ def main():
 
     track = st.radio("select track", options=laptime_sim.get_all_tracks(PATH_TRACKS), format_func=lambda x: x.name)
     race_car = st.radio(label="Select Car", options=laptime_sim.get_all_cars(PATH_CARS), format_func=lambda x: x.name)
+    simulator = laptime_sim.RacelineSimulator(race_car)
 
-    raceline = laptime_sim.Raceline(track, race_car).load_raceline()
+    filename_results = os.path.join(PATH_RESULTS, f"{race_car.file_name}_{track.name}_simulated.parquet")
 
-    if os.path.exists(raceline.filename_results):
-        st.warning(f"Filename {raceline.filename_results} exists and will be overwritten")
+    raceline = laptime_sim.Raceline(track, race_car, simulator).load_results(filename_results)
 
-    def show_laptime_and_nr_iterations(laptime: str, itererations: int, saved: bool) -> None:
-        placeholder_saved = st.empty()
-        placeholder_laptime.write(f"Laptime = {laptime}  (iteration:{itererations})")
+    if os.path.exists(filename_results):
+        st.warning(f"Filename {filename_results} exists and will be overwritten")
+
+    def show_laptime_and_nr_iterations(raceline: Raceline, itererations: int, saved: bool) -> None:
+        placeholder_laptime.write(f"Laptime = {raceline.best_time_str}  (iteration:{itererations})")
         if saved:
-            placeholder_saved.write(f"Results: {laptime} saved. iteration:{itererations}")
+            placeholder_saved.write(f"Results: {raceline.best_time_str} saved. iteration:{itererations}")
 
     with st.status("Raceline optimization", state="error", expanded=True) as status:
         placeholder_saved = st.empty()
@@ -34,7 +38,7 @@ def main():
                 placeholder_laptime.write("optimization is started")
 
                 # this is a blocking function... no execution after this line, when optimizing...
-                laptime_sim.optimize_raceline(raceline, show_laptime_and_nr_iterations)
+                laptime_sim.optimize_raceline(raceline, show_laptime_and_nr_iterations, filename_results)
 
             if st.session_state.optimization_running:  # if running stop te optimization
                 st.session_state.optimization_running = False

@@ -8,10 +8,11 @@ from streamlit_folium import st_folium
 import geopandas as gpd
 
 import laptime_sim
-from laptime_sim.simulate import simulate
 from matplotlib import pyplot as plt
 
-PATH_LINES = "./simulated/"
+from laptime_sim.raceline import Raceline
+
+PATH_RESULTS = "./simulated/"
 PATH_TRACKS = "./tracks/"
 PATH_CARS = "./cars/"
 
@@ -50,27 +51,21 @@ def main() -> None:
     with st.sidebar:
         track = st.radio("select track", options=laptime_sim.get_all_tracks(PATH_TRACKS), format_func=lambda x: x.name)
 
-    all_racelines = gpd.read_parquet(PATH_LINES, filters=[("track_name", "==", track.name)])
+    all_racelines = gpd.read_parquet(PATH_RESULTS, filters=[("track_name", "==", track.name)])
+
     d = st.radio("select result", options=all_racelines.to_dict(orient="records"), format_func=format_results)
     selected_raceline = all_racelines.from_dict([d]).set_crs(epsg=4326)
-    selected_raceline.to_crs(track.crs, inplace=True)
+
+    raceline = Raceline.from_geodataframe(selected_raceline, path_tracks=PATH_TRACKS, path_cars=PATH_CARS)
 
     track_map = folium_track_map(track, all_racelines, selected_raceline)
     st_folium(track_map, returned_objects=[], use_container_width=True)
 
-    race_car = [f for f in laptime_sim.get_all_cars(PATH_CARS) if f.name == selected_raceline.iloc[0].car][0]
+    sim_results = raceline.simulate()
 
-    coords = selected_raceline.get_coordinates(include_z=True).to_numpy(na_value=0)
-    sim_results = simulate(race_car, coords, track.slope)
-
-    # st.write(saved_raceline.best_time_str)
     fig, ax = plt.subplots(figsize=(10, 5))
     ax = plt.subplot(211)
     ax.plot(sim_results.distance, sim_results.speed)
-    # ax2 = plt.subplot(223)
-    # ax2.plot(saved_raceline.distance, saved_raceline.speed)
-    # ax3 = plt.subplot(224)
-    # ax3.plot(track.left_coords())
 
     st.pyplot(fig)
     with st.expander("Selected Raceline"):
@@ -78,7 +73,7 @@ def main() -> None:
     with st.expander("SimResults"):
         st.write(sim_results)
     with st.expander("Race Car"):
-        st.write(race_car)
+        st.write(raceline.car)
     with st.expander("Race Track"):
         st.write(track)
 

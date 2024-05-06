@@ -65,6 +65,10 @@ class Car:
             self.file_name = self.name.replace(" ", "_")
 
     @classmethod
+    def from_name(cls, name, path):
+        return [f for f in get_all_cars(path) if f.name == name][0]
+
+    @classmethod
     def from_json(cls, filename):
         """load car parameters from JSON file"""
         with open(filename, "r") as fp:

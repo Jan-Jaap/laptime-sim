@@ -17,9 +17,9 @@ class Track:
     layout: GeoDataFrame
 
     def __post_init__(self):
+        """ensure layout is always in local utm"""
         utm_crs = self.layout.estimate_utm_crs()
         super.__setattr__(self, "layout", self.layout.to_crs(utm_crs))
-        # self.layout = self.layout.to_crs(utm_crs)
 
     @classmethod
     def from_parquet(cls, filename: str) -> Self:
@@ -30,8 +30,11 @@ class Track:
             return False
         return self.name == other.name
 
+    def normalize_distance(self, distance):
+        return distance / self.width
+
     @classmethod
-    def from_track_name(cls, track_name: str, path: Union[str, os.PathLike]) -> Self:
+    def from_name(cls, track_name: str, path: Union[str, os.PathLike]) -> Self:
         return cls(layout=read_parquet(path, filters=[("track_name", "==", track_name)]))
 
     @functools.cached_property
@@ -83,16 +86,22 @@ class Track:
         intersection = shapely.intersection_all([self.divisions, line])
         return GeoSeries(intersection, index=["intersections"], crs=self.crs)
 
-    def parametrize_line_coords(self, results):
-        results = results.to_crs(self.crs)
-        return [
-            loc_line(pl, pr, loc)
-            for pl, pr, loc in zip(
-                self.left_coords(include_z=False),
-                self.right_coords(include_z=False),
-                results.get_coordinates(include_z=False).to_numpy(na_value=0),
-            )
-        ]
+    def line_coords(self, line_pos: np.ndarray = None, include_z=True) -> np.ndarray:
+        left = self.left_coords(include_z=include_z)
+        right = self.right_coords(include_z=include_z)
+        return left + (right - left) * np.expand_dims(line_pos, axis=1)
+
+    def parametrize_line_coords(self, line_coords: np.ndarray):
+        return np.array(
+            [
+                loc_line(pl, pr, loc)
+                for pl, pr, loc in zip(
+                    self.left_coords(include_z=False),
+                    self.right_coords(include_z=False),
+                    line_coords,
+                )
+            ]
+        )
 
 
 def drop_z(geom: shapely.LineString) -> shapely.LineString:
