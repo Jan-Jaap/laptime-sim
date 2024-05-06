@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "laptime_sim"
-version = "0.2.0"
+version = "1.0.0"
 description = ""
 authors = ["JanJaapvandeVelde <janjaap.vandevelde@gmail.com>"]
 readme = "README.md"
