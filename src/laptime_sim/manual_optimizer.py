@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 PATH_TRACKS = "./tracks/"
 PATH_CARS = "./cars/"
 PATH_RESULTS = "./simulated/"
-TOLERANCE = 0.01
+TOLERANCE = 0.1
 
 
 def print_results(raceline: Raceline, nr_iterations, saved) -> None:
@@ -32,8 +32,7 @@ def main() -> None:
         for track in laptime_sim.get_all_tracks(PATH_TRACKS):
 
             raceline = Raceline(track=track, car=car, simulator=simulator)
-            logging.info(f"Loaded track data for {track.name}")
-            logging.info(f"Track has {track.len} datapoints.")
+            logging.info(f"Loaded track data for {track.name} has {track.len} datapoints.")
             filename_results = Path(PATH_RESULTS, f"{car.file_name}_{track.name}_simulated.parquet")
 
             if filename_results.exists():

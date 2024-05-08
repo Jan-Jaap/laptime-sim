@@ -4,9 +4,10 @@ from typing import Any, Iterable, Optional
 import streamlit as st
 import folium
 import xyzservices.providers as xyz
-from streamlit_folium import folium_static, st_folium
+from streamlit_folium import folium_static
 
 # from folium.plugins import Draw
+from icecream import ic
 
 import geopandas as gpd
 import shapely
@@ -113,7 +114,7 @@ def create_centerline(track, nr_points=600, start_finish=None) -> shapely.Linear
     inner = redistribute_vertices(inner, nr_points, offset_inner)
     outer = redistribute_vertices(outer, nr_points, offset_outer)
 
-    return shapely.LinearRing([p.interpolate(0.5, normalized=True) for p in get_divisions(inner, outer).geoms])
+    return shapely.LinearRing([((x1 + x2) / 2, (y1 + y2) / 2) for (x1, y1), (x2, y2) in zip(inner.coords, outer.coords)])
 
 
 def resize_vector(vector: tuple, new_length: float):
@@ -175,10 +176,6 @@ def hacky_offset_curve(series: gpd.GeoSeries) -> tuple[shapely.LinearRing, shape
     inner = inner.offset_curve(offset_distance)
     outer = outer.reverse().offset_curve(offset_distance).reverse()
     return inner, outer
-
-
-def get_divisions(left: shapely.LineString, right: shapely.LineString):
-    return shapely.MultiLineString(lines=[div for div in zip(left.coords, right.coords)])
 
 
 def redistribute_vertices(geom, num_vert: int, offset: float = 0.0):
