@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 import streamlit as st
 import laptime_sim
 from laptime_sim.raceline import Raceline
@@ -15,13 +15,12 @@ def main():
     track = st.radio("select track", options=laptime_sim.get_all_tracks(PATH_TRACKS), format_func=lambda x: x.name)
     race_car = st.radio(label="Select Car", options=laptime_sim.get_all_cars(PATH_CARS), format_func=lambda x: x.name)
     simulator = laptime_sim.RacelineSimulator(race_car)
+    raceline = laptime_sim.Raceline(track, race_car, simulator)
+    filename_results = Path(PATH_RESULTS, f"{race_car.file_name}_{track.name}_simulated.parquet")
 
-    filename_results = os.path.join(PATH_RESULTS, f"{race_car.file_name}_{track.name}_simulated.parquet")
-
-    raceline = laptime_sim.Raceline(track, race_car, simulator).load_results(filename_results)
-
-    if os.path.exists(filename_results):
+    if filename_results.exists():
         st.warning(f"Filename {filename_results} exists and will be overwritten")
+        raceline.load_results(filename_results)
 
     def show_laptime_and_nr_iterations(raceline: Raceline, itererations: int, saved: bool) -> None:
         placeholder_laptime.write(f"Laptime = {raceline.best_time_str}  (iteration:{itererations})")

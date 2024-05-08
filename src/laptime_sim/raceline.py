@@ -207,7 +207,3 @@ class Timer:
     @property
     def elapsed_time(self):
         return time() - self.time
-
-
-if __name__ == "__main__":
-    pass

@@ -30,7 +30,7 @@ def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataF
         style_kwds = dict(color="black", dashArray="2 5", opacity=0.6)
         my_map = all_track_racelines.explore(m=my_map, name="results", control=False, style_kwds=style_kwds)
 
-    if not results.empty:
+    if results is not None and not results.empty:
         results.explore(m=my_map, name=results.car.iloc[0], style_kwds=dict(color="blue"))
 
     folium.TileLayer(xyz.Esri.WorldImagery).add_to(my_map)
@@ -53,10 +53,13 @@ def main() -> None:
 
     all_racelines = gpd.read_parquet(PATH_RESULTS, filters=[("track_name", "==", track.name)])
 
-    d = st.radio("select result", options=all_racelines.to_dict(orient="records"), format_func=format_results)
-    selected_raceline = all_racelines.from_dict([d]).set_crs(epsg=4326)
-
-    raceline = Raceline.from_geodataframe(selected_raceline, path_tracks=PATH_TRACKS, path_cars=PATH_CARS)
+    if all_racelines.empty:
+        st.warning("No results found for this track")
+        selected_raceline = None
+    else:
+        d = st.radio("select result", options=all_racelines.to_dict(orient="records"), format_func=format_results)
+        selected_raceline = all_racelines.from_dict([d]).set_crs(epsg=4326)
+        raceline = Raceline.from_geodataframe(selected_raceline, path_tracks=PATH_TRACKS, path_cars=PATH_CARS)
 
     track_map = folium_track_map(track, all_racelines, selected_raceline)
     st_folium(track_map, returned_objects=[], use_container_width=True)
@@ -74,8 +77,8 @@ def main() -> None:
         st.write(sim_results)
     with st.expander("Race Car"):
         st.write(raceline.car)
-    with st.expander("Race Track"):
-        st.write(track)
+    with st.expander("Race Track Layout"):
+        st.write(track.layout)
 
 
 if __name__ == "__main__":

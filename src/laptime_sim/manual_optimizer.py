@@ -1,10 +1,11 @@
-import os
 import logging
 import laptime_sim
 from laptime_sim.raceline import Raceline, optimize_raceline
 from laptime_sim.simulate import RacelineSimulator
 
-# logging.basicConfig(level=logging.INFO)
+from pathlib import Path
+
+logging.basicConfig(level=logging.INFO)
 
 
 PATH_TRACKS = "./tracks/"
@@ -30,12 +31,18 @@ def main() -> None:
         simulator = RacelineSimulator(car=car)
         for track in laptime_sim.get_all_tracks(PATH_TRACKS):
 
-            filename_results = os.path.join(PATH_RESULTS, f"{car.file_name}_{track.name}_simulated.parquet")
-            raceline = Raceline(track=track, car=car, simulator=simulator).load_results(filename_results)
-
+            raceline = Raceline(track=track, car=car, simulator=simulator)
             logging.info(f"Loaded track data for {track.name}")
-            loaded_best_time = raceline.best_time
-            logging.info(f"Track has {track.len} datapoints. Current best time = {raceline.best_time_str}")
+            logging.info(f"Track has {track.len} datapoints.")
+            filename_results = Path(PATH_RESULTS, f"{car.file_name}_{track.name}_simulated.parquet")
+
+            if filename_results.exists():
+                logging.warning(f"Filename {filename_results} exists and will be overwritten")
+                raceline.load_results(filename_results)
+                loaded_best_time = raceline.best_time
+                logging.info(
+                    f"Track: {track.name} has {track.len} datapoints. Current best time for track = {raceline.best_time_str} "
+                )
 
             try:
                 raceline = optimize_raceline(raceline, print_results, filename_results, TOLERANCE)
