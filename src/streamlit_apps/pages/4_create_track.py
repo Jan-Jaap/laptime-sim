@@ -38,7 +38,7 @@ def main() -> None:
     transect_length = st.number_input("TRANSECT_LENGTH", min_value=1, max_value=100, value=TRANSECT_LENGTH, step=1)
     track_name = st.text_input("Track name", value=Path(uploaded_file.name).stem)
     start_finish = st.text_input("Start finish", value="52.069221331141215,-1.022276814267109")
-    start_finish = gpd.array.from_shapely([shapely.Point([float(x) for x in start_finish.split(",")])], crs="EPSG:4326")
+    start_finish = gpd.GeoSeries(shapely.Point([float(x) for x in start_finish.split(",")][::-1]), crs="EPSG:4326")
     start_finish.to_crs(track.crs)
 
     inner, outer = track.geometry
@@ -50,8 +50,8 @@ def main() -> None:
         track = track.exterior
 
     my_map = track.explore(name="track", style_kwds={"color": "blue"})
-
-    # my_map = track.extract_unique_points().explore(m=my_map, name="track_points")
+    my_map = start_finish.explore(name="start_finish", style_kwds={"color": "red"})
+    my_map = track.extract_unique_points().explore(m=my_map, name="track_points")
 
     center_line = create_centerline(track, point_count, start_finish=start_finish)
 
@@ -106,7 +106,7 @@ def prev_next_iter(my_list: list[Any]) -> Iterable[tuple[Any, Any, Any]]:
 def create_centerline(track, nr_points=600, start_finish=None) -> shapely.LinearRing:
     inner, outer = hacky_offset_curve(track)
 
-    if start_finish:
+    if start_finish is not None:
         offset_outer = outer.line_locate_point(start_finish)[0]
         offset_inner = inner.line_locate_point(start_finish)[0]
 
