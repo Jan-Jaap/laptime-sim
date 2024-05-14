@@ -6,11 +6,6 @@ import toml
 import os
 
 
-def get_all_cars(path):
-    car_files = [os.path.join(path, f) for f in sorted(os.listdir(path)) if f.endswith("toml")]
-    return [Car.from_toml(f) for f in car_files]
-
-
 class Trailbraking(IntEnum):
     """Enum with trailbraking parameter corresponding with driver experience"""
 
@@ -113,3 +108,14 @@ def strip_filename(filename: str) -> str:
 
 def strip_extension(path: str) -> str:
     return os.path.splitext(path)[0]
+
+
+def get_all_cars(path: str) -> list[Car]:
+    """
+    Returns a list of all cars in the given directory, sorted by filename.
+
+    :param path: The path to the directory containing the car definition files
+    :return: A list of all cars in the given directory
+    """
+    car_files = [os.path.join(path, f) for f in sorted(os.listdir(path)) if f.endswith("toml")]
+    return [Car.from_toml(f) for f in car_files]

@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 PATH_TRACKS = "./tracks/"
 PATH_CARS = "./cars/"
 PATH_RESULTS = "./simulated/"
-TOLERANCE = 0.1
+TOLERANCE = 0.001
 
 
 def print_results(raceline: Raceline, nr_iterations, saved) -> None:

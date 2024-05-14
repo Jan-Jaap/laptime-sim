@@ -7,11 +7,6 @@ import shapely
 import os
 
 
-def get_all_tracks(path: Union[str, os.PathLike]):
-    track_files = [os.path.join(path, f) for f in sorted(os.listdir(path)) if f.endswith("parquet")]
-    return [Track.from_parquet(f) for f in track_files]
-
-
 @dataclass(frozen=True)
 class Track:
     layout: GeoDataFrame
@@ -84,11 +79,6 @@ class Track:
         p1, p2 = self.left_coords()[0], self.right_coords()[0]
         return GeoSeries(shapely.LineString([p1, p2]), crs=self.crs)
 
-    # def intersections(self, line):
-    #     line = drop_z(line.geometry.values[0])
-    #     intersection = shapely.intersection_all([self.divisions, line])
-    #     return GeoSeries(intersection, index=["intersections"], crs=self.crs)
-
     def line_coords(self, line_pos: np.ndarray = None, include_z=True) -> np.ndarray:
         left = self.left_coords(include_z=include_z)
         right = self.right_coords(include_z=include_z)
@@ -108,12 +98,19 @@ class Track:
         )
 
 
-# def drop_z(geom: shapely.LineString) -> shapely.LineString:
-#     return shapely.geometry.LineString([(x, y) for x, y, _ in geom.coords])
-#     # return shapely.wkb.loads(shapely.wkb.dumps(geom, output_dimension=2))
-
-
 def loc_line(point_left, point_right, point_line):
     division = shapely.LineString([(point_left), (point_right)])
     intersect = shapely.Point(point_line)
     return division.project(intersect, normalized=True)
+
+
+@functools.lru_cache()
+def get_all_tracks(path: Union[str, os.PathLike]) -> list[Track]:
+    """
+    Returns a list of all tracks in the given directory
+
+    :param path: the path to the directory containing the tracks
+    :return: a list of all tracks in the given directory
+    """
+    track_files = [os.path.join(path, f) for f in sorted(os.listdir(path)) if f.endswith("parquet")]
+    return [Track.from_parquet(f) for f in track_files]

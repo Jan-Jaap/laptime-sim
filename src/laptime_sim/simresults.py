@@ -40,6 +40,10 @@ class SimResults:
     def distance(self):
         return self.ds.cumsum() - self.ds[0]
 
+    @property
+    def speed_kph(self):
+        return self.speed * 3.6
+
     def get_dataframe(self) -> pd.DataFrame:
         df = pd.DataFrame()
         df["time"] = self.dt.cumsum()
