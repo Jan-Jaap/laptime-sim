@@ -92,7 +92,8 @@ class Track:
     def line_coords(self, line_pos: np.ndarray = None, include_z=True) -> np.ndarray:
         left = self.left_coords(include_z=include_z)
         right = self.right_coords(include_z=include_z)
-        return left + (right - left)[:, np.newaxis] * line_pos
+        return left + (right - left) * np.expand_dims(line_pos, axis=1)
+        # return left + (right - left)[:, np.newaxis] * line_pos
 
     def parametrize_line_coords(self, line_coords: np.ndarray):
         return np.array(
@@ -105,6 +106,11 @@ class Track:
                 )
             ]
         )
+
+
+# def drop_z(geom: shapely.LineString) -> shapely.LineString:
+#     return shapely.geometry.LineString([(x, y) for x, y, _ in geom.coords])
+#     # return shapely.wkb.loads(shapely.wkb.dumps(geom, output_dimension=2))
 
 
 def loc_line(point_left, point_right, point_line):
