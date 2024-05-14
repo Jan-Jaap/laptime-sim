@@ -73,23 +73,26 @@ class Track:
 
     @property
     def divisions(self):
-
-        border = zip(self.left_coords(include_z=False), self.right_coords(include_z=False))
+        border_left = self.left_coords(include_z=False)
+        border_right = self.right_coords(include_z=False)
         lines = []
-        for point_left, point_right in border:
+        for point_left, point_right in zip(border_left, border_right):
             lines.append(([(point_left), (point_right)]))
-
         return GeoSeries(shapely.MultiLineString(lines=lines), index=["divisions"], crs=self.crs)
 
-    def intersections(self, line):
-        line = drop_z(line.geometry.values[0])
-        intersection = shapely.intersection_all([self.divisions, line])
-        return GeoSeries(intersection, index=["intersections"], crs=self.crs)
+    def start_finish(self):
+        p1, p2 = self.left_coords()[0], self.right_coords()[0]
+        return GeoSeries(shapely.LineString([p1, p2]), crs=self.crs)
+
+    # def intersections(self, line):
+    #     line = drop_z(line.geometry.values[0])
+    #     intersection = shapely.intersection_all([self.divisions, line])
+    #     return GeoSeries(intersection, index=["intersections"], crs=self.crs)
 
     def line_coords(self, line_pos: np.ndarray = None, include_z=True) -> np.ndarray:
         left = self.left_coords(include_z=include_z)
         right = self.right_coords(include_z=include_z)
-        return left + (right - left) * np.expand_dims(line_pos, axis=1)
+        return left + (right - left)[:, np.newaxis] * line_pos
 
     def parametrize_line_coords(self, line_coords: np.ndarray):
         return np.array(
@@ -102,10 +105,6 @@ class Track:
                 )
             ]
         )
-
-
-def drop_z(geom: shapely.LineString) -> shapely.LineString:
-    return shapely.wkb.loads(shapely.wkb.dumps(geom, output_dimension=2))
 
 
 def loc_line(point_left, point_right, point_line):

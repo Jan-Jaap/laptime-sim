@@ -26,10 +26,13 @@ def print_results(raceline: Raceline, nr_iterations, saved) -> None:
 
 def main() -> None:
 
+    cars = laptime_sim.get_all_cars(PATH_CARS)
+    tracks = laptime_sim.get_all_tracks(PATH_TRACKS)
+
     logging.info("started optimzation")
-    for car in laptime_sim.get_all_cars(PATH_CARS):
+    for car in cars:
         simulator = RacelineSimulator(car=car)
-        for track in laptime_sim.get_all_tracks(PATH_TRACKS):
+        for track in tracks:
 
             raceline = Raceline(track=track, car=car, simulator=simulator)
             logging.info(f"Loaded track data for {track.name} has {track.len} datapoints.")
@@ -37,7 +40,7 @@ def main() -> None:
 
             if filename_results.exists():
                 logging.warning(f"Filename {filename_results} exists and will be overwritten")
-                raceline.load_results(filename_results)
+                raceline.load_line(filename_results)
                 loaded_best_time = raceline.best_time
                 logging.info(
                     f"Track: {track.name} has {track.len} datapoints. Current best time for track = {raceline.best_time_str} "
@@ -51,7 +54,7 @@ def main() -> None:
                 exit()
             finally:
                 print("")
-                raceline.save_results(filename_results)
+                raceline.save_line(filename_results)
                 logging.info(f"final results saved to {filename_results=}")
                 print(f"{filename_results} - Saved laptime = {raceline.best_time_str}")
 

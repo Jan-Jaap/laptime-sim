@@ -19,12 +19,18 @@ PATH_CARS = "./cars/"
 
 def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataFrame, results):
 
-    my_map = None
-    my_map = track.divisions.explore(m=my_map, name="divisions", show=False, style_kwds=dict(color="grey"))
+    my_map = track.divisions.explore(name="divisions", show=False, style_kwds=dict(color="grey"))
 
     style_kwds = dict(color="black")
-    my_map = track.right.explore(m=my_map, name="right", control=False, style_kwds=style_kwds)
-    my_map = track.left.explore(m=my_map, name="left", control=False, style_kwds=style_kwds)
+    track.layout.explore(m=my_map, name="border", control=False, style_kwds=style_kwds)
+    gpd.GeoSeries(track.start_finish(), crs=track.crs).explore(
+        m=my_map,
+        name="start_finish",
+        style_kwds=dict(
+            color="red",
+            weight=5,
+        ),
+    )
 
     if not all_track_racelines.empty:
         style_kwds = dict(color="black", dashArray="2 5", opacity=0.6)

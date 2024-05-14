@@ -7,7 +7,7 @@ import xyzservices.providers as xyz
 from streamlit_folium import folium_static
 
 # from folium.plugins import Draw
-from icecream import ic
+# from icecream import ic
 
 import geopandas as gpd
 import shapely
@@ -17,10 +17,7 @@ from pathlib import Path
 POINT_COUNT = 500
 TRANSECT_LENGTH = 12
 
-FILENAME = Path("./temp/silverstone.shp")
 PATH_TRACKS = "./tracks/"
-
-start_finish = gpd.points_from_xy([-1.022276814267109], [52.069221331141215], crs="EPSG:4326")
 
 
 def main() -> None:
@@ -38,9 +35,11 @@ def main() -> None:
     point_count = st.number_input("POINT_COUNT", min_value=100, max_value=5000, value=POINT_COUNT, step=10)
     transect_length = st.number_input("TRANSECT_LENGTH", min_value=1, max_value=100, value=TRANSECT_LENGTH, step=1)
     track_name = st.text_input("Track name", value=Path(uploaded_file.name).stem)
-    start_finish = st.text_input("Start finish", value="52.069221331141215,-1.022276814267109")
-    start_finish = gpd.GeoSeries(shapely.Point([float(x) for x in start_finish.split(",")][::-1]), crs="EPSG:4326")
-    start_finish.to_crs(track.crs)
+
+    start_finish = track.to_crs(epsg=4326).geometry.iloc[0].boundary.interpolate(0)
+    start_finish_input_text = st.text_input("Start finish", value=f"{start_finish.y:.6f},{start_finish.x:.6f}")
+    start_finish = gpd.GeoSeries(shapely.Point([float(x) for x in start_finish_input_text.split(",")][::-1]), crs="EPSG:4326")
+    start_finish = start_finish.to_crs(track.crs)
 
     inner, outer = track.geometry
     if inner.contains(outer):  # == inside out
@@ -49,30 +48,48 @@ def main() -> None:
 
     if track.exterior is not None:  # convert polygons to linearring
         track = track.exterior
-
-    my_map = track.explore(name="track", style_kwds={"color": "blue"})
-    my_map = start_finish.explore(name="start_finish", style_kwds={"color": "red"})
-    my_map = track.extract_unique_points().explore(m=my_map, name="track_points")
+        inner, outer = track.geometry
 
     center_line = create_centerline(track, point_count, start_finish=start_finish)
 
-    gpd.GeoSeries(center_line, crs=track.crs).explore(m=my_map, name="center_line", style_kwds={"color": "blue"})
-
     transect_lines = transect(center_line, transect_length)
-    my_map = gpd.GeoSeries(transect_lines, crs=track.crs).explore(m=my_map, name="transect_lines", style_kwds={"color": "blue"})
 
     inner_points, outer_points = [], []
     for line in transect_lines.geoms:
         p1, p2 = track.intersection(line)
+
+        if inner.has_z:
+            s_inner = drop_z(inner).project(p1)
+            p1 = inner.interpolate(s_inner)  # to preserve z coordinates
+
+        if outer.has_z:
+            s_outer = drop_z(outer).project(p2)
+            p2 = outer.interpolate(s_outer)
+
         inner_points.append(p1)
         outer_points.append(p2)
 
-    new_inner = shapely.LinearRing([(p.x, p.y) for p in inner_points])
-    new_outer = shapely.LinearRing([(p.x, p.y) for p in outer_points])
-    right = {"geom_type": "left", "geometry": new_inner, "track_name": track_name}
-    left = {"geom_type": "right", "geometry": new_outer, "track_name": track_name}
+    new_inner = shapely.LinearRing(inner_points)
+    new_outer = shapely.LinearRing(outer_points)
+
+    left = {"track_name": track_name, "geom_type": "left", "geometry": new_outer}
+    right = {"track_name": track_name, "geom_type": "right", "geometry": new_inner}
     new_track = gpd.GeoDataFrame.from_dict(data=[left, right], crs=track.crs).to_crs(epsg=4326)
-    my_map = new_track.explore(m=my_map, name="new_track", style_kwds={"color": "red"})
+
+    my_map = track.explore(name="track", style_kwds={"color": "black"})
+    track.extract_unique_points().explore(m=my_map, name="track_points")
+    gpd.GeoSeries(center_line, crs=track.crs).explore(m=my_map, name="center_line", style_kwds={"color": "blue"})
+    gpd.GeoSeries(transect_lines, crs=track.crs).explore(m=my_map, name="transect_lines", style_kwds={"color": "blue"})
+    gpd.GeoSeries(transect_lines.geoms[0], crs=track.crs).explore(
+        m=my_map,
+        name="start_finish",
+        style_kwds=dict(
+            color="red",
+            weight=5,
+        ),
+    )
+
+    # new_track.explore(m=my_map, name="new_track", style_kwds={"color": "red"})
 
     folium.TileLayer(xyz.Esri.WorldImagery).add_to(my_map)
     folium.TileLayer("openstreetmap").add_to(my_map)
@@ -81,8 +98,12 @@ def main() -> None:
 
     folium_static(my_map)
 
-    if st.button("save track"):
-        new_track.to_parquet(Path(PATH_TRACKS, track_name + ".parquet"))
+    file_name = Path(PATH_TRACKS, track_name + ".parquet")
+    if st.button(f"save track: ({file_name})"):
+        new_track.to_parquet(file_name)
+
+    with st.expander("Track layout"):
+        st.write(new_track)
 
 
 def prev_next_iter(my_list: list[Any]) -> Iterable[tuple[Any, Any, Any]]:
@@ -105,14 +126,18 @@ def prev_next_iter(my_list: list[Any]) -> Iterable[tuple[Any, Any, Any]]:
 
 
 def create_centerline(track, nr_points=600, start_finish=None) -> shapely.LinearRing:
+    # inner, outer = track
     inner, outer = hacky_offset_curve(track)
-
     if start_finish is not None:
         offset_outer = outer.line_locate_point(start_finish)[0]
         offset_inner = inner.line_locate_point(start_finish)[0]
 
     inner = redistribute_vertices(inner, nr_points, offset_inner)
     outer = redistribute_vertices(outer, nr_points, offset_outer)
+
+    # return shapely.LinearRing(
+    #     [((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2) for (x1, y1, z1), (x2, y2, z2) in zip(inner.coords, outer.coords)]
+    # )
 
     return shapely.LinearRing([((x1 + x2) / 2, (y1 + y2) / 2) for (x1, y1), (x2, y2) in zip(inner.coords, outer.coords)])
 
@@ -174,6 +199,7 @@ def hacky_offset_curve(series: gpd.GeoSeries) -> tuple[shapely.LinearRing, shape
     inner, outer = series.geometry
     offset_distance = inner.distance(outer) / 2  # border offsets will touch in the middle
     inner = inner.offset_curve(offset_distance)
+
     outer = outer.reverse().offset_curve(offset_distance).reverse()
     return inner, outer
 
@@ -195,6 +221,10 @@ def redistribute_vertices(geom, num_vert: int, offset: float = 0.0):
 
     if geom.geom_type == "LinearRing":
         return shapely.LinearRing(coordinates)
+
+
+def drop_z(geom: shapely.LineString) -> shapely.LineString:
+    return shapely.geometry.LineString([(x, y) for x, y, _ in geom.coords])
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ from shapely import LineString
 from dataclasses import dataclass
 
 from laptime_sim.car import Car
+from laptime_sim.simresults import SimResults
 from laptime_sim.track import Track
 from laptime_sim.simulate import RacelineSimulator
 
@@ -30,7 +31,7 @@ class LineParameters:
 
 
 # annealing factor
-f_anneal = 0.01 ** (1 / 10000)  # from 1 to 0.01 in 10000 iterations without improvement
+F_ANNEAL = 0.01 ** (1 / 10000)  # from 1 to 0.01 in 10000 iterations without improvement
 
 
 @dataclass
@@ -48,8 +49,11 @@ class Raceline:
     def __post_init__(self):
 
         if self.line_pos is None:
-            # TODO: here we could use a line from a different car or run
+            # TODO: here we could use a line_pos from a different car or run
             self.line_pos = np.zeros_like(self.track.width) + 0.5
+
+        if self.simulator is not None and self.best_time is None:
+            self.best_time = self.simulate().laptime
 
         if self.heatmap is None:
             self.heatmap = np.ones_like(self.line_pos)
@@ -64,9 +68,6 @@ class Raceline:
         car = Car.from_name(results.iloc[0].car, path_cars)
         simulator = RacelineSimulator(car)
 
-        # results = results.to_crs(self.track.crs)
-        # results = results.iloc[0]
-
         return cls(
             track=track,
             car=car,
@@ -75,20 +76,30 @@ class Raceline:
             best_time=results.iloc[0].best_time,
         )
 
-    def load_results(self, filename):
+    def load_line(self, filename):
         if not os.path.exists(filename):
             raise FileNotFoundError(f"{filename} doesn't exist")
         results = read_parquet(filename)
         results = results.to_crs(self.track.crs)
 
         assert self.track.name == results.iloc[0].track_name
+        assert self.car.name == results.iloc[0].car
         self.best_time = results.iloc[0].best_time
         line_coords = results.get_coordinates(include_z=False).to_numpy(na_value=0)
         self.line_pos = self.track.parametrize_line_coords(line_coords)
 
         return self
 
-    def save_results(self, filename) -> None:
+    def save_line(self, filename) -> None:
+        """
+        Saves the results to a parquet file.
+
+        Parameters:
+            filename: str - The name of the output file to save the results to.
+
+        Returns:
+            None
+        """
         if filename is None:
             raise FileNotFoundError("no output filename provided")
         self.get_dataframe().to_parquet(filename)
@@ -104,45 +115,46 @@ class Raceline:
 
     @property
     def best_time_str(self):
-        return f"{self.best_time % 3600 // 60:02.0f}:{self.best_time % 60:06.03f}"
+        """
+        Property method that formats the best lap time in hours, minutes, and seconds.
+        Returns a formatted string of the best lap time.
+        """
+        if self.best_time:
+            return f"{self.best_time % 3600 // 60:02.0f}:{self.best_time % 60:06.03f}"
 
     @functools.cached_property
     def _position_clearance(self):
         return self.track.normalize_distance(self.clearance_meter)
 
-    def simulate(self):
-        line_coordinates = self.track.line_coords(self.line_pos)
+    def simulate(self, line_pos: np.ndarray = None) -> SimResults:
+
+        if line_pos is None:
+            line_coordinates = self.track.line_coords(self.line_pos)
+            return self.simulator.run(line_coordinates=line_coordinates, slope=self.track.slope)
+
+        line_coordinates = self.track.line_coords(line_pos)
         sim_results = self.simulator.run(line_coordinates=line_coordinates, slope=self.track.slope)
-        if self.best_time != sim_results.laptime:
-            self.best_time = sim_results.laptime
-        return sim_results
-
-    def simulate_new_line(self, new_line=None) -> None:
-
-        if new_line is None:
-            new_line = self.line_pos
-
-        sim_results = self.simulator.run(line_coordinates=self.track.line_coords(new_line), slope=self.track.slope)
-
-        if self.best_time is None:
-            self.best_time = sim_results.laptime
 
         if sim_results.laptime < self.best_time:
             improvement = self.best_time - sim_results.laptime
-            self.best_time = sim_results.laptime
-            self.line_pos = new_line
-            deviation = np.abs(self.line_pos - new_line)
+            deviation = np.abs(self.line_pos - line_pos)
             max_deviation = max(deviation)
             if max_deviation > 0:
                 self.heatmap += deviation / max_deviation * improvement * 1e3
+            self.best_time = sim_results.laptime
             self.progress += improvement
+            self.line_pos = line_pos
 
         self.heatmap = (self.heatmap + 0.0015) / 1.0015  # slowly to one
-        self.progress *= f_anneal  # slowly to zero
+        self.progress *= F_ANNEAL  # slowly to zero
+
         return sim_results
 
-    def get_new_line(self):
-        line_param = LineParameters.from_heatmap(self.heatmap)
+    def simulate_new_line(self) -> None:
+        new_line = self.get_new_line(line_param=LineParameters.from_heatmap(self.heatmap))
+        return self.simulate(new_line)
+
+    def get_new_line(self, line_param: LineParameters):
         line_adjust = 1 - np.cos(np.linspace(0, 2 * np.pi, line_param.length))
         position = np.zeros_like(self.line_pos)
         position[: line_param.length] = line_adjust * line_param.deviation
@@ -165,8 +177,7 @@ def optimize_raceline(
     timer1 = Timer()
     timer2 = Timer()
 
-    raceline.simulate()
-    raceline.save_results(filename_save)
+    raceline.save_line(filename_save)
 
     if not display_callback:
 
@@ -177,8 +188,7 @@ def optimize_raceline(
 
     for nr_iterations in itertools.count():
 
-        new_line = raceline.get_new_line()
-        raceline.simulate_new_line(new_line=new_line)
+        raceline.simulate_new_line()
 
         if raceline.progress < tolerance:
             break
@@ -189,10 +199,10 @@ def optimize_raceline(
 
         if timer2.elapsed_time > 30:
             display_callback(raceline, nr_iterations, saved=True)
-            raceline.save_results(filename_save)
+            raceline.save_line(filename_save)
             timer2.reset()
 
-    raceline.save_results(filename_save)
+    raceline.save_line(filename_save)
     display_callback(raceline, nr_iterations, saved=True)
     return raceline
 

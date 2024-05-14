@@ -20,7 +20,7 @@ def main():
 
     if filename_results.exists():
         st.warning(f"Filename {filename_results} exists and will be overwritten")
-        raceline.load_results(filename_results)
+        raceline.load_line(filename_results)
 
     def show_laptime_and_nr_iterations(raceline: Raceline, itererations: int, saved: bool) -> None:
         placeholder_laptime.write(f"Laptime = {raceline.best_time_str}  (iteration:{itererations})")
