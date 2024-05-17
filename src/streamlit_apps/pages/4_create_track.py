@@ -7,8 +7,7 @@ import xyzservices.providers as xyz
 from streamlit_folium import folium_static
 
 # from folium.plugins import Draw
-# from icecream import ic
-
+from scipy.signal import savgol_filter, find_peaks
 import geopandas as gpd
 import shapely
 import math
@@ -41,6 +40,8 @@ def main() -> None:
     point_count = st.number_input("POINT_COUNT", min_value=100, max_value=5000, value=POINT_COUNT, step=10)
     transect_length = st.number_input("TRANSECT_LENGTH", min_value=1, max_value=100, value=TRANSECT_LENGTH, step=1)
     track_name = st.text_input("Track name", value=Path(uploaded_file.name).stem)
+    smooth_factor_centerline = st.slider("smooth_factor_centerline", min_value=6, max_value=POINT_COUNT, value=6, step=1)
+    smooth_factor_track = st.slider("smooth_factor_track", min_value=6, max_value=POINT_COUNT, value=6, step=1)
 
     start_finish = track.to_crs(epsg=4326).geometry.iloc[0].boundary.interpolate(0)
     start_finish_input_text = st.text_input("Start finish", value=f"{start_finish.y:.6f},{start_finish.x:.6f}")
@@ -49,16 +50,64 @@ def main() -> None:
 
     inner, outer = track.geometry
     if inner.contains(outer):  # == inside out
-        inner, outer = outer, inner
+        # inner, outer = outer, inner
         track = track.reindex(index=[1, 0])
 
     if track.exterior is not None:  # convert polygons to linearring
         track = track.exterior
-        inner, outer = track.geometry
+        # inner, outer = track.geometry
 
     center_line = create_centerline(track, point_count, start_finish=start_finish)
 
+    my_map = track.explore(name="track", style_kwds={"color": "grey"})
+    gpd.GeoSeries(center_line, crs=track.crs).explore(m=my_map, name="center_line1", style_kwds={"color": "grey"})
+
+    # ic(center_line)
+    center_line = smooth_line(center_line, smooth_factor=smooth_factor_centerline)
+    # ic(center_line)
+    gpd.GeoSeries(center_line, crs=track.crs).explore(m=my_map, name="center_line2", style_kwds={"color": "red"})
+
     transect_lines = transect(center_line, transect_length)
+
+    inner_points, outer_points = transect_intersect(track.geometry, transect_lines)
+
+    new_inner = smooth_line(shapely.LinearRing(inner_points), smooth_factor=smooth_factor_track)
+    new_outer = smooth_line(shapely.LinearRing(outer_points), smooth_factor=smooth_factor_track)
+
+    left = {"track_name": track_name, "geom_type": "left", "geometry": new_outer}
+    right = {"track_name": track_name, "geom_type": "right", "geometry": new_inner}
+    new_track = gpd.GeoDataFrame.from_dict(data=[left, right], crs=track.crs).to_crs(epsg=4326)
+
+    new_track.explore(m=my_map, name="track", style_kwds={"color": "black"})
+    new_track.extract_unique_points().explore(m=my_map, name="track_points")
+
+    # gpd.GeoSeries(center_line, crs=track.crs).explore(m=my_map, name="center_line", style_kwds={"color": "blue"})
+    gpd.GeoSeries(transect_lines, crs=track.crs).explore(m=my_map, name="transect_lines", style_kwds={"color": "blue"})
+    gpd.GeoSeries(transect_lines.geoms[0], crs=track.crs).explore(
+        m=my_map,
+        name="start_finish",
+        style_kwds=dict(
+            color="red",
+            weight=5,
+        ),
+    )
+
+    folium.TileLayer(xyz.Esri.WorldImagery).add_to(my_map)
+    folium.TileLayer("openstreetmap").add_to(my_map)
+    folium.LayerControl().add_to(my_map)
+
+    folium_static(my_map)
+
+    file_name = Path(PATH_TRACKS, track_name + ".parquet")
+    if st.button(f"save track: ({file_name})"):
+        new_track.to_parquet(file_name)
+
+    with st.expander("Track layout"):
+        st.write(new_track)
+
+
+def transect_intersect(track, transect_lines):
+    inner, outer = track
 
     inner_points, outer_points = [], []
     for line in transect_lines.geoms:
@@ -74,42 +123,7 @@ def main() -> None:
 
         inner_points.append(p1)
         outer_points.append(p2)
-
-    new_inner = shapely.LinearRing(inner_points)
-    new_outer = shapely.LinearRing(outer_points)
-
-    left = {"track_name": track_name, "geom_type": "left", "geometry": new_outer}
-    right = {"track_name": track_name, "geom_type": "right", "geometry": new_inner}
-    new_track = gpd.GeoDataFrame.from_dict(data=[left, right], crs=track.crs).to_crs(epsg=4326)
-
-    my_map = track.explore(name="track", style_kwds={"color": "black"})
-    track.extract_unique_points().explore(m=my_map, name="track_points")
-    gpd.GeoSeries(center_line, crs=track.crs).explore(m=my_map, name="center_line", style_kwds={"color": "blue"})
-    gpd.GeoSeries(transect_lines, crs=track.crs).explore(m=my_map, name="transect_lines", style_kwds={"color": "blue"})
-    gpd.GeoSeries(transect_lines.geoms[0], crs=track.crs).explore(
-        m=my_map,
-        name="start_finish",
-        style_kwds=dict(
-            color="red",
-            weight=5,
-        ),
-    )
-
-    # new_track.explore(m=my_map, name="new_track", style_kwds={"color": "red"})
-
-    folium.TileLayer(xyz.Esri.WorldImagery).add_to(my_map)
-    folium.TileLayer("openstreetmap").add_to(my_map)
-    folium.LayerControl().add_to(my_map)
-    # Draw(export=True).add_to(my_map)
-
-    folium_static(my_map)
-
-    file_name = Path(PATH_TRACKS, track_name + ".parquet")
-    if st.button(f"save track: ({file_name})"):
-        new_track.to_parquet(file_name)
-
-    with st.expander("Track layout"):
-        st.write(new_track)
+    return inner_points, outer_points
 
 
 def prev_next_iter(my_list: list[Any]) -> Iterable[tuple[Any, Any, Any]]:
@@ -141,39 +155,53 @@ def create_centerline(track, nr_points=600, start_finish=None) -> shapely.Linear
     inner = redistribute_vertices(inner, nr_points, offset_inner)
     outer = redistribute_vertices(outer, nr_points, offset_outer)
 
-    # return shapely.LinearRing(
-    #     [((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2) for (x1, y1, z1), (x2, y2, z2) in zip(inner.coords, outer.coords)]
-    # )
-
     return shapely.LinearRing([((x1 + x2) / 2, (y1 + y2) / 2) for (x1, y1), (x2, y2) in zip(inner.coords, outer.coords)])
 
 
-def resize_vector(vector: tuple, new_length: float):
-    scale_factor = new_length / math.hypot(*vector)
-    return (vector[0] * scale_factor, vector[1] * scale_factor)
+def smooth_line(line: shapely.LinearRing, smooth_factor: int = 50) -> shapely.LinearRing:
+    """
+    Smooths a line using a Savitzky-Golay filter.
+
+    Args:
+        line (shapely.LinearRing): The line to be smoothed.
+        smooth_factor (int, optional): The window size of the filter. Defaults to 50.
+
+    Returns:
+        shapely.LinearRing: The smoothed line.
+    """
+    x, y = line.xy
+    x_smoothed = savgol_filter(x, smooth_factor, 5, mode="wrap")
+    y_smoothed = savgol_filter(y, smooth_factor, 5, mode="wrap")
+
+    return shapely.LinearRing(list(zip(x_smoothed, y_smoothed)))
 
 
-def transect_func(p0, p1, p2, length=None):
+def generate_transect(
+    start: tuple[float, float], mid: tuple[float, float], end: tuple[float, float], length=None
+) -> tuple[tuple[float, float], tuple[float, float]]:
     """
     Generate a transect line based on three points.
 
     Parameters:
-        p0 (tuple): The coordinates of the first point (x0, y0).
-        p1 (tuple): The coordinates of the second point (x1, y1).
-        p2 (tuple): The coordinates of the third point (x2, y2).
+        start (tuple): The coordinates of the first point (x1, y1).
+        mid (tuple): The coordinates of the second point (x2, y2).
+        end (tuple): The coordinates of the third point (x3, y3).
+        length (float): The length of the transect line to be generated.
 
     Returns:
-        tuple: A tuple containing the coordinates of the transect line's starting point (x1, y1)\
-              and the slope of the transect line (x1 - y0 + y2, y1 + x0 - x2).
+        tuple: A tuple containing the coordinates of the transect line's starting point (x1, y1)
+               and the slope of the transect line (dx, dy).
     """
-    x0, y0, x1, y1, x2, y2 = p0[0], p0[1], p1[0], p1[1], p2[0], p2[1]
-    dy = y2 - y0
-    dx = x0 - x2
+    x1, y1, x2, y2, x3, y3 = start + mid + end
+    dx = x1 - x3
+    dy = y3 - y1
 
     if length:
-        dx, dy = resize_vector((dx, dy), length)
+        scale_factor = length / math.hypot(dx, dy)
+        dx *= scale_factor
+        dy *= scale_factor
 
-    return ((x1 - dy, y1 - dx)), (x1 + dy, y1 + dx)
+    return ((x2 - dy, y2 - dx)), (x2 + dy, y2 + dx)
 
 
 def transect(line: shapely.LinearRing, length: Optional[float] = None) -> shapely.MultiLineString:
@@ -187,8 +215,8 @@ def transect(line: shapely.LinearRing, length: Optional[float] = None) -> shapel
     Returns:
         shapely.MultiLineString: A MultiLineString, containing the generated transect lines.
     """
-    line_coords = list(line.coords)[:-1]
-    lines = [transect_func(p0, p1, p2, length) for p0, p1, p2 in prev_next_iter(line_coords)]
+    line_coords = list(line.coords)[:-1]  # exclude the last point, which is the same as the first
+    lines = [generate_transect(p0, p1, p2, length) for p0, p1, p2 in prev_next_iter(line_coords)]
     return shapely.MultiLineString(lines=lines)
 
 
@@ -223,7 +251,7 @@ def redistribute_vertices(geom, num_vert: int, offset: float = 0.0):
     coordinates = [geom.interpolate((float(n) / num_vert + offset) % 1, normalized=True) for n in range(num_vert + 1)]
 
     if geom.geom_type == "LineString":
-        return shapely.LineString(coordinates)
+        return shapely.LinearRing(coordinates)
 
     if geom.geom_type == "LinearRing":
         return shapely.LinearRing(coordinates)

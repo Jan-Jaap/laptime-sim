@@ -79,13 +79,13 @@ class Track:
         p1, p2 = self.left_coords()[0], self.right_coords()[0]
         return GeoSeries(shapely.LineString([p1, p2]), crs=self.crs)
 
-    def line_coords(self, line_pos: np.ndarray = None, include_z=True) -> np.ndarray:
+    def line_coordinates(self, line_pos: np.ndarray = None, include_z=True) -> np.ndarray:
         left = self.left_coords(include_z=include_z)
         right = self.right_coords(include_z=include_z)
         return left + (right - left) * np.expand_dims(line_pos, axis=1)
         # return left + (right - left)[:, np.newaxis] * line_pos
 
-    def parametrize_line_coords(self, line_coords: np.ndarray):
+    def parameterize_line_coordinates(self, line_coords: np.ndarray):
         return np.array(
             [
                 loc_line(pl, pr, loc)

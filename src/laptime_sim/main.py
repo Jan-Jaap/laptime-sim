@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 PATH_TRACKS = "./tracks/"
 PATH_CARS = "./cars/"
 PATH_RESULTS = "./simulated/"
-TOLERANCE = 0.001
+TOLERANCE = 0.01
 
 
 def print_results(raceline: Raceline, **kwargs) -> None:
@@ -75,12 +75,17 @@ def optimize_raceline(raceline: Raceline, filename_save=None) -> Raceline:
             break
 
         if display_timer.triggered:
-            print_results(raceline, iterations=iterations, iteration_speed=iterations / start_timer.elapsed_time)
+            print_results(
+                raceline,
+                iterations=iterations,
+                iteration_speed=f"{iterations / start_timer.elapsed_time:.0f}/s",
+                stagnation=f"{TOLERANCE / raceline.progress * 100:.1f}%",
+            )
             display_timer.reset()
 
         if save_timer.triggered:
             raceline.save_line(filename_save)
-            print_results(raceline, filename_save=filename_save)
+            # print_results(raceline, filename_save=filename_save)
             save_timer.reset()
 
     raceline.save_line(filename_save)
