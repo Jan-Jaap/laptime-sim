@@ -1,7 +1,6 @@
 import dataclasses
 import numpy as np
 
-from laptime_sim.car import Car
 from laptime_sim.simresults import SimResults
 
 OUTPUT_COLUMNS_NAMES = dict(
@@ -18,11 +17,8 @@ OUTPUT_COLUMNS_NAMES = dict(
 class RacelineSimulator:
     """Race simulator for determining the laptime when racing optimal speed"""
 
-    car: Car
-
-    def run(self, line_coordinates: np.ndarray, slope: np.ndarray) -> SimResults:
+    def run(self, car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimResults:
         # distance between nodes
-        car = self.car
         ds = mag(np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T)
 
         # Calculate the first and second derivative of the points

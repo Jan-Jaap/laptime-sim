@@ -1,19 +1,16 @@
 import os
-from time import time
+
 import functools
 import numpy as np
 from geopandas import GeoDataFrame, read_parquet
 
 from shapely import LineString
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from laptime_sim.car import Car
 from laptime_sim.simresults import SimResults
 from laptime_sim.track import Track
 from laptime_sim.simulate import RacelineSimulator
-
-import itertools
-from typing import Callable
 
 
 @dataclass(frozen=True)
@@ -38,7 +35,7 @@ F_ANNEAL = 0.01 ** (1 / 10000)  # from 1 to 0.01 in 10000 iterations without imp
 class Raceline:
     track: Track
     car: Car
-    simulator: RacelineSimulator
+    simulator: RacelineSimulator = field(default_factory=RacelineSimulator)
     # filename_results: os.PathLike | str = None
     line_pos: np.ndarray = None
     heatmap: np.ndarray = None
@@ -59,14 +56,15 @@ class Raceline:
             self.heatmap = np.ones_like(self.line_pos)
 
     @classmethod
-    def from_geodataframe(cls, results: GeoDataFrame, path_tracks, path_cars):
+    def from_geodataframe(cls, results: GeoDataFrame, all_cars, all_tracks):
 
-        track = Track.from_name(results.iloc[0].track_name, path_tracks)
+        track = [track for track in all_tracks if track.name == results.iloc[0].track_name][0]
+        car = [car for car in all_cars if car.name == results.iloc[0].car][0]
+
         results = results.to_crs(track.crs)
         line_coords = results.get_coordinates(include_z=False).to_numpy(na_value=0)
 
-        car = Car.from_name(results.iloc[0].car, path_cars)
-        simulator = RacelineSimulator(car)
+        simulator = RacelineSimulator()
 
         return cls(
             track=track,
@@ -129,11 +127,17 @@ class Raceline:
     def simulate(self, line_pos: np.ndarray = None) -> SimResults:
 
         if line_pos is None:
-            line_coordinates = self.track.line_coords(self.line_pos)
-            return self.simulator.run(line_coordinates=line_coordinates, slope=self.track.slope)
+            return self.simulator.run(
+                car=self.car,
+                line_coordinates=self.track.line_coords(self.line_pos),
+                slope=self.track.slope,
+            )
 
-        line_coordinates = self.track.line_coords(line_pos)
-        sim_results = self.simulator.run(line_coordinates=line_coordinates, slope=self.track.slope)
+        sim_results = self.simulator.run(
+            car=self.car,
+            line_coordinates=self.track.line_coords(line_pos),
+            slope=self.track.slope,
+        )
 
         if sim_results.laptime < self.best_time:
             improvement = self.best_time - sim_results.laptime
@@ -150,8 +154,12 @@ class Raceline:
 
         return sim_results
 
-    def simulate_new_line(self) -> None:
-        new_line = self.get_new_line(line_param=LineParameters.from_heatmap(self.heatmap))
+    def simulate_new_line(self, line_param=None) -> None:
+        if line_param is None:
+            line_param = LineParameters.from_heatmap(self.heatmap)
+
+        new_line = self.get_new_line(line_param=line_param)
+
         return self.simulate(new_line)
 
     def get_new_line(self, line_param: LineParameters):
@@ -167,53 +175,53 @@ class Raceline:
         )
 
 
-def optimize_raceline(
-    raceline: Raceline,
-    display_callback: Callable[[Raceline, int, bool], None],
-    filename_save=None,
-    tolerance=0.005,
-):
+# def optimize_raceline(
+#     raceline: Raceline,
+#     display_callback: Callable[[Raceline, int, bool], None],
+#     filename_save=None,
+#     tolerance=0.005,
+# ):
 
-    timer1 = Timer()
-    timer2 = Timer()
+#     timer1 = Timer()
+#     timer2 = Timer()
 
-    raceline.save_line(filename_save)
+#     raceline.save_line(filename_save)
 
-    if not display_callback:
+#     if not display_callback:
 
-        def display_callback(*args, **kwargs):
-            return None
+#         def display_callback(*args, **kwargs):
+#             return None
 
-    display_callback(raceline, 0, saved=True),
+#     display_callback(raceline, 0, saved=True),
 
-    for nr_iterations in itertools.count():
+#     for nr_iterations in itertools.count():
 
-        raceline.simulate_new_line()
+#         raceline.simulate_new_line()
 
-        if raceline.progress < tolerance:
-            break
+#         if raceline.progress < tolerance:
+#             break
 
-        if timer1.elapsed_time > 3:
-            display_callback(raceline, nr_iterations, saved=False)
-            timer1.reset()
+#         if timer1.elapsed_time > 3:
+#             display_callback(raceline, nr_iterations, saved=False)
+#             timer1.reset()
 
-        if timer2.elapsed_time > 30:
-            display_callback(raceline, nr_iterations, saved=True)
-            raceline.save_line(filename_save)
-            timer2.reset()
+#         if timer2.elapsed_time > 30:
+#             display_callback(raceline, nr_iterations, saved=True)
+#             raceline.save_line(filename_save)
+#             timer2.reset()
 
-    raceline.save_line(filename_save)
-    display_callback(raceline, nr_iterations, saved=True)
-    return raceline
+#     raceline.save_line(filename_save)
+#     display_callback(raceline, nr_iterations, saved=True)
+#     return raceline
 
 
-class Timer:
-    def __init__(self):
-        self.time = time()
+# class Timer:
+#     def __init__(self):
+#         self.time = time()
 
-    def reset(self):
-        self.time = time()
+#     def reset(self):
+#         self.time = time()
 
-    @property
-    def elapsed_time(self):
-        return time() - self.time
+#     @property
+#     def elapsed_time(self):
+#         return time() - self.time

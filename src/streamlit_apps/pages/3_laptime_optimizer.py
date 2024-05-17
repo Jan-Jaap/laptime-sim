@@ -1,31 +1,32 @@
+import itertools
 from pathlib import Path
 import streamlit as st
 import laptime_sim
+from laptime_sim.main import get_all_cars, get_all_tracks
 from laptime_sim.raceline import Raceline
+from laptime_sim.timer import Timer
 
 PATH_TRACKS = "./tracks/"
 PATH_CARS = "./cars/"
 PATH_RESULTS = "./simulated/"
 
 
+def show_laptime_and_iterations(raceline: Raceline, itererations: int, saved: bool) -> None:
+    st.write(f"Results: {raceline.best_time_str} saved. iteration:{itererations}")
+
+
 def main():
     if "optimization_running" not in st.session_state:
         st.session_state["optimization_running"] = False
 
-    track = st.radio("select track", options=laptime_sim.get_all_tracks(PATH_TRACKS), format_func=lambda x: x.name)
-    race_car = st.radio(label="Select Car", options=laptime_sim.get_all_cars(PATH_CARS), format_func=lambda x: x.name)
-    simulator = laptime_sim.RacelineSimulator(race_car)
-    raceline = laptime_sim.Raceline(track, race_car, simulator)
+    track = st.radio("select track", options=get_all_tracks(PATH_TRACKS), format_func=lambda x: x.name)
+    race_car = st.radio(label="Select Car", options=get_all_cars(PATH_CARS), format_func=lambda x: x.name)
+    raceline = laptime_sim.Raceline(track, race_car)
     filename_results = Path(PATH_RESULTS, f"{race_car.file_name}_{track.name}_simulated.parquet")
 
     if filename_results.exists():
         st.warning(f"Filename {filename_results} exists and will be overwritten")
         raceline.load_line(filename_results)
-
-    def show_laptime_and_nr_iterations(raceline: Raceline, itererations: int, saved: bool) -> None:
-        placeholder_laptime.write(f"Laptime = {raceline.best_time_str}  (iteration:{itererations})")
-        if saved:
-            placeholder_saved.write(f"Results: {raceline.best_time_str} saved. iteration:{itererations}")
 
     with st.status("Raceline optimization", state="error", expanded=True) as status:
         placeholder_saved = st.empty()
@@ -34,14 +35,35 @@ def main():
             if not st.session_state.optimization_running:  # if not running start te optimization
                 st.session_state.optimization_running = True
                 status.update(state="running")
-                placeholder_laptime.write("optimization is started")
+                placeholder_saved.write("optimization is started")
 
-                # this is a blocking function... no execution after this line, when optimizing...
-                laptime_sim.optimize_raceline(raceline, show_laptime_and_nr_iterations, filename_results)
+                timer1 = Timer(1)
+                timer2 = Timer(30)
+
+                raceline.save_line(filename_results)
+
+                placeholder_laptime.write(f"Laptime = {raceline.best_time_str}")
+
+                for itereration in itertools.count():
+
+                    raceline.simulate_new_line()
+
+                    if timer1.triggered:
+                        placeholder_laptime.write(f"Laptime = {raceline.best_time_str}. iteration:{itereration}")
+                        timer1.reset()
+
+                    if timer2.triggered:
+                        raceline.save_line(filename_results)
+                        placeholder_saved.write(f"Results: {raceline.best_time_str} saved. iteration:{itereration}")
+
+                        timer2.reset()
+
+                raceline.save_line(filename_results)
+                show_laptime_and_iterations(raceline, itereration, saved=True)
 
             if st.session_state.optimization_running:  # if running stop te optimization
                 st.session_state.optimization_running = False
-                placeholder_laptime.write("optimization is stopped")
+                placeholder_saved.write("optimization is stopped")
 
 
 if __name__ == "__main__":

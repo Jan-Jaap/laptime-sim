@@ -102,15 +102,3 @@ def loc_line(point_left, point_right, point_line):
     division = shapely.LineString([(point_left), (point_right)])
     intersect = shapely.Point(point_line)
     return division.project(intersect, normalized=True)
-
-
-@functools.lru_cache()
-def get_all_tracks(path: Union[str, os.PathLike]) -> list[Track]:
-    """
-    Returns a list of all tracks in the given directory
-
-    :param path: the path to the directory containing the tracks
-    :return: a list of all tracks in the given directory
-    """
-    track_files = [os.path.join(path, f) for f in sorted(os.listdir(path)) if f.endswith("parquet")]
-    return [Track.from_parquet(f) for f in track_files]

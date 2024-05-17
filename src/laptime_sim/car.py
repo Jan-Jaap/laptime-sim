@@ -60,16 +60,6 @@ class Car:
             self.file_name = self.name.replace(" ", "_")
 
     @classmethod
-    def from_name(cls, name, path):
-        return [f for f in get_all_cars(path) if f.name == name][0]
-
-    @classmethod
-    def from_json(cls, filename):
-        """load car parameters from JSON file"""
-        with open(filename, "r") as fp:
-            return cls(**json.load(fp))
-
-    @classmethod
     def from_toml(cls, file_name):
         """load car parameters from TOML file"""
         return cls(**toml.load(file_name), file_name=strip_filename(file_name))
@@ -108,14 +98,3 @@ def strip_filename(filename: str) -> str:
 
 def strip_extension(path: str) -> str:
     return os.path.splitext(path)[0]
-
-
-def get_all_cars(path: str) -> list[Car]:
-    """
-    Returns a list of all cars in the given directory, sorted by filename.
-
-    :param path: The path to the directory containing the car definition files
-    :return: A list of all cars in the given directory
-    """
-    car_files = [os.path.join(path, f) for f in sorted(os.listdir(path)) if f.endswith("toml")]
-    return [Car.from_toml(f) for f in car_files]

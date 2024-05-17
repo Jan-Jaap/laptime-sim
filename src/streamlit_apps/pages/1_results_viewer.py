@@ -10,6 +10,7 @@ import geopandas as gpd
 import laptime_sim
 from matplotlib import pyplot as plt
 
+from laptime_sim.main import get_all_cars, get_all_tracks
 from laptime_sim.raceline import Raceline
 
 PATH_RESULTS = "./simulated/"
@@ -55,7 +56,7 @@ def main() -> None:
     st.header("Race track display")
 
     with st.sidebar:
-        track = st.radio("select track", options=laptime_sim.get_all_tracks(PATH_TRACKS), format_func=lambda x: x.name)
+        track = st.radio("select track", options=get_all_tracks(PATH_TRACKS), format_func=lambda x: x.name)
 
     all_racelines = gpd.read_parquet(PATH_RESULTS, filters=[("track_name", "==", track.name)])
 
@@ -65,7 +66,9 @@ def main() -> None:
     else:
         d = st.radio("select result", options=all_racelines.to_dict(orient="records"), format_func=format_results)
         selected_raceline = all_racelines.from_dict([d]).set_crs(epsg=4326)
-        raceline = Raceline.from_geodataframe(selected_raceline, path_tracks=PATH_TRACKS, path_cars=PATH_CARS)
+        raceline = Raceline.from_geodataframe(
+            selected_raceline, all_cars=get_all_cars(PATH_CARS), all_tracks=get_all_tracks(PATH_TRACKS)
+        )
 
     track_map = folium_track_map(track, all_racelines, selected_raceline)
     st_folium(track_map, returned_objects=[], use_container_width=True)
