@@ -7,7 +7,7 @@ import xyzservices.providers as xyz
 from streamlit_folium import folium_static
 
 # from folium.plugins import Draw
-from scipy.signal import savgol_filter, find_peaks
+from scipy.signal import savgol_filter  # ,find_peaks
 import geopandas as gpd
 import shapely
 import math

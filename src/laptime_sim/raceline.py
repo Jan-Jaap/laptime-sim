@@ -14,6 +14,8 @@ from laptime_sim.simulate import RacelineSimulator
 
 
 SMOOTHING_WINDOW = 40
+MAX_DEVIATION_LENGTH = 40
+MAX_DEVIATION = 0.1
 
 
 @dataclass(frozen=True)
@@ -25,8 +27,8 @@ class LineParameters:
     @classmethod
     def from_heatmap(cls, p):
         location = np.random.choice(len(p), p=p / sum(p))
-        length = np.random.randint(1, 60)
-        deviation = np.random.randn() / 10
+        length = np.random.randint(1, MAX_DEVIATION_LENGTH)
+        deviation = np.random.randn() * MAX_DEVIATION
         return cls(location, length, deviation)
 
 
@@ -60,13 +62,13 @@ class Raceline:
             self.heatmap = np.ones_like(self.line_position)
 
     @classmethod
-    def from_geodataframe(cls, results: GeoDataFrame, all_cars, all_tracks):
+    def from_geodataframe(cls, data: GeoDataFrame, all_cars, all_tracks):
 
-        track: Track = [track for track in all_tracks if track.name == results.iloc[0].track_name][0]
-        car: Car = [car for car in all_cars if car.name == results.iloc[0].car][0]
+        track: Track = [track for track in all_tracks if track.name == data.iloc[0].track_name][0]
+        car: Car = [car for car in all_cars if car.name == data.iloc[0].car][0]
 
-        results = results.to_crs(track.crs)
-        line_coords = results.get_coordinates(include_z=False).to_numpy(na_value=0)
+        data = data.to_crs(track.crs)
+        line_coords = data.get_coordinates(include_z=False).to_numpy(na_value=0)
 
         simulator = RacelineSimulator()
 
@@ -75,7 +77,7 @@ class Raceline:
             car=car,
             simulator=simulator,
             line_position=track.parameterize_line_coordinates(line_coords),
-            best_time=results.iloc[0].best_time,
+            best_time=data.iloc[0].best_time,
         )
 
     def load_line(self, filename):

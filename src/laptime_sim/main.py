@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 PATH_TRACKS = "./tracks/"
 PATH_CARS = "./cars/"
 PATH_RESULTS = "./simulated/"
-TOLERANCE = 0.01
+TOLERANCE = 0.5
 
 
 def print_results(raceline: Raceline, **kwargs) -> None:
@@ -27,8 +27,6 @@ def print_results(raceline: Raceline, **kwargs) -> None:
         f"{raceline.track.name}-{raceline.car.name}:",
         f"laptime={raceline.best_time_str}",
         f"{kwargs}",
-        # f"({raceline.progress:.3f})",
-        # f"({speed=:.3f})",
         end="                                                       \r",
     )
 
