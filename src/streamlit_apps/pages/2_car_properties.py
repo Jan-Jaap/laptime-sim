@@ -1,11 +1,11 @@
 """This module creates a streamlit app"""
 
-import streamlit as st
 import numpy as np
 import plotly.express as px
+import streamlit as st
 
 import laptime_sim
-from laptime_sim.car import Trailbraking, CornerAcceleration
+from laptime_sim.car import CornerAcceleration, Trailbraking
 from laptime_sim.main import get_all_cars
 
 G = 9.81  # m/s²

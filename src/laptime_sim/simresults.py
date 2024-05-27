@@ -1,7 +1,8 @@
 import dataclasses
+from functools import cached_property
+
 import numpy as np
 import pandas as pd
-
 
 OUTPUT_COLUMNS_NAMES = dict(
     distance="Distance (m)",
@@ -13,38 +14,54 @@ OUTPUT_COLUMNS_NAMES = dict(
 )
 
 
-@dataclasses.dataclass
+@dataclasses.dataclass(frozen=True)
 class SimResults:
     line_coordinates: np.ndarray
     dt: np.ndarray
     speed: np.ndarray
-    Nk: np.ndarray
+    Nk: np.ndarray  # should be (N, 3) array of normal vectors in car frame with magnitude 1/R
     ds: np.ndarray
 
-    @property
+    @cached_property
     def laptime(self):
         return sum(self.dt)
 
     def __str__(self) -> str:
         return f"{self.laptime % 3600 // 60:02.0f}:{self.laptime % 60:06.03f}"
 
-    @property
+    @cached_property
     def a_lat(self):
         return -(self.speed**2) * self.Nk[:, 0]
 
-    @property
+    @cached_property
     def a_lon(self):
         return np.gradient(self.speed, self.distance) * self.speed
 
-    @property
+    @cached_property
     def distance(self):
         return self.ds.cumsum() - self.ds[0]
 
-    @property
+    @cached_property
     def speed_kph(self):
         return self.speed * 3.6
 
     def get_dataframe(self) -> pd.DataFrame:
+        """
+        Returns a pandas DataFrame containing the simulation results.
+
+        Returns:
+            pd.DataFrame: The DataFrame with the following columns:
+                - time: The cumulative sum of the time differences between consecutive timestamps.
+                - distance: The cumulative sum of the distances between consecutive points.
+                - a_lat: The lateral acceleration.
+                - a_lon: The longitudinal acceleration.
+                - speed: The speed at each point.
+                - speed_kph: The speed in kilometers per hour at each point.
+
+        Note:
+            The DataFrame is indexed by the 'time' column. The column names are renamed using the OUTPUT_COLUMNS_NAMES dict.
+
+        """
         df = pd.DataFrame()
         df["time"] = self.dt.cumsum()
         # df1 = pd.DataFrame(data=track_session.left_coords(), columns=["x", "y", "z"]).add_prefix("left_")

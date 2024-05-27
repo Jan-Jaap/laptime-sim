@@ -2,23 +2,22 @@
 
 import itertools
 from pathlib import Path
-import streamlit as st
 
 import folium
-import xyzservices.providers as xyz
-from streamlit_folium import st_folium
 import geopandas as gpd
+import streamlit as st
+import xyzservices.providers as xyz
+from matplotlib import pyplot as plt
+from streamlit_folium import st_folium
 
 import laptime_sim
-from matplotlib import pyplot as plt
-
 from laptime_sim.main import get_all_cars, get_all_tracks
 from laptime_sim.raceline import Raceline
 from laptime_sim.timer import Timer
 
-PATH_RESULTS = "./simulated/"
-PATH_TRACKS = "./tracks/"
-PATH_CARS = "./cars/"
+PATH_RESULTS = Path("./simulated/")
+PATH_TRACKS = Path("./tracks/")
+PATH_CARS = Path("./cars/")
 
 
 def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataFrame, results):
@@ -139,13 +138,14 @@ def main() -> None:
 
     st.pyplot(fig)
     with st.expander("Selected Raceline"):
-        st.write(selected_raceline)
+        st.write(raceline)
     with st.expander("SimResults"):
         st.write(sim_results)
     with st.expander("Race Car"):
         st.write(raceline.car)
     with st.expander("Race Track Layout"):
-        st.write(track.layout)
+        st.write(raceline.track.layout)
+        st.write(raceline.track)
 
 
 if __name__ == "__main__":

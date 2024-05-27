@@ -1,97 +1,44 @@
 import functools
 import logging
-import os
-from typing import Union
-
-from laptime_sim.car import Car
-from laptime_sim.timer import Timer
-from laptime_sim.track import Track
-from laptime_sim.raceline import Raceline
-
 from pathlib import Path
 
-import itertools
+from tqdm import tqdm
 
+from laptime_sim.car import Car
+from laptime_sim.raceline import Raceline
+from laptime_sim.track import Track
 
 logging.basicConfig(level=logging.INFO)
 
-
-PATH_TRACKS = "./tracks/"
-PATH_CARS = "./cars/"
-PATH_RESULTS = "./simulated/"
+PATH_TRACKS = Path("./tracks/")
+PATH_CARS = Path("./cars/")
+PATH_RESULTS = Path("./simulated2/")
 TOLERANCE = 0.5
 
 
-def print_results(raceline: Raceline, **kwargs) -> None:
-    print(
-        f"{raceline.track.name}-{raceline.car.name}:",
-        f"laptime={raceline.best_time_str}",
-        f"{kwargs}",
-        end="                                                       \r",
-    )
-
-
 @functools.lru_cache()
-def get_all_cars(path: str) -> list[Car]:
-    """
-    Returns a list of all cars in the given directory, sorted by filename.
+def get_all_cars(cars_path: Path) -> list[Car]:
+    """Returns a list of all cars in the given directory, sorted by filename
 
-    :param path: The path to the directory containing the car definition files
+    :param cars_path: The path to the directory containing the car definition files
     :return: A list of all cars in the given directory
     """
-    car_files = [os.path.join(path, f) for f in sorted(os.listdir(path)) if f.endswith("toml")]
-    return [Car.from_toml(f) for f in car_files]
+    return [Car.from_toml(file) for file in cars_path.glob("*.toml")]
 
 
 @functools.lru_cache()
-def get_all_tracks(path: Union[str, os.PathLike]) -> list[Track]:
-    """
-    Returns a list of all tracks in the given directory
+def get_all_tracks(tracks_path: Path) -> list[Track]:
+    """Returns a list of all tracks in the given directory
 
-    :param path: the path to the directory containing the tracks
+    :param tracks_path: the path to the directory containing the tracks
     :return: a list of all tracks in the given directory
     """
-    track_files = [os.path.join(path, f) for f in sorted(os.listdir(path)) if f.endswith("parquet")]
-    return [Track.from_parquet(f) for f in track_files]
-
-
-def optimize_raceline(raceline: Raceline, filename_save=None) -> Raceline:
-
-    start_timer = Timer()
-    display_timer = Timer(1)
-    save_timer = Timer(10)
-
-    raceline.save_line(filename_save)
-
-    print_results(raceline, filename_save=filename_save),
-
-    for iterations in itertools.count():
-
-        raceline.simulate_new_line()
-
-        if raceline.progress < TOLERANCE:
-            break
-
-        if display_timer.triggered:
-            print_results(
-                raceline,
-                iterations=iterations,
-                iteration_speed=f"{iterations / start_timer.elapsed_time:.0f}/s",
-                stagnation=f"{TOLERANCE / raceline.progress * 100:.1f}%",
-            )
-            display_timer.reset()
-
-        if save_timer.triggered:
-            raceline.save_line(filename_save)
-            # print_results(raceline, filename_save=filename_save)
-            save_timer.reset()
-
-    raceline.save_line(filename_save)
-    print_results(raceline, iterations=iterations)
-    return raceline
+    return [Track.from_parquet(file) for file in tracks_path.glob("*.parquet")]
 
 
 def main() -> None:
+
+    PATH_RESULTS.mkdir(exist_ok=True)
 
     cars = get_all_cars(PATH_CARS)
     tracks = get_all_tracks(PATH_TRACKS)
@@ -105,27 +52,35 @@ def main() -> None:
             filename_results = Path(PATH_RESULTS, f"{car.file_name}_{track.name}_simulated.parquet")
 
             if filename_results.exists():
-                logging.warning(f"Filename {filename_results} exists and will be overwritten")
                 raceline.load_line(filename_results)
-                loaded_best_time = raceline.best_time
+                logging.warning(f"Filename {filename_results} exists and will be overwritten")
                 logging.info(
                     f"Track: {track.name} has {track.len} datapoints. Current best time for track = {raceline.best_time_str} "
                 )
+            loaded_best_time = raceline.best_time
+
+            bar = tqdm(leave=True, desc=f"{raceline.track.name}-{raceline.car.name}", mininterval=100)
 
             try:
-                raceline = optimize_raceline(raceline, filename_results)
+                while raceline.progress > TOLERANCE:
+                    raceline.simulate_new_line()
+                    bar.set_postfix(laptime=raceline.best_time_str, progress=f"{raceline.progress:.3f}")
+                    bar.update()
+                bar.close()
+
             except KeyboardInterrupt:
-                print("")
-                logging.warning("Interrupted by CTRL+C")
+                # logging.warning("Interrupted by CTRL+C")
                 exit()
             finally:
-                print("")
-                raceline.save_line(filename_results)
-                logging.info(f"final results saved to {filename_results=}")
-                print(f"{filename_results} - Saved laptime = {raceline.best_time_str}")
+                bar.close()
 
-            logging.info(f"Optimization finished. {car.name}:{raceline.best_time_str}")
-            print(f"Optimization improvement {loaded_best_time - raceline.best_time}")
+                raceline.save_line(filename_results)
+                logging.info(f"final results saved to {filename_results.absolute()}")
+
+            logging.info(
+                f"Optimization finished. {car.name}:{raceline.best_time_str} "
+                f"improvement {loaded_best_time - raceline.best_time}"
+            )
 
 
 if __name__ == "__main__":

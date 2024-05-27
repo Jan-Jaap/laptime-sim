@@ -1,10 +1,11 @@
-from typing import Self, Union
-from geopandas import GeoDataFrame, GeoSeries, read_parquet
-from dataclasses import dataclass
 import functools
+import os
+from dataclasses import dataclass
+from typing import Self, Union
+
 import numpy as np
 import shapely
-import os
+from geopandas import GeoDataFrame, GeoSeries, read_parquet
 
 
 @dataclass(frozen=True)
@@ -34,11 +35,11 @@ class Track:
 
     @functools.cached_property
     def width(self) -> np.ndarray:
-        return np.sum((self.left_coords() - self.right_coords()) ** 2, 1) ** 0.5
+        return np.sum((self.left_coords_2d - self.right_coords_2d) ** 2, 1) ** 0.5
 
     @functools.cached_property
     def slope(self) -> np.ndarray:
-        return (self.right_coords()[:, 2] - self.left_coords()[:, 2]) / self.width
+        return (self.right_coords[:, 2] - self.left_coords[:, 2]) / self.width
 
     @functools.cached_property
     def left(self) -> GeoSeries:
@@ -48,11 +49,21 @@ class Track:
     def right(self) -> GeoSeries:
         return self.layout[self.layout["geom_type"] == "right"]
 
-    def left_coords(self, include_z=True) -> np.ndarray:
-        return self.left.get_coordinates(include_z=include_z).to_numpy(na_value=0)
+    @functools.cached_property
+    def left_coords(self) -> np.ndarray:
+        return self.left.get_coordinates(include_z=True).to_numpy(na_value=0)
 
-    def right_coords(self, include_z=True) -> np.ndarray:
-        return self.right.get_coordinates(include_z=include_z).to_numpy(na_value=0)
+    @functools.cached_property
+    def right_coords(self) -> np.ndarray:
+        return self.right.get_coordinates(include_z=True).to_numpy(na_value=0)
+
+    @functools.cached_property
+    def left_coords_2d(self) -> np.ndarray:
+        return self.left.get_coordinates().to_numpy(na_value=0)
+
+    @functools.cached_property
+    def right_coords_2d(self) -> np.ndarray:
+        return self.right.get_coordinates().to_numpy(na_value=0)
 
     @functools.cached_property
     def name(self) -> str:
@@ -68,30 +79,27 @@ class Track:
 
     @property
     def divisions(self):
-        border_left = self.left_coords(include_z=False)
-        border_right = self.right_coords(include_z=False)
+        border_left = self.left_coords_2d
+        border_right = self.right_coords_2d
         lines = []
         for point_left, point_right in zip(border_left, border_right):
             lines.append(([(point_left), (point_right)]))
         return GeoSeries(shapely.MultiLineString(lines=lines), index=["divisions"], crs=self.crs)
 
     def start_finish(self):
-        p1, p2 = self.left_coords()[0], self.right_coords()[0]
+        p1, p2 = self.left_coords[0], self.right_coords[0]
         return GeoSeries(shapely.LineString([p1, p2]), crs=self.crs)
 
-    def line_coordinates(self, line_pos: np.ndarray = None, include_z=True) -> np.ndarray:
-        left = self.left_coords(include_z=include_z)
-        right = self.right_coords(include_z=include_z)
-        return left + (right - left) * np.expand_dims(line_pos, axis=1)
-        # return left + (right - left)[:, np.newaxis] * line_pos
+    def line_coordinates(self, line_pos: np.ndarray = None) -> np.ndarray:
+        return self.left_coords + (self.right_coords - self.left_coords) * np.expand_dims(line_pos, axis=1)
 
     def parameterize_line_coordinates(self, line_coords: np.ndarray):
         return np.array(
             [
                 loc_line(pl, pr, loc)
                 for pl, pr, loc in zip(
-                    self.left_coords(include_z=False),
-                    self.right_coords(include_z=False),
+                    self.left_coords_2d,
+                    self.right_coords_2d,
                     line_coords,
                 )
             ]

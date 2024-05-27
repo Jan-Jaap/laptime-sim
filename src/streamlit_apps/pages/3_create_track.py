@@ -1,17 +1,18 @@
 """This module creates a streamlit app"""
 
+import math
+from pathlib import Path
 from typing import Any, Iterable, Optional
-import streamlit as st
+
 import folium
+import geopandas as gpd
+import shapely
+import streamlit as st
 import xyzservices.providers as xyz
-from streamlit_folium import folium_static
 
 # from folium.plugins import Draw
 from scipy.signal import savgol_filter  # ,find_peaks
-import geopandas as gpd
-import shapely
-import math
-from pathlib import Path
+from streamlit_folium import folium_static
 
 POINT_COUNT = 500
 TRANSECT_LENGTH = 12
@@ -48,10 +49,7 @@ def main() -> None:
     start_finish = gpd.GeoSeries(shapely.Point([float(x) for x in start_finish_input_text.split(",")][::-1]), crs="EPSG:4326")
     start_finish = start_finish.to_crs(track.crs)
 
-    inner, outer = track.geometry
-    if inner.contains(outer):  # == inside out
-        # inner, outer = outer, inner
-        track = track.reindex(index=[1, 0])
+    track = correct_inside_out(track)
 
     if track.exterior is not None:  # convert polygons to linearring
         track = track.exterior
@@ -106,6 +104,13 @@ def main() -> None:
         st.write(new_track)
 
 
+def correct_inside_out(track):
+    inner, outer = track.geometry
+    if inner.contains(outer):  # == inside out
+        return track.reindex(index=[1, 0])
+    return track
+
+
 def transect_intersect(track, transect_lines):
     inner, outer = track
 
@@ -147,7 +152,14 @@ def prev_next_iter(my_list: list[Any]) -> Iterable[tuple[Any, Any, Any]]:
 
 def create_centerline(track, nr_points=600, start_finish=None) -> shapely.LinearRing:
     # inner, outer = track
-    inner, outer = hacky_offset_curve(track)
+    # inner, outer = hacky_offset_curve(track)
+
+    inner, outer = track.geometry
+    offset_distance = inner.distance(outer) / 2  # border offsets will touch in the middle
+    inner = inner.offset_curve(offset_distance)
+
+    outer = outer.reverse().offset_curve(offset_distance).reverse()
+
     if start_finish is not None:
         offset_outer = outer.line_locate_point(start_finish)[0]
         offset_inner = inner.line_locate_point(start_finish)[0]
@@ -218,24 +230,6 @@ def transect(line: shapely.LinearRing, length: Optional[float] = None) -> shapel
     line_coords = list(line.coords)[:-1]  # exclude the last point, which is the same as the first
     lines = [generate_transect(p0, p1, p2, length) for p0, p1, p2 in prev_next_iter(line_coords)]
     return shapely.MultiLineString(lines=lines)
-
-
-def hacky_offset_curve(series: gpd.GeoSeries) -> tuple[shapely.LinearRing, shapely.LinearRing]:
-    """
-    Generate a tuple of two shapely.LinearRings, the first being the inner offset curve, and the second the outer offset curve.
-
-    Parameters:
-        series (GeoSeries): A GeoSeries containing a single LineString, representing the border.
-
-    Returns:
-        tuple[LinearRing, LinearRing]: A tuple containing the inner and outer offset curves.
-    """
-    inner, outer = series.geometry
-    offset_distance = inner.distance(outer) / 2  # border offsets will touch in the middle
-    inner = inner.offset_curve(offset_distance)
-
-    outer = outer.reverse().offset_curve(offset_distance).reverse()
-    return inner, outer
 
 
 def redistribute_vertices(geom, num_vert: int, offset: float = 0.0):

@@ -1,4 +1,5 @@
 import dataclasses
+
 import numpy as np
 
 from laptime_sim.simresults import SimResults

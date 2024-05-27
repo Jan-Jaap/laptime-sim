@@ -1,9 +1,9 @@
-import numpy as np
+import os
 from dataclasses import dataclass, field
 from enum import IntEnum
-import json
+
+import numpy as np
 import toml
-import os
 
 
 class Trailbraking(IntEnum):

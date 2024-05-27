@@ -1,17 +1,16 @@
-import os
-
 import functools
+import os
+from dataclasses import dataclass, field
+
 import numpy as np
 from geopandas import GeoDataFrame, read_parquet
-
-from shapely import LineString
-from dataclasses import dataclass, field
 from scipy.signal import savgol_filter
+from shapely import LineString
+
 from laptime_sim.car import Car
 from laptime_sim.simresults import SimResults
-from laptime_sim.track import Track
 from laptime_sim.simulate import RacelineSimulator
-
+from laptime_sim.track import Track
 
 SMOOTHING_WINDOW = 40
 MAX_DEVIATION_LENGTH = 40
@@ -41,7 +40,7 @@ class Raceline:
     track: Track
     car: Car
     simulator: RacelineSimulator = field(default_factory=RacelineSimulator)
-    # filename_results: os.PathLike | str = None
+
     line_position: np.ndarray = None
     heatmap: np.ndarray = None
     clearance_meter: float = 0.85
@@ -160,7 +159,7 @@ class Raceline:
 
         return sim_results
 
-    def simulate_new_line(self, line_param=None) -> None:
+    def simulate_new_line(self, line_param=None) -> SimResults:
         if line_param is None:
             line_param = LineParameters.from_heatmap(self.heatmap)
 
@@ -188,8 +187,7 @@ class Raceline:
         Parameters:
         - track: Track - The track to initialize the raceline on.
         """
-        coordinates = track.line_coordinates(np.full_like(self.track.width, 0.5), include_z=False)
-        x, y = coordinates.T
+        x, y, _ = track.line_coordinates(np.full_like(self.track.width, 0.5)).T
         smoothed_x = savgol_filter(x, smoothing_window, poly_order, mode="wrap")
         smoothed_y = savgol_filter(y, smoothing_window, poly_order, mode="wrap")
         self.line_position = track.parameterize_line_coordinates(np.array([smoothed_x, smoothed_y]).T)
