@@ -55,25 +55,21 @@ def main() -> None:
                 raceline.load_line(filename_results)
                 logging.warning(f"Filename {filename_results} exists and will be overwritten")
                 logging.info(
-                    f"Track: {track.name} has {track.len} datapoints. Current best time for track = {raceline.best_time_str} "
+                    f"Track: {track.name} has {track.len} datapoints. Current best time for track = {raceline.best_time_str}"
                 )
             loaded_best_time = raceline.best_time
 
-            bar = tqdm(leave=True, desc=f"{raceline.track.name}-{raceline.car.name}", mininterval=100)
-
             try:
-                while raceline.progress > TOLERANCE:
-                    raceline.simulate_new_line()
-                    bar.set_postfix(laptime=raceline.best_time_str, progress=f"{raceline.progress:.3f}")
-                    bar.update()
-                bar.close()
+                with tqdm(leave=True, desc=f"{raceline.track.name}-{raceline.car.name}", mininterval=100) as bar:
+                    while raceline.progress > TOLERANCE:
+                        raceline.simulate_new_line()
+                        bar.set_postfix(laptime=raceline.best_time_str, progress_speed=f"{raceline.progress:.3f}")
+                        bar.update()
 
             except KeyboardInterrupt:
-                # logging.warning("Interrupted by CTRL+C")
+                logging.warning("Interrupted by CTRL+C")
                 exit()
             finally:
-                bar.close()
-
                 raceline.save_line(filename_results)
                 logging.info(f"final results saved to {filename_results.absolute()}")
 
