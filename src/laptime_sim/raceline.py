@@ -13,7 +13,7 @@ from laptime_sim.simulate import RacelineSimulator
 from laptime_sim.track import Track
 
 SMOOTHING_WINDOW = 40
-MAX_DEVIATION_LENGTH = 40
+MAX_DEVIATION_LENGTH = 60
 MAX_DEVIATION = 0.1
 
 
@@ -76,7 +76,7 @@ class Raceline:
             car=car,
             simulator=simulator,
             line_position=track.parameterize_line_coordinates(line_coords),
-            best_time=data.iloc[0].best_time,
+            # best_time=data.iloc[0].best_time,
         )
 
     def load_line(self, filename):
@@ -87,10 +87,10 @@ class Raceline:
 
         assert self.track.name == results.iloc[0].track_name
         assert self.car.name == results.iloc[0].car
-        self.best_time = results.iloc[0].best_time
+        # self.best_time = results.iloc[0].best_time
         line_coords = results.get_coordinates(include_z=False).to_numpy(na_value=0)
         self.line_position = self.track.parameterize_line_coordinates(line_coords)
-
+        self.best_time = self.simulate().laptime
         return self
 
     def save_line(self, filename) -> None:
@@ -129,35 +129,34 @@ class Raceline:
     def _position_clearance(self):
         return self.track.normalize_distance(self.clearance_meter)
 
-    def simulate(self, line_pos: np.ndarray = None) -> SimResults:
+    def simulate(self, new_line_position: np.ndarray | None = None) -> SimResults:
+        """
+        Simulates a lap on the track with the given line position.
 
-        if line_pos is None:
-            return self.simulator.run(
-                car=self.car,
-                line_coordinates=self.track.line_coordinates(self.line_position),
-                slope=self.track.slope,
-            )
+        If new_line_position is not provided, the current line position is used.
 
-        sim_results = self.simulator.run(
-            car=self.car,
-            line_coordinates=self.track.line_coordinates(line_pos),
-            slope=self.track.slope,
-        )
+        Returns a SimResults object containing the results of the simulation.
+        """
+        line_coords = self.track.line_coordinates(new_line_position if new_line_position is not None else self.line_position)
+        sim_results = self.simulator.run(car=self.car, line_coordinates=line_coords, slope=self.track.slope)
+        if new_line_position is not None:
+            self.update_laptime_and_position(sim_results.laptime, new_line_position)
+        return sim_results
 
-        if sim_results.laptime < self.best_time:
-            improvement = self.best_time - sim_results.laptime
-            deviation = np.abs(self.line_position - line_pos)
-            max_deviation = max(deviation)
-            if max_deviation > 0:
-                self.heatmap += deviation / max_deviation * improvement * 1e3
-            self.best_time = sim_results.laptime
+    def update_laptime_and_position(self, laptime: float, new_line_pos):
+
+        if laptime < self.best_time:
+            improvement = self.best_time - laptime
+            deviation = np.abs(self.line_position - new_line_pos)
+            deviation /= np.max(deviation)
+
+            self.heatmap += deviation * improvement * 1e3
+            self.best_time = laptime
             self.progress += improvement
-            self.line_position = line_pos
+            self.line_position = new_line_pos
 
         self.heatmap = (self.heatmap + 0.0015) / 1.0015  # slowly to one
         self.progress *= F_ANNEAL  # slowly to zero
-
-        return sim_results
 
     def simulate_new_line(self, line_param=None) -> SimResults:
         if line_param is None:
