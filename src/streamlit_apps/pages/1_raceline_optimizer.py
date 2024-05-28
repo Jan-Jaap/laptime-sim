@@ -133,8 +133,9 @@ def main() -> None:
     sim_results = raceline.simulate()
 
     fig, ax = plt.subplots(figsize=(10, 5))
-    ax = plt.subplot(111)
+    # ax = plt.subplot(111)
     ax.plot(sim_results.distance, sim_results.speed_kph)
+    # ax.plot(sim_results.distance, track.slope)
 
     st.pyplot(fig)
     with st.expander("Selected Raceline"):
