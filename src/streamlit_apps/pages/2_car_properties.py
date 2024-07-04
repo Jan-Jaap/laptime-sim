@@ -1,5 +1,7 @@
 """This module creates a streamlit app"""
 
+from pathlib import Path
+
 import numpy as np
 import plotly.express as px
 import streamlit as st
@@ -9,8 +11,7 @@ from laptime_sim.car import CornerAcceleration, Trailbraking
 from laptime_sim.main import get_all_cars
 
 G = 9.81  # m/s²
-PATH_CARS = "./cars/"
-
+PATH_CARS = Path("./cars/")
 
 def plot_car_lon(race_car: laptime_sim.Car, v1):
     v = np.linspace(0, 300, 100)

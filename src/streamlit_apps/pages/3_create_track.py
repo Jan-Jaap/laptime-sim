@@ -16,7 +16,6 @@ from streamlit_folium import folium_static
 
 POINT_COUNT = 500
 TRANSECT_LENGTH = 12
-
 PATH_TRACKS = "./tracks/"
 
 

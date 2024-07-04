@@ -12,8 +12,8 @@ logging.basicConfig(level=logging.INFO)
 
 PATH_TRACKS = Path("./tracks/")
 PATH_CARS = Path("./cars/")
-PATH_RESULTS = Path("./simulated2/")
-TOLERANCE = 0.5
+PATH_RESULTS = Path("./simulated/")
+TOLERANCE = 0.005
 
 
 @functools.lru_cache()

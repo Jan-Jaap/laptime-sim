@@ -91,7 +91,6 @@ def optimize_raceline(raceline: laptime_sim.Raceline):
                     if timer2.triggered:
                         raceline.save_line(filename_results)
                         placeholder_saved.write(f"Results: {raceline.best_time_str} saved. iteration:{itereration}")
-
                         timer2.reset()
 
                 raceline.save_line(filename_results)
@@ -125,19 +124,19 @@ def main() -> None:
             selected_raceline, all_cars=get_all_cars(PATH_CARS), all_tracks=get_all_tracks(PATH_TRACKS)
         )
 
-    optimize_raceline(raceline)
-
     track_map = folium_track_map(track, all_racelines, selected_raceline)
     st_folium(track_map, returned_objects=[], use_container_width=True)
+
+    optimize_raceline(raceline)
 
     sim_results = raceline.simulate()
 
     fig, ax = plt.subplots(figsize=(10, 5))
-    # ax = plt.subplot(111)
     ax.plot(sim_results.distance, sim_results.speed_kph)
-    # ax.plot(sim_results.distance, track.slope)
-
+    ax.set_ylabel("Speed in km/h")
+    ax.set_xlabel("Track distance in m")
     st.pyplot(fig)
+
     with st.expander("Selected Raceline"):
         st.write(raceline)
     with st.expander("SimResults"):

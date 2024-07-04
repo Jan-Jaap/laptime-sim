@@ -1,5 +1,5 @@
-import streamlit as st
 import sys
+import streamlit as st
 
 sys.path.append("src")
 

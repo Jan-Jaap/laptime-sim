@@ -140,23 +140,21 @@ class Raceline:
         line_coords = self.track.line_coordinates(new_line_position if new_line_position is not None else self.line_position)
         sim_results = self.simulator.run(car=self.car, line_coordinates=line_coords, slope=self.track.slope)
         if new_line_position is not None:
-            self.update_laptime_and_position(sim_results.laptime, new_line_position)
+            # self.update_laptime_and_position(sim_results.laptime, new_line_position)
+            
+            if sim_results.laptime < self.best_time:
+                improvement = self.best_time - sim_results.laptime
+                deviation = np.abs(self.line_position - new_line_position)
+                deviation /= np.max(deviation)
+
+                self.heatmap += deviation * improvement * 1e3
+                self.best_time = sim_results.laptime
+                self.progress += improvement
+                self.line_position = new_line_position
+
+            self.heatmap = (self.heatmap + 0.0015) / 1.0015  # slowly to one
+            self.progress *= F_ANNEAL  # slowly to zero
         return sim_results
-
-    def update_laptime_and_position(self, laptime: float, new_line_pos):
-
-        if laptime < self.best_time:
-            improvement = self.best_time - laptime
-            deviation = np.abs(self.line_position - new_line_pos)
-            deviation /= np.max(deviation)
-
-            self.heatmap += deviation * improvement * 1e3
-            self.best_time = laptime
-            self.progress += improvement
-            self.line_position = new_line_pos
-
-        self.heatmap = (self.heatmap + 0.0015) / 1.0015  # slowly to one
-        self.progress *= F_ANNEAL  # slowly to zero
 
     def simulate_new_line(self, line_param=None) -> SimResults:
         if line_param is None:
