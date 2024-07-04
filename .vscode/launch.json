@@ -6,27 +6,33 @@
     "configurations": [
         {
             "name": "Python: Current File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true
-        },       
+        },
         {
             "name": "Streamlit: Current File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "streamlit",
-            "args": ["run", "${file}"],
+            "args": [
+                "run",
+                "${file}"
+            ],
             "console": "integratedTerminal",
             "justMyCode": true
-        }
+        },
         {
             "name": "Streamlit: Run App",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "streamlit",
-            "args": ["run", "${cwd}\\src\\streamlit_apps\\Welcome.py"],
+            "args": [
+                "run",
+                "${cwd}\\src\\streamlit_apps\\Welcome.py"
+            ],
             "console": "integratedTerminal",
             "justMyCode": true
         }
