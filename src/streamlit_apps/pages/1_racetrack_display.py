@@ -21,7 +21,6 @@ PATH_CARS = Path("./cars/")
 
 
 def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataFrame, results):
-
     my_map = track.divisions.explore(name="divisions", show=False, style_kwds=dict(color="grey"))
 
     style_kwds = dict(color="black")
@@ -58,7 +57,6 @@ def optimize_raceline(raceline: laptime_sim.Raceline):
         st.session_state["optimization_running"] = False
 
     with st.status("Raceline optimization", state="error", expanded=True) as status:
-
         filename_results = Path(PATH_RESULTS, f"{raceline.car.file_name}_{raceline.track.name}_simulated.parquet")
 
         if filename_results.exists():
@@ -80,12 +78,14 @@ def optimize_raceline(raceline: laptime_sim.Raceline):
 
                 placeholder_laptime.write(f"Laptime = {raceline.best_time_str}")
 
+                timer3 = Timer()
                 for itereration in itertools.count():
-
                     raceline.simulate_new_line()
 
                     if timer1.triggered:
-                        placeholder_laptime.write(f"Laptime = {raceline.best_time_str}. iteration:{itereration}")
+                        placeholder_laptime.write(
+                            f"Laptime = {raceline.best_time_str}. iteration:{itereration}, iteration_rate:{itereration/timer3.elapsed_time:.0f}"
+                        )
                         timer1.reset()
 
                     if timer2.triggered:
@@ -104,7 +104,6 @@ def optimize_raceline(raceline: laptime_sim.Raceline):
 
 
 def main() -> None:
-
     st.header("Race track display")
 
     with st.sidebar:

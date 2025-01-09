@@ -48,7 +48,6 @@ class Raceline:
     best_time: float = None
 
     def __post_init__(self):
-
         if self.line_position is None:
             # TODO: here we could use a line_pos from a different car or run
             self.initialize_line(self.track, smoothing_window=SMOOTHING_WINDOW, poly_order=5)
@@ -62,7 +61,6 @@ class Raceline:
 
     @classmethod
     def from_geodataframe(cls, data: GeoDataFrame, all_cars, all_tracks):
-
         track: Track = [track for track in all_tracks if track.name == data.iloc[0].track_name][0]
         car: Car = [car for car in all_cars if car.name == data.iloc[0].car][0]
 
@@ -131,17 +129,14 @@ class Raceline:
 
     def simulate(self, new_line_position: np.ndarray | None = None) -> SimResults:
         """
-        Simulates a lap on the track with the given line position.
-
-        If new_line_position is not provided, the current line position is used.
+        Simulates a lap on the track with the current line position or a new line position.
+        If new_line_position is provided it will be used instead of the current line position.
 
         Returns a SimResults object containing the results of the simulation.
         """
         line_coords = self.track.line_coordinates(new_line_position if new_line_position is not None else self.line_position)
         sim_results = self.simulator.run(car=self.car, line_coordinates=line_coords, slope=self.track.slope)
         if new_line_position is not None:
-            # self.update_laptime_and_position(sim_results.laptime, new_line_position)
-            
             if sim_results.laptime < self.best_time:
                 improvement = self.best_time - sim_results.laptime
                 deviation = np.abs(self.line_position - new_line_position)

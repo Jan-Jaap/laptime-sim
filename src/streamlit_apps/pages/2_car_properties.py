@@ -13,6 +13,7 @@ from laptime_sim.main import get_all_cars
 G = 9.81  # m/s²
 PATH_CARS = Path("./cars/")
 
+
 def plot_car_lon(race_car: laptime_sim.Car, v1):
     v = np.linspace(0, 300, 100)
     fig = px.line(
@@ -30,7 +31,6 @@ def plot_car_lon(race_car: laptime_sim.Car, v1):
 
 
 def plot_car_lat(race_car: laptime_sim.Car, v1):
-
     x = np.linspace(-race_car.acc_grip_max, race_car.acc_grip_max, 100)
 
     fig = px.line(

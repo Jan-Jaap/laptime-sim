@@ -73,7 +73,6 @@ class Car:
         pass
 
     def get_acceleration(self, v, acc_lat):
-
         n = self.corner_acc / 50
         max_acc_grip = (self.acc_limit) * (1 - (np.abs(acc_lat) / self.acc_grip_max) ** n) ** (1 / n)
         force_engine = v and self.P_engine_in_watt / v or 0
@@ -83,7 +82,6 @@ class Car:
         return acceleration_max - aero_drag - rolling_drag
 
     def get_deceleration(self, v, acc_lat):
-
         n = self.trail_braking / 50
         max_dec_grip = (self.dec_limit) * (1 - (np.abs(acc_lat) / self.acc_grip_max) ** n) ** (1 / n)
         aero_drag = v**2 * self.c_drag / self.mass

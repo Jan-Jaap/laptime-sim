@@ -37,7 +37,6 @@ def get_all_tracks(tracks_path: Path) -> list[Track]:
 
 
 def main() -> None:
-
     PATH_RESULTS.mkdir(exist_ok=True)
 
     cars = get_all_cars(PATH_CARS)
@@ -46,7 +45,6 @@ def main() -> None:
     logging.info("started optimzation")
     for car in cars:
         for track in tracks:
-
             raceline = Raceline(track=track, car=car)
             logging.info(f"Loaded track data for {track.name} has {track.len} datapoints.")
             filename_results = Path(PATH_RESULTS, f"{car.file_name}_{track.name}_simulated.parquet")
