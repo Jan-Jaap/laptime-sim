@@ -47,7 +47,7 @@ def main() -> None:
         for track in tracks:
             raceline = Raceline(track=track, car=car)
             logging.info(f"Loaded track data for {track.name} has {track.len} datapoints.")
-            filename_results = Path(PATH_RESULTS, f"{car.file_name}_{track.name}_simulated.parquet")
+            filename_results = raceline.filename(PATH_RESULTS)
 
             if filename_results.exists():
                 raceline.load_line(filename_results)
@@ -69,10 +69,13 @@ def main() -> None:
                 exit()
             finally:
                 raceline.save_line(filename_results)
-                logging.info(f"final results saved to {filename_results.absolute()}")
+                logging.info(
+                    f"final results saved to {filename_results.absolute()} \n"
+                    f"improvement {loaded_best_time - raceline.best_time}"
+                )
 
             logging.info(
-                f"Optimization finished. {car.name}:{raceline.best_time_str} "
+                f"Optimization finished. {car.name}:{raceline.best_time_str} \n"
                 f"improvement {loaded_best_time - raceline.best_time}"
             )
 

@@ -6,6 +6,7 @@ from typing import Self, Union
 import numpy as np
 import shapely
 from geopandas import GeoDataFrame, GeoSeries, read_parquet
+from scipy.signal import savgol_filter
 
 
 @dataclass(frozen=True)
@@ -104,6 +105,19 @@ class Track:
                 )
             ]
         )
+
+    def initialize_line(self, smoothing_window: int = 20, poly_order: int = 5):
+        """
+        Initializes the raceline by generating a smoothed line of coordinates
+        along the track.
+
+        Parameters:
+        - track: Track - The track to initialize the raceline on.
+        """
+        x, y, _ = self.line_coordinates(np.full_like(self.width, 0.5)).T
+        smoothed_x = savgol_filter(x, smoothing_window, poly_order, mode="wrap")
+        smoothed_y = savgol_filter(y, smoothing_window, poly_order, mode="wrap")
+        return self.parameterize_line_coordinates(np.array([smoothed_x, smoothed_y]).T)
 
 
 def loc_line(point_left, point_right, point_line):
