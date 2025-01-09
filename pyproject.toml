@@ -23,8 +23,11 @@ dependencies = [
 package = false
 
 [dependency-groups]
-test = ["pytest", "icecream", "flake8"]
+dev = ["pytest", "icecream"]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
