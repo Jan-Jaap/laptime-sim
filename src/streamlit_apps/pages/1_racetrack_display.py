@@ -11,9 +11,7 @@ from matplotlib import pyplot as plt
 from streamlit_folium import st_folium
 
 import laptime_sim
-from laptime_sim.main import get_all_cars, get_all_tracks
-from laptime_sim.raceline import Raceline
-from laptime_sim.timer import Timer
+from laptime_sim import Raceline
 
 PATH_RESULTS = Path("./simulated/")
 PATH_TRACKS = Path("./tracks/")
@@ -71,20 +69,20 @@ def optimize_raceline(raceline: laptime_sim.Raceline):
                 status.update(state="running")
                 placeholder_saved.write("optimization is started")
 
-                timer1 = Timer(1)
-                timer2 = Timer(30)
+                timer1 = laptime_sim.Timer(1)
+                timer2 = laptime_sim.Timer(30)
 
                 raceline.save_line(filename_results)
 
                 placeholder_laptime.write(f"Laptime = {raceline.best_time_str}")
 
-                timer3 = Timer()
+                timer3 = laptime_sim.Timer()
                 for itereration in itertools.count():
                     raceline.simulate_new_line()
 
                     if timer1.triggered:
                         placeholder_laptime.write(
-                            f"Laptime = {raceline.best_time_str}. iteration:{itereration}, iteration_rate:{itereration/timer3.elapsed_time:.0f}"
+                            f"Laptime = {raceline.best_time_str}. iteration:{itereration}, iteration_rate:{itereration / timer3.elapsed_time:.0f}"
                         )
                         timer1.reset()
 
@@ -106,8 +104,11 @@ def optimize_raceline(raceline: laptime_sim.Raceline):
 def main() -> None:
     st.header("Race track display")
 
+    all_cars = laptime_sim.car_list(PATH_CARS)
+    all_tracks = laptime_sim.track_list(PATH_TRACKS)
+
     with st.sidebar:
-        track = st.radio("select track", options=get_all_tracks(PATH_TRACKS), format_func=lambda x: x.name)
+        track = st.radio("select track", options=all_tracks, format_func=lambda x: x.name)
 
     # TODO add car selection to the sidebar and load the car properties from the car.toml file in the cars folder (see car.py)
 
@@ -119,9 +120,7 @@ def main() -> None:
     else:
         d = st.radio("select raceline", options=all_racelines.to_dict(orient="records"), format_func=format_results)
         selected_raceline = all_racelines.from_dict([d]).set_crs(epsg=4326)
-        raceline = Raceline.from_geodataframe(
-            selected_raceline, all_cars=get_all_cars(PATH_CARS), all_tracks=get_all_tracks(PATH_TRACKS)
-        )
+        raceline = Raceline.from_geodataframe(selected_raceline, all_cars=all_cars, all_tracks=all_tracks)
 
     track_map = folium_track_map(track, all_racelines, selected_raceline)
     st_folium(track_map, returned_objects=[], use_container_width=True)

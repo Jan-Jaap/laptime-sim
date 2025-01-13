@@ -1,12 +1,12 @@
-import functools
+import itertools
 import logging
 from pathlib import Path
 
 from tqdm import tqdm
 
-from laptime_sim.car import Car
-from laptime_sim.raceline import Raceline
-from laptime_sim.track import Track
+import laptime_sim
+from laptime_sim import car_list, track_list
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -16,68 +16,46 @@ PATH_RESULTS = Path("./simulated/")
 TOLERANCE = 0.005
 
 
-@functools.lru_cache()
-def get_all_cars(cars_path: Path) -> list[Car]:
-    """Returns a list of all cars in the given directory, sorted by filename
-
-    :param cars_path: The path to the directory containing the car definition files
-    :return: A list of all cars in the given directory
-    """
-    return [Car.from_toml(file) for file in cars_path.glob("*.toml")]
-
-
-@functools.lru_cache()
-def get_all_tracks(tracks_path: Path) -> list[Track]:
-    """Returns a list of all tracks in the given directory
-
-    :param tracks_path: the path to the directory containing the tracks
-    :return: a list of all tracks in the given directory
-    """
-    return [Track.from_parquet(file) for file in tracks_path.glob("*.parquet")]
-
-
 def main() -> None:
     PATH_RESULTS.mkdir(exist_ok=True)
 
-    cars = get_all_cars(PATH_CARS)
-    tracks = get_all_tracks(PATH_TRACKS)
-
     logging.info("started optimzation")
-    for car in cars:
-        for track in tracks:
-            raceline = Raceline(track=track, car=car)
-            logging.info(f"Loaded track data for {track.name} has {track.len} datapoints.")
-            filename_results = raceline.filename(PATH_RESULTS)
-
-            if filename_results.exists():
-                raceline.load_line(filename_results)
-                logging.warning(f"Filename {filename_results} exists and will be overwritten")
-                logging.info(
-                    f"Track: {track.name} has {track.len} datapoints. Current best time for track = {raceline.best_time_str}"
-                )
-            loaded_best_time = raceline.best_time
-
-            try:
-                with tqdm(leave=True, desc=f"{raceline.track.name}-{raceline.car.name}", mininterval=100) as bar:
-                    while raceline.progress > TOLERANCE:
-                        raceline.simulate_new_line()
-                        bar.set_postfix(laptime=raceline.best_time_str, progress_speed=f"{raceline.progress:.3f}")
-                        bar.update()
-
-            except KeyboardInterrupt:
-                logging.warning("Interrupted by CTRL+C")
-                exit()
-            finally:
-                raceline.save_line(filename_results)
-                logging.info(
-                    f"final results saved to {filename_results.absolute()} \n"
-                    f"improvement {loaded_best_time - raceline.best_time}"
-                )
-
+    for car, track in itertools.product(car_list(PATH_CARS), track_list(PATH_TRACKS)):
+        raceline = laptime_sim.Raceline(track=track, car=car)
+        file_path = PATH_RESULTS / raceline.filename
+        try:
+            raceline.load_line(file_path)
+            logging.info(f"Loading {raceline.filename} from {PATH_RESULTS.absolute()}")
+            logging.warning("Filename exists and will be overwritten")
             logging.info(
-                f"Optimization finished. {car.name}:{raceline.best_time_str} \n"
-                f"improvement {loaded_best_time - raceline.best_time}"
+                f"Track: {track.name} has {track.len} datapoints. Current best time for track = {raceline.best_time_str}"
             )
+        except FileNotFoundError:
+            logging.info(f"File not found. Creating new file: {file_path.absolute()}")
+            raceline.update()
+            raceline.save_line(file_path)
+
+        loaded_best_time = raceline.best_time
+
+        try:
+            with tqdm(leave=True, desc=f"{raceline.track.name}-{raceline.car.name}", mininterval=100) as bar:
+                while raceline.progress_rate > TOLERANCE:
+                    raceline.simulate_new_line()
+                    bar.set_postfix(
+                        laptime=raceline.best_time_str,
+                        progress=f"{raceline.best_time - loaded_best_time:.4f}",
+                        progress_rate=f"{raceline.progress_rate:.3f}",
+                    )
+                    bar.update()
+
+        except KeyboardInterrupt:
+            logging.warning("Interrupted by CTRL+C")
+            exit()
+        finally:
+            raceline.save_line(file_path)
+            logging.info(f"final results saved to {file_path.absolute()}")
+
+        logging.info(f"Optimization finished. {car.name}:{raceline.best_time_str}")
 
 
 if __name__ == "__main__":

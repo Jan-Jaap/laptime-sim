@@ -1,6 +1,7 @@
 import functools
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Self, Union
 
 import numpy as np
@@ -124,3 +125,8 @@ def loc_line(point_left, point_right, point_line):
     division = shapely.LineString([(point_left), (point_right)])
     intersect = shapely.Point(point_line)
     return division.project(intersect, normalized=True)
+
+
+def track_list(path_tracks: Path | str):
+    path_tracks = Path(path_tracks)
+    return [Track.from_parquet(file) for file in path_tracks.glob("*.parquet")]

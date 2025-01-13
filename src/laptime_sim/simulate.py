@@ -35,8 +35,8 @@ def simulate(car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimResults
     B = np.cross(dX, ddX)  # binormal
     B = B / mag(B)[:, None]  # unit binormal
     N = np.cross(B, T)  # unit normal vector
-    Nk = N * k[:, None]  # direction of curvature  (normal vector with magnitude 1/R)
-    Tt = T  # car and raceline share tangent vector. We're not flying
+    Nk = N * k[:, None]  # curvature normal vector
+    Tt = T  # car velocity and raceline are tangent. We're not flying
 
     # Rotate Tt 90deg CW in xy-plane
     Bt = Tt[:, [1, 0, 2]]
@@ -85,7 +85,7 @@ def simulate(car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimResults
             v1 = (v_a[j] ** 2 + 2 * acc_lon * ds[i]) ** 0.5
             v_a[i] = min(v1, v_max[i])
         else:  # if corner speed was maximal, all grip is used for lateral acceleration (=cornering)
-            acc_lon = g_car_lon[j]  # no grip available for longitudinal acceleration
+            # acc_lon = g_car_lon[j]  # no grip available for longitudinal acceleration
             v_a[i] = min(v_a[j], v_max[i])  # speed remains the same
 
         # max possible speed braking into corners (backwards lap)
@@ -109,7 +109,7 @@ def simulate(car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimResults
             v_b[i] = min(v1, v_max[::-1][i])
 
         else:
-            acc_lon = g_car_lon[::-1][j]
+            # acc_lon = g_car_lon[::-1][j]
             v_b[i] = min(v0, v_max[::-1][i])
     v_b = v_b[::-1]  # flip the braking matrix
 

@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass, field
 from enum import IntEnum
+from pathlib import Path
 
 import numpy as np
 import toml
@@ -96,3 +97,8 @@ def strip_filename(filename: str) -> str:
 
 def strip_extension(path: str) -> str:
     return os.path.splitext(path)[0]
+
+
+def car_list(path_cars: Path | str) -> list[Car]:
+    path_cars = Path(path_cars)
+    return [Car.from_toml(file) for file in path_cars.glob("*.toml")]
