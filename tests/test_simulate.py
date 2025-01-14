@@ -2,7 +2,7 @@ import pytest
 from laptime_sim.main import PATH_CARS, PATH_TRACKS
 import laptime_sim
 import laptime_sim.simresults
-from laptime_sim.simulate import simulate
+from temp.simulate2 import simulate
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def track(track_list) -> laptime_sim.Track:
 
 @pytest.fixture
 def raceline(track: laptime_sim.Track, car: laptime_sim.Car):
-    return laptime_sim.Raceline(track=track, car=car, simulator=simulate)
+    return laptime_sim.Raceline(track=track, car=car, simulate=simulate)
 
 
 def test_raceline_creation(raceline: laptime_sim.Raceline):
@@ -35,8 +35,8 @@ def test_raceline_creation(raceline: laptime_sim.Raceline):
 
 
 def test_simulate(track: laptime_sim.Track, car: laptime_sim.Car):
-    raceline = laptime_sim.Raceline(track=track, car=car, simulator=simulate)
-    sim_results = raceline.simulate()
+    raceline = laptime_sim.Raceline(track=track, car=car, simulate=simulate)
+    sim_results = raceline.run_sim()
     assert isinstance(sim_results, laptime_sim.simresults.SimResults)
     assert len(sim_results.distance) == len(track.width)
     assert len(sim_results.speed_kph) == len(track.width)

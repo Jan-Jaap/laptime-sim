@@ -82,7 +82,7 @@ def optimize_raceline(raceline: laptime_sim.Raceline):
 
                     if timer1.triggered:
                         placeholder_laptime.write(
-                            f"Laptime = {raceline.best_time_str}. iteration:{itereration}, iteration_rate:{itereration / timer3.elapsed_time:.0f}"
+                            f"Laptime = {raceline.best_time_str}. iteration:{itereration}, iteration_rate:{itereration / timer3.elapsed_time.total_seconds():.0f}"
                         )
                         timer1.reset()
 
@@ -127,7 +127,7 @@ def main() -> None:
 
     optimize_raceline(raceline)
 
-    sim_results = raceline.simulate()
+    sim_results = raceline.run_sim()
 
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.plot(sim_results.distance, sim_results.speed_kph)
