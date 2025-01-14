@@ -38,7 +38,7 @@ def main() -> None:
         loaded_best_time = raceline.best_time
 
         try:
-            with tqdm(leave=True, desc=f"{raceline.track.name}-{raceline.car.name}", mininterval=100) as bar:
+            with tqdm(leave=True, desc=f"{raceline.track.name}-{raceline.car.name}", mininterval=0.5) as bar:
                 while raceline.progress_rate > TOLERANCE:
                     raceline.simulate_new_line()
                     bar.set_postfix(
