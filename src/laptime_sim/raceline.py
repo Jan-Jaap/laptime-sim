@@ -24,10 +24,8 @@ class Raceline:
     car: Car
     simulate: Callable[[Car, np.ndarray, np.ndarray], SimResults] = simulate
     line_position: np.ndarray = None
-
     heatmap: np.ndarray = None
     progress_rate: float = 1.0
-    best_time: float = None
     _clearance_meter: float = 0.85
     _results_path = None
 
@@ -36,11 +34,11 @@ class Raceline:
             # TODO: here we could use a line_pos from a different car or run
             self.line_position = self.track.initialize_line(smoothing_window=40, poly_order=5)
 
-        if self.best_time is None:
-            self.update()
-
-        # if self.heatmap is None:
         self.heatmap = np.ones_like(self.line_position)
+
+    @functools.cached_property
+    def best_time(self) -> float:
+        return self.run_sim().laptime
 
     @classmethod
     def from_geodataframe(cls, data: GeoDataFrame, all_cars, all_tracks):
@@ -49,21 +47,15 @@ class Raceline:
         data = data.to_crs(track.crs)
         line_coords = data.get_coordinates(include_z=False).to_numpy(na_value=0)
 
-        # simulator = RacelineSimulator()
-
         return cls(
             track=track,
             car=car,
-            # simulator=simulator,
             line_position=track.parameterize_line_coordinates(line_coords),
-            # best_time=data.iloc[0].best_time,
         )
 
     @property
     def filename(self) -> Path:
         return Path(f"{self.car.file_name}_{self.track.name}_simulated.parquet")
-
-    # filename_results = Path(PATH_RESULTS, f"{car.file_name}_{track.name}_simulated.parquet")
 
     def load_line(self, file_path: Path) -> bool:
         if not os.path.exists(file_path):

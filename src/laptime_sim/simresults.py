@@ -23,7 +23,7 @@ class SimResults:
     ds: np.ndarray
 
     @cached_property
-    def laptime(self):
+    def laptime(self) -> float:
         return sum(self.dt)
 
     def __str__(self) -> str:
