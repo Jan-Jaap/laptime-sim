@@ -13,13 +13,13 @@ logging.basicConfig(level=logging.INFO)
 PATH_TRACKS = Path("./tracks/")
 PATH_CARS = Path("./cars/")
 PATH_RESULTS = Path("./simulated/")
-TOLERANCE = 0.005
+TOLERANCE = 0.0005
 
 
 def main() -> None:
     PATH_RESULTS.mkdir(exist_ok=True)
 
-    logging.info("started optimzation")
+    logging.info("started optimization")
     for car, track in itertools.product(car_list(PATH_CARS), track_list(PATH_TRACKS)):
         raceline = laptime_sim.Raceline(track=track, car=car)
         file_path = PATH_RESULTS / raceline.filename
