@@ -22,8 +22,9 @@ F_ANNEAL = 0.01 ** (1 / 10000)  # from 1 to 0.01 in 10000 iterations without imp
 class Raceline:
     track: Track
     car: Car
-    simulator: Callable[[Car, np.ndarray, np.ndarray], SimResults] = simulate
+    simulate: Callable[[Car, np.ndarray, np.ndarray], SimResults] = simulate
     line_position: np.ndarray = None
+
     heatmap: np.ndarray = None
     progress_rate: float = 1.0
     best_time: float = None
@@ -114,7 +115,7 @@ class Raceline:
         Returns True if the new line position is better than the current one, False otherwise.
         """
 
-        sim_results = self.simulate(new_line_position)
+        sim_results = self.run_sim(new_line_position)
 
         if new_line_position is None:
             self.best_time = sim_results.laptime
@@ -136,9 +137,9 @@ class Raceline:
 
         return False
 
-    def simulate(self, new_line_position: np.ndarray | None = None) -> SimResults:
+    def run_sim(self, new_line_position: np.ndarray | None = None) -> SimResults:
         line_position = new_line_position if new_line_position is not None else self.line_position
-        return self.simulator(
+        return self.simulate(
             car=self.car,
             line_coordinates=self.track.line_coordinates(line_position),
             slope=self.track.slope,
