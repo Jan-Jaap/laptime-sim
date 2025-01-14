@@ -55,50 +55,51 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimRe
     v_a = np.zeros_like(v_max)  # simulated speed maximum acceleration
     v_b = np.zeros_like(v_max)  # simulated speed maximum braking
 
-    for i in range(-90, len(v_max)):  # negative index to simulate running start....
+    for i in range(-90, len(v_max) - 1):  # negative index to simulate running start....
         # max possible speed accelerating out of corners
-        v_a[i] = new_func(
-            car.get_acceleration,
-            ds[i - 1],
-            k_car_lat[i - 1],
-            g_car_lon[i - 1],
-            g_car_lat[i - 1],
-            v_max[i - 1],
-            v_max[i],
-            v_a[i - 1],
+        v_a[i + 1] = min(
+            calc_speed(
+                car.get_acceleration,
+                ds[i],
+                k_car_lat[i],
+                g_car_lon[i],
+                g_car_lat[i],
+                v_max[i],
+                v_a[i],
+            ),
+            v_max[i + 1],
         )
 
-        v_b[i] = new_func(
-            car.get_deceleration,
-            ds[::-1][i - 1],
-            k_car_lat[::-1][i - 1],
-            g_car_lon[::-1][i - 1],
-            g_car_lat[::-1][i - 1],
-            v_max[::-1][i - 1],
+        v_b[i + 1] = min(
+            calc_speed(
+                car.get_deceleration,
+                ds[::-1][i],
+                k_car_lat[::-1][i],
+                g_car_lon[::-1][i],
+                g_car_lat[::-1][i],
+                v_max[::-1][i],
+                v_b[i],
+            ),
             v_max[::-1][i],
-            v_b[i - 1],
         )
 
     v_b = v_b[::-1]  # flip the braking matrix
 
     speed = np.fmin(v_a, v_b)
     dt = 2 * ds / (speed + np.roll(speed, 1))
-
     return SimResults(line_coordinates, dt, speed, Nk, ds)
 
 
-def new_func(get_acceleration, ds, k_car_lat, g_car_lon, g_car_lat, v_max0, v_max, v0):
+def calc_speed(get_acceleration, ds, k_car_lat, g_car_lon, g_car_lat, v_max0, v0):
     # v0 = v_a[i - 1]
 
-    if v0 < v_max0:  # check if previous speed was lower than max
-        # calc lateral acceleration based on grip circle (no downforce accounted for)
-        acc_lat = v0**2 * k_car_lat + g_car_lat
-        acc_lon = get_acceleration(v0, acc_lat) + g_car_lon
-        v_a = (v0**2 + 2 * acc_lon * ds) ** 0.5
-    else:  # if corner speed was maximal, all grip is used for lateral acceleration (=cornering)
-        v_a = v0  # speed remains the same
+    if v0 >= v_max0:  # if corner speed was maximal, all grip is used for lateral acceleration (=cornering)
+        return v0  # speed remains the same
 
-    return min(v_a, v_max)
+    # calc lateral acceleration based on grip circle (no downforce accounted for)
+    acc_lat = v0**2 * k_car_lat + g_car_lat
+    acc_lon = get_acceleration(v0, acc_lat) + g_car_lon
+    return (v0**2 + 2 * acc_lon * ds) ** 0.5
 
 
 def mag(vector: np.ndarray) -> np.ndarray:
