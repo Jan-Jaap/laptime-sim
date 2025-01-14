@@ -24,7 +24,7 @@ class SimResults:
 
     @cached_property
     def laptime(self) -> float:
-        return sum(self.dt)
+        return self.dt.squeeze().sum()
 
     def __str__(self) -> str:
         return f"{self.laptime % 3600 // 60:02.0f}:{self.laptime % 60:06.03f}"
