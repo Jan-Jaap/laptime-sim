@@ -1,10 +1,11 @@
-from time import time
+import datetime
 
 
 class Timer:
     def __init__(self, trigger_time=None):
-        self.trigger_time = trigger_time
-        self._time = time()
+        if trigger_time is not None:
+            self.trigger_time = datetime.timedelta(seconds=trigger_time)
+        self._time = datetime.datetime.now()
 
     @property
     def triggered(self) -> bool:
@@ -17,8 +18,8 @@ class Timer:
         return self.elapsed_time >= self.trigger_time
 
     def reset(self):
-        self._time = time()
+        self._time = datetime.datetime.now()
 
     @property
     def elapsed_time(self):
-        return time() - self._time
+        return datetime.datetime.now() - self._time
