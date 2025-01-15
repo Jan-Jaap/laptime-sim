@@ -9,7 +9,7 @@ authors = [
 ]
 requires-python = "<4.0,>=3.12"
 dependencies = [
-    "streamlit<2.0.0,>=1.36.0",
+    "streamlit>=1.36.0,<2.0.0",
     "streamlit-folium<1.0.0,>=0.21.0",
     "geopandas<2.0.0,>=1.0.1",
     "matplotlib<4.0.0,>=3.9.1",
