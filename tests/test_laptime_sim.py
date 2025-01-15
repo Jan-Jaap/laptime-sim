@@ -2,7 +2,6 @@ import itertools
 from pathlib import Path
 import pytest
 
-# from laptime_sim import Car, Track, Raceline
 import laptime_sim
 from laptime_sim.main import PATH_CARS, PATH_TRACKS
 

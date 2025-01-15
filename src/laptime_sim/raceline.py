@@ -38,7 +38,7 @@ class Raceline:
 
     @functools.cached_property
     def best_time(self) -> float:
-        return self.run_sim().laptime
+        return self.run_sim(self.car).laptime
 
     @classmethod
     def from_geodataframe(cls, data: GeoDataFrame, all_cars, all_tracks):
@@ -107,7 +107,7 @@ class Raceline:
         Returns True if the new line position is better than the current one, False otherwise.
         """
 
-        sim_results = self.run_sim(new_line_position)
+        sim_results = self.run_sim(self.car, new_line_position)
 
         if new_line_position is None:
             self.best_time = sim_results.laptime
@@ -129,10 +129,10 @@ class Raceline:
 
         return False
 
-    def run_sim(self, new_line_position: np.ndarray | None = None) -> SimResults:
+    def run_sim(self, car: Car, new_line_position: np.ndarray | None = None) -> SimResults:
         line_position = new_line_position if new_line_position is not None else self.line_position
         return self.simulate(
-            car=self.car,
+            car=car,
             line_coordinates=self.track.line_coordinates(line_position),
             slope=self.track.slope,
         )

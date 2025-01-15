@@ -1,8 +1,8 @@
 """This module creates a streamlit app"""
 
 import itertools
+import os
 from pathlib import Path
-
 import folium
 import geopandas as gpd
 import streamlit as st
@@ -43,8 +43,10 @@ def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataF
 
 
 def format_results(data):
-    best_time = data["best_time"]
-    return f"{data['car']} ({best_time % 3600 // 60:02.0f}:{best_time % 60:06.03f})"
+    car = list(data.keys())[0]
+    if best_time := data[car]:
+        return f"{car} ({best_time % 3600 // 60:02.0f}:{best_time % 60:06.03f})"
+    return car
 
 
 def optimize_raceline(raceline: laptime_sim.Raceline):
@@ -99,25 +101,38 @@ def optimize_raceline(raceline: laptime_sim.Raceline):
 
 
 def main() -> None:
-    st.header("Race track display")
+    header = st.header("Race track display")
 
     all_cars = laptime_sim.car_list(PATH_CARS)
     all_tracks = laptime_sim.track_list(PATH_TRACKS)
+    path_results = Path(PATH_RESULTS)
+
+    # car_dict = {car.name: None for car in all_cars}
 
     with st.sidebar:
         track = st.radio("select track", options=all_tracks, format_func=lambda x: x.name)
 
+        if not os.listdir(path_results):
+            all_racelines = gpd.GeoDataFrame()
+
+        all_racelines = gpd.read_parquet(path_results, filters=[("track_name", "==", track.name)])
+        race_car = st.radio("select car", options=all_cars, format_func=lambda x: x.name)
+        selected_raceline = gpd.read_parquet(
+            path_results, filters=[("track_name", "==", track.name), ("car", "==", race_car.name)]
+        ).set_crs(epsg=4326)
+
     # TODO add car selection to the sidebar and load the car properties from the car.toml file in the cars folder (see car.py)
 
-    all_racelines = gpd.read_parquet(PATH_RESULTS, filters=[("track_name", "==", track.name)])
-
-    if all_racelines.empty:
-        st.warning("No results found for this track")
-        selected_raceline = None
+    if selected_raceline.empty:
+        st.warning("No results found for this car. Initial unoptimized raceline is created.")
+        raceline = Raceline(track=track, car=race_car)
+        selected_raceline = raceline.get_dataframe()
     else:
-        d = st.radio("select raceline", options=all_racelines.to_dict(orient="records"), format_func=format_results)
-        selected_raceline = all_racelines.from_dict([d]).set_crs(epsg=4326)
+        #     # d = st.radio("select raceline", options=all_racelines.to_dict(orient="records"), format_func=format_results)
+        #     selected_raceline = all_racelines.from_dict([d]).set_crs(epsg=4326)
         raceline = Raceline.from_geodataframe(selected_raceline, all_cars=all_cars, all_tracks=all_tracks)
+        header.header(f"Race track display - {raceline.car.name}")
+        st.info(f"{raceline.track.name}, Best time = {raceline.best_time_str}")
 
     track_map = folium_track_map(track, all_racelines, selected_raceline)
     st_folium(track_map, returned_objects=[], use_container_width=True)
@@ -126,23 +141,23 @@ def main() -> None:
         st.write(track.layout)
         st.write(track)
 
-    if selected_raceline is not None:
-        with st.expander("Selected Raceline"):
-            sim_results = raceline.run_sim()
+    with st.expander("Selected Raceline"):
+        sim_results = raceline.run_sim(raceline.car)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(sim_results.distance, sim_results.speed_kph)
+        ax.set_ylabel("Speed in km/h")
+        ax.set_xlabel("Track distance in m")
+        st.pyplot(fig)
+        st.write(raceline)
+    with st.expander("SimResults"):
+        st.write(sim_results)
+    with st.expander("Race Car"):
+        st.write(raceline.car)
 
-            fig, ax = plt.subplots(figsize=(10, 5))
-            ax.plot(sim_results.distance, sim_results.speed_kph)
-            ax.set_ylabel("Speed in km/h")
-            ax.set_xlabel("Track distance in m")
-            st.pyplot(fig)
-            st.write(raceline)
-        with st.expander("SimResults"):
-            st.write(sim_results)
-        with st.expander("Race Car"):
-            st.write(raceline.car)
-
-        optimize_raceline(raceline)
+    optimize_raceline(raceline)
 
 
 if __name__ == "__main__":
+    PATH_RESULTS.mkdir(exist_ok=True)
+
     main()

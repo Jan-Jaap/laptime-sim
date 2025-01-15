@@ -1,7 +1,6 @@
 from .car import Car, car_list
-from .raceline import Raceline
+from .raceline import Raceline, all_racelines
 
-# from .simulate import simulate
 from .track import Track, track_list
 from .timer import Timer
 
@@ -10,7 +9,7 @@ __all__ = [
     "car_list",
     "Track",
     "track_list",
+    "all_racelines",
     "Raceline",
-    # "simulate",
     "Timer",
 ]
