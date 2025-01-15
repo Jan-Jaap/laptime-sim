@@ -11,11 +11,8 @@ from matplotlib import pyplot as plt
 from streamlit_folium import st_folium
 
 import laptime_sim
+from laptime_sim.main import PATH_CARS, PATH_RESULTS, PATH_TRACKS
 from laptime_sim import Raceline
-
-PATH_RESULTS = Path("./simulated/")
-PATH_TRACKS = Path("./tracks/")
-PATH_CARS = Path("./cars/")
 
 
 def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataFrame, results):
@@ -125,25 +122,26 @@ def main() -> None:
     track_map = folium_track_map(track, all_racelines, selected_raceline)
     st_folium(track_map, returned_objects=[], use_container_width=True)
 
-    optimize_raceline(raceline)
-
-    sim_results = raceline.run_sim()
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(sim_results.distance, sim_results.speed_kph)
-    ax.set_ylabel("Speed in km/h")
-    ax.set_xlabel("Track distance in m")
-    st.pyplot(fig)
-
-    with st.expander("Selected Raceline"):
-        st.write(raceline)
-    with st.expander("SimResults"):
-        st.write(sim_results)
-    with st.expander("Race Car"):
-        st.write(raceline.car)
     with st.expander("Race Track Layout"):
-        st.write(raceline.track.layout)
-        st.write(raceline.track)
+        st.write(track.layout)
+        st.write(track)
+
+    if selected_raceline is not None:
+        with st.expander("Selected Raceline"):
+            sim_results = raceline.run_sim()
+
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.plot(sim_results.distance, sim_results.speed_kph)
+            ax.set_ylabel("Speed in km/h")
+            ax.set_xlabel("Track distance in m")
+            st.pyplot(fig)
+            st.write(raceline)
+        with st.expander("SimResults"):
+            st.write(sim_results)
+        with st.expander("Race Car"):
+            st.write(raceline.car)
+
+        optimize_raceline(raceline)
 
 
 if __name__ == "__main__":

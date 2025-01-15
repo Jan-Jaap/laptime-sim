@@ -1,20 +1,18 @@
 """This module creates a streamlit app"""
 
-from pathlib import Path
-
 import numpy as np
 import plotly.express as px
 import streamlit as st
+from laptime_sim.main import PATH_CARS
 
 import laptime_sim
 from laptime_sim.car import CornerAcceleration, Trailbraking
 
 G = 9.81  # m/s²
-PATH_CARS = Path("./cars/")
 
 
 def plot_car_lon(race_car: laptime_sim.Car, v1):
-    v = np.linspace(0, 300, 100)
+    v = range(300)
     fig = px.line(
         dict(
             v=v,
@@ -24,8 +22,8 @@ def plot_car_lon(race_car: laptime_sim.Car, v1):
         x=["acc", "dec"],
         y="v",
     )
-    fig.add_vline(x=0)
-    fig.add_hline(y=v1)
+    fig.add_vline(x=0, line_color="grey")
+    fig.add_hline(y=v1, line_color="grey")
     return fig
 
 
@@ -41,11 +39,9 @@ def plot_car_lat(race_car: laptime_sim.Car, v1):
         x="x",
         y=["acc", "dec"],
     )
-    fig.add_vline(x=0)
-    fig.add_vline(x=race_car.acc_grip_max / G)
-    fig.add_vline(x=-race_car.acc_grip_max / G)
-    fig.add_hline(y=0)
-    fig.add_hline(y=0)
+    fig.add_vline(x=0, line_color="grey")
+    fig.add_hline(y=0, line_color="grey")
+
     return fig
 
 

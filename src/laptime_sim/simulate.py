@@ -43,18 +43,23 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimRe
     Bt = Bt / mag(Bt)[:, None]
 
     # lateral curvature in car frame
-    k_car_lat = np.einsum("ij,ij->i", Nk, Bt)
-    k_car_lat = np.sign(k_car_lat) * np.abs(k_car_lat).clip(1e-3)
 
     # gravity vector
     g = np.array([[0, 0, 9.81]])
     g_car_lon = np.einsum("ij,ij->i", g, T)
     g_car_lat = np.einsum("ij,ij->i", g, Bt)
-    v_max = np.abs((car.acc_grip_max * np.sign(k_car_lat) - g_car_lat) / k_car_lat) ** 0.5
+    k_car_lat = np.einsum("ij,ij->i", Nk, Bt)
+
+    v_max = np.where(
+        np.abs(k_car_lat) > 1e-3,
+        np.abs((car.acc_grip_max - g_car_lat * np.sign(k_car_lat)) / k_car_lat) ** 0.5,
+        500,
+    )
 
     v_a = np.zeros_like(v_max)  # simulated speed maximum acceleration
     v_b = np.zeros_like(v_max)  # simulated speed maximum braking
 
+    # data = np.column_stack((ds, k_car_lat, g_car_lon, g_car_lat, v_max))
     calc_speed(
         v_a,
         ds,
@@ -101,9 +106,9 @@ def calc_speed(
     g_car_lon,
     g_car_lat,
     v_max,
-    mass,
-    acc_limit,
-    acc_grip_max,
+    mass: float,
+    acc_limit: float,
+    acc_grip_max: float,
     c_drag: float,
     c_roll: float,
     corner_acc: int,

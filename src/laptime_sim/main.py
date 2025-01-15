@@ -7,13 +7,12 @@ from tqdm import tqdm
 import laptime_sim
 from laptime_sim import car_list, track_list
 
-
 logging.basicConfig(level=logging.INFO)
 
-PATH_TRACKS = Path("./tracks/")
-PATH_CARS = Path("./cars/")
-PATH_RESULTS = Path("./simulated/")
-TOLERANCE = 0.0005
+PATH_TRACKS = Path("./resources/tracks/")
+PATH_CARS = Path("./resources/cars/")
+PATH_RESULTS = Path("./resources/simulated/")
+TOLERANCE = 0.00005
 
 
 def main() -> None:
@@ -39,14 +38,18 @@ def main() -> None:
 
         try:
             with tqdm(leave=True, desc=f"{raceline.track.name}-{raceline.car.name}", mininterval=0.5) as bar:
+                i = 0
+                update_interval = 500
                 while raceline.progress_rate > TOLERANCE:
                     raceline.simulate_new_line()
-                    bar.set_postfix(
-                        laptime=raceline.best_time_str,
-                        progress=f"{raceline.best_time - loaded_best_time:.4f}",
-                        progress_rate=f"{raceline.progress_rate:.3f}",
-                    )
-                    bar.update()
+                    i += 1
+                    if i % update_interval == 0:
+                        bar.set_postfix(
+                            laptime=raceline.best_time_str,
+                            progress=f"{raceline.best_time - loaded_best_time:.4f}",
+                            progress_rate=f"{raceline.progress_rate:.3g}",
+                        )
+                        bar.update(update_interval)
 
         except KeyboardInterrupt:
             logging.warning("Interrupted by CTRL+C")

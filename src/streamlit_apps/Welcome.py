@@ -5,13 +5,13 @@ sys.path.append("src")
 
 
 def main() -> None:
-    '''
+    """
     Multipage app
     Pages are in /pages folder
-    '''
-    st.set_page_config('Laptime Simulator')
+    """
+    st.set_page_config("Laptime Simulator")
     st.markdown(
-        '''
+        """
             **Laptime Simulator
             \n
             by: Jan-Jaap van de Velde
@@ -25,7 +25,7 @@ def main() -> None:
             Please use the menu options in the sidebar\n
             If the results viewer doesn't work, maybe create some results by running optimizations first :-)
 
-        '''
+        """
     )
 
 
