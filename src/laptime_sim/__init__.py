@@ -1,5 +1,5 @@
 from .car import Car, car_list
-from .raceline import Raceline, all_racelines
+from .raceline import Raceline
 
 from .track import Track, track_list
 from .timer import Timer

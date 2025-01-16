@@ -46,7 +46,7 @@ class Car:
     P_engine: float
     acc_limit: float
     dec_limit: float
-    acc_grip_max: float
+    lat_limit: float
     c_drag: float
     c_roll: float
     trail_braking: Trailbraking
@@ -75,16 +75,16 @@ class Car:
 
     def get_acceleration(self, v, acc_lat):
         n = self.corner_acc / 50
-        max_acc_grip = (self.acc_limit) * (1 - (np.abs(acc_lat) / self.acc_grip_max) ** n) ** (1 / n)
+        acc_max = (self.acc_limit) * (1 - (np.abs(acc_lat) / self.lat_limit) ** n) ** (1 / n)
         force_engine = v and self.P_engine_in_watt / v or 0
-        acceleration_max = force_engine and min(max_acc_grip, force_engine / self.mass) or max_acc_grip
+        acc_max = force_engine and min(acc_max, force_engine / self.mass) or acc_max
         aero_drag = v**2 * self.c_drag / self.mass
         rolling_drag = self.c_roll * 9.81
-        return acceleration_max - aero_drag - rolling_drag
+        return acc_max - aero_drag - rolling_drag
 
     def get_deceleration(self, v, acc_lat):
         n = self.trail_braking / 50
-        max_dec_grip = (self.dec_limit) * (1 - (np.abs(acc_lat) / self.acc_grip_max) ** n) ** (1 / n)
+        max_dec_grip = (self.dec_limit) * (1 - (np.abs(acc_lat) / self.lat_limit) ** n) ** (1 / n)
         aero_drag = v**2 * self.c_drag / self.mass
         rolling_drag = self.c_roll * 9.81
         return max_dec_grip + aero_drag + rolling_drag

@@ -1,6 +1,6 @@
 name = "BMW Z3M Viperwizard"
 P_engine = 308
-acc_grip_max = 13.2435
+lat_limit = 13.2435
 acc_limit = 4.3703550
 c_drag = 0.413031
 c_roll = 0.015

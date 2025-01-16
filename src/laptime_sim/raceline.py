@@ -23,22 +23,22 @@ class Raceline:
     track: Track
     car: Car
     simulate: Callable[[Car, np.ndarray, np.ndarray], SimResults] = simulate
-    line_position: np.ndarray = None
+    # line_position: np.ndarray = None
     heatmap: np.ndarray = None
     progress_rate: float = 1.0
     _clearance_meter: float = 0.85
     _results_path = None
 
     def __post_init__(self):
-        if self.line_position is None:
-            # TODO: here we could use a line_pos from a different car or run
-            self.line_position = self.track.initialize_line(smoothing_window=40, poly_order=5)
-
         self.heatmap = np.ones_like(self.line_position)
 
     @functools.cached_property
     def best_time(self) -> float:
         return self.run_sim(self.car).laptime
+
+    @functools.cached_property
+    def line_position(self) -> np.ndarray:
+        return self.track.initialize_line(smoothing_window=40, poly_order=5)
 
     @classmethod
     def from_geodataframe(cls, data: GeoDataFrame, all_cars, all_tracks):

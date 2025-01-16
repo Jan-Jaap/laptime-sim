@@ -64,10 +64,6 @@ class SimResults:
         """
         df = pd.DataFrame()
         df["time"] = self.dt.cumsum()
-        # df1 = pd.DataFrame(data=track_session.left_coords(), columns=["x", "y", "z"]).add_prefix("left_")
-        # df2 = pd.DataFrame(data=track_session.right_coords(), columns=["x", "y", "z"]).add_prefix("right_")
-        # df3 = pd.DataFrame(data=track_session.line_coords(), columns=["x", "y", "z"]).add_prefix("line_")
-        # df = pd.concat([df, df1, df2, df3], axis=1)
         df["distance"] = self.distance
         df["a_lat"] = self.a_lat
         df["a_lon"] = self.a_lon

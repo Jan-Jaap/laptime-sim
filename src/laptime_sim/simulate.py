@@ -19,8 +19,6 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimRe
         SimResults: The simulation results containing the line coordinates, timestep, speed,
         curvature direction, and distance.
     """
-    # distance between nodes
-    # ds = mag(np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T)
 
     # Calculate the first and second derivative of the points
     dX = np.gradient(line_coordinates, axis=0)
@@ -42,9 +40,6 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimRe
     Bt[:, 2] = slope  # align Bt with the track and normalize
     Bt = Bt / mag(Bt)[:, None]
 
-    # lateral curvature in car frame
-
-    # gravity vector
     g = np.array([[0, 0, 9.81]])
     g_car_lon = np.einsum("ij,ij->i", g, T)
     g_car_lat = np.einsum("ij,ij->i", g, Bt)
@@ -52,7 +47,7 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimRe
 
     v_max = np.where(
         np.abs(k_car_lat) > 1e-3,
-        np.abs((car.acc_grip_max - g_car_lat * np.sign(k_car_lat)) / k_car_lat) ** 0.5,
+        np.abs((car.lat_limit - g_car_lat * np.sign(k_car_lat)) / k_car_lat) ** 0.5,
         500,
     )
 
@@ -69,7 +64,7 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimRe
         v_max,
         car.mass,
         car.acc_limit,
-        car.acc_grip_max,
+        car.lat_limit,
         car.c_drag,
         car.c_roll,
         car.corner_acc,
@@ -85,7 +80,7 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimRe
         v_max[::-1],
         car.mass,
         car.dec_limit,
-        car.acc_grip_max,
+        car.lat_limit,
         -car.c_drag,
         -car.c_roll,
         car.trail_braking,

@@ -54,11 +54,13 @@ def optimize_raceline(raceline: laptime_sim.Raceline):
         st.session_state["optimization_running"] = False
 
     with st.status("Raceline optimization", state="error", expanded=True) as status:
-        filename_results = Path(PATH_RESULTS, f"{raceline.car.file_name}_{raceline.track.name}_simulated.parquet")
+        filename_results = PATH_RESULTS / raceline.filename
 
         if filename_results.exists():
-            st.warning(f"Filename {filename_results} exists and will be overwritten")
+            st.warning(f"Filename {raceline.filename} exists and will be overwritten")
             raceline.load_line(filename_results)
+        else:
+            st.warning(f"Filename {raceline.filename} does not exist. New raceline will be created.")
 
         placeholder_saved = st.empty()
         placeholder_laptime = st.empty()
@@ -93,8 +95,6 @@ def optimize_raceline(raceline: laptime_sim.Raceline):
                 raceline.save_line(filename_results)
                 st.write(f"Results: {raceline.best_time_str} saved. iteration:{itereration}")
 
-                # show_laptime_and_iterations(raceline, itereration, saved=True)
-
             if st.session_state.optimization_running:  # if running stop te optimization
                 st.session_state.optimization_running = False
                 placeholder_saved.write("optimization is stopped")
@@ -103,36 +103,27 @@ def optimize_raceline(raceline: laptime_sim.Raceline):
 def main() -> None:
     header = st.header("Race track display")
 
-    all_cars = laptime_sim.car_list(PATH_CARS)
-    all_tracks = laptime_sim.track_list(PATH_TRACKS)
     path_results = Path(PATH_RESULTS)
-
-    # car_dict = {car.name: None for car in all_cars}
+    path_results.mkdir(exist_ok=True)
 
     with st.sidebar:
-        track = st.radio("select track", options=all_tracks, format_func=lambda x: x.name)
+        track = st.radio("select track", options=laptime_sim.track_list(PATH_TRACKS), format_func=lambda x: x.name)
+        race_car = st.radio("select car", options=laptime_sim.car_list(PATH_CARS), format_func=lambda x: x.name)
 
-        if not os.listdir(path_results):
-            all_racelines = gpd.GeoDataFrame()
-
+    if not os.listdir(path_results):
+        all_racelines = gpd.GeoDataFrame()
+    else:
         all_racelines = gpd.read_parquet(path_results, filters=[("track_name", "==", track.name)])
-        race_car = st.radio("select car", options=all_cars, format_func=lambda x: x.name)
-        selected_raceline = gpd.read_parquet(
-            path_results, filters=[("track_name", "==", track.name), ("car", "==", race_car.name)]
-        ).set_crs(epsg=4326)
 
-    # TODO add car selection to the sidebar and load the car properties from the car.toml file in the cars folder (see car.py)
+    selected_raceline = all_racelines.query(f"car == '{race_car.name}'")
 
     if selected_raceline.empty:
-        st.warning("No results found for this car. Initial unoptimized raceline is created.")
-        raceline = Raceline(track=track, car=race_car)
-        selected_raceline = raceline.get_dataframe()
+        st.warning("No results found for this car.")
     else:
-        #     # d = st.radio("select raceline", options=all_racelines.to_dict(orient="records"), format_func=format_results)
-        #     selected_raceline = all_racelines.from_dict([d]).set_crs(epsg=4326)
-        raceline = Raceline.from_geodataframe(selected_raceline, all_cars=all_cars, all_tracks=all_tracks)
-        header.header(f"Race track display - {raceline.car.name}")
-        st.info(f"{raceline.track.name}, Best time = {raceline.best_time_str}")
+        header.header(f"Race track display - {race_car.name}")
+        best_time = selected_raceline.best_time.values[0]
+
+        st.info(f"{track.name}, Best time = {best_time % 3600 // 60:02.0f}:{best_time % 60:06.03f}")
 
     track_map = folium_track_map(track, all_racelines, selected_raceline)
     st_folium(track_map, returned_objects=[], use_container_width=True)
@@ -140,6 +131,10 @@ def main() -> None:
     with st.expander("Race Track Layout"):
         st.write(track.layout)
         st.write(track)
+    with st.expander("Race Car"):
+        st.write(race_car)
+
+    raceline = Raceline(track=track, car=race_car)
 
     with st.expander("Selected Raceline"):
         sim_results = raceline.run_sim(raceline.car)
@@ -149,15 +144,12 @@ def main() -> None:
         ax.set_xlabel("Track distance in m")
         st.pyplot(fig)
         st.write(raceline)
-    with st.expander("SimResults"):
-        st.write(sim_results)
-    with st.expander("Race Car"):
-        st.write(raceline.car)
 
     optimize_raceline(raceline)
 
+    with st.expander("SimResults"):
+        st.write(sim_results)
+
 
 if __name__ == "__main__":
-    PATH_RESULTS.mkdir(exist_ok=True)
-
     main()

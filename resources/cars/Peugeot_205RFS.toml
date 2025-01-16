@@ -1,6 +1,6 @@
 name = "Peugeot 205 Gti RFS"
 P_engine = 122
-acc_grip_max = 11.2815
+lat_limit = 11.2815
 acc_limit = 4.370355
 c_drag = 0.26765
 c_roll = 0.016

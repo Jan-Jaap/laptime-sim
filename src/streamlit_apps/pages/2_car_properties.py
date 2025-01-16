@@ -28,7 +28,7 @@ def plot_car_lon(race_car: laptime_sim.Car, v1):
 
 
 def plot_car_lat(race_car: laptime_sim.Car, v1):
-    x = np.linspace(-race_car.acc_grip_max, race_car.acc_grip_max, 100)
+    x = np.linspace(-race_car.lat_limit, race_car.lat_limit, 100)
 
     fig = px.line(
         dict(
