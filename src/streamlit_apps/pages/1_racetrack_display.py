@@ -98,7 +98,6 @@ def optimize_raceline(raceline: Raceline, car: Car):
 
 
 def main() -> None:
-    header = st.header("Race track display")
     PATH_RESULTS.mkdir(exist_ok=True)
 
     with st.sidebar:
@@ -112,13 +111,16 @@ def main() -> None:
 
     selected_raceline = all_racelines.query(f"car == '{race_car.name}'")
 
+    st.header(f"Racetrack - {track.name}")
+
     if selected_raceline.empty:
         st.warning("No results found for this car.")
+        raceline = Raceline(track=track)
     else:
         raceline = Raceline.from_geodataframe(selected_raceline, track)
         raceline.simulate(race_car)
-        header.header(f"Race track display - {race_car.name}")
-        st.info(f"{track.name}, Best time = {raceline.best_time_str()}")
+        # header.header(f"Race track display - {race_car.name}")
+        st.info(f"{race_car.name}, Best time = {raceline.best_time_str()}")
 
     track_map = folium_track_map(track, all_racelines, selected_raceline)
     st_folium(track_map, returned_objects=[], use_container_width=True)
@@ -128,7 +130,6 @@ def main() -> None:
         st.write(track)
     with st.expander("Race Car"):
         st.write(race_car)
-
     with st.expander("Selected Raceline"):
         sim_results = raceline.simulate(race_car)
         fig, ax = plt.subplots(figsize=(10, 5))
@@ -137,11 +138,10 @@ def main() -> None:
         ax.set_xlabel("Track distance in m")
         st.pyplot(fig)
         st.write(raceline)
-
-    optimize_raceline(raceline, race_car)
-
     with st.expander("SimResults"):
         st.write(sim_results)
+
+    optimize_raceline(raceline, race_car)
 
 
 if __name__ == "__main__":

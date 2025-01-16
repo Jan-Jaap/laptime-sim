@@ -31,7 +31,6 @@ def main() -> None:
             logging.info(f"Track: {track.name} has {track.len} datapoints.")
         except FileNotFoundError:
             logging.info(f"File not found. Creating new file: {file_path.absolute()}")
-            # raceline.update()
             raceline.save_line(file_path, race_car.name)
 
         raceline.simulate(race_car)
