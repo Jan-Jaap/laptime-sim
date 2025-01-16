@@ -2,7 +2,7 @@ import functools
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Self
 
 import numpy as np
 from geopandas import GeoDataFrame, read_parquet
@@ -21,43 +21,41 @@ F_ANNEAL = 0.01 ** (1 / 10000)  # from 1 to 0.01 in 10000 iterations without imp
 @dataclass
 class Raceline:
     track: Track
-    car: Car
-    simulate: Callable[[Car, np.ndarray, np.ndarray], SimResults] = simulate
-    # line_position: np.ndarray = None
+    best_time: float = np.inf
     heatmap: np.ndarray = None
     progress_rate: float = 1.0
+    _line_position: np.ndarray = None
     _clearance_meter: float = 0.85
     _results_path = None
 
     def __post_init__(self):
         self.heatmap = np.ones_like(self.line_position)
 
-    @functools.cached_property
-    def best_time(self) -> float:
-        return self.run_sim(self.car).laptime
-
-    @functools.cached_property
+    @property
     def line_position(self) -> np.ndarray:
-        return self.track.initialize_line(smoothing_window=40, poly_order=5)
+        if self._line_position is None:
+            self._line_position = self.track.initialize_line(smoothing_window=40, poly_order=5)
+        return self._line_position
+
+    @line_position.setter
+    def line_position(self, value):
+        self._line_position = self.clip_line(value)
+
+    def best_time_str(self) -> str:
+        return f"{self.best_time % 3600 // 60:02.0f}:{self.best_time % 60:06.03f}"
 
     @classmethod
-    def from_geodataframe(cls, data: GeoDataFrame, all_cars, all_tracks):
-        track: Track = [track for track in all_tracks if track.name == data.iloc[0].track_name][0]
-        car: Car = [car for car in all_cars if car.name == data.iloc[0].car][0]
+    def from_geodataframe(cls, data: GeoDataFrame, track: Track) -> Self:
         data = data.to_crs(track.crs)
         line_coords = data.get_coordinates(include_z=False).to_numpy(na_value=0)
+        raceline = cls(track=track)
+        raceline.line_position = track.parameterize_line_coordinates(line_coords)
+        return raceline
 
-        return cls(
-            track=track,
-            car=car,
-            line_position=track.parameterize_line_coordinates(line_coords),
-        )
+    def filename(self, car_name) -> Path:
+        return Path(f"{car_name}_{self.track.name}_simulated.parquet")
 
-    @property
-    def filename(self) -> Path:
-        return Path(f"{self.car.file_name}_{self.track.name}_simulated.parquet")
-
-    def load_line(self, file_path: Path) -> bool:
+    def load_line(self, file_path: Path) -> Self:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"{file_path} doesn't exist")
 
@@ -65,79 +63,37 @@ class Raceline:
         results = results.to_crs(self.track.crs)
 
         assert self.track.name == results.iloc[0].track_name
-        assert self.car.name == results.iloc[0].car
+        # assert car.name == results.iloc[0].car
 
         line_coords = results.get_coordinates(include_z=False).to_numpy(na_value=0)
         self.line_position = self.track.parameterize_line_coordinates(line_coords)
-        self.update()
-        return True
+        return self
 
-    def save_line(self, file_path: Path) -> None:
+    def save_line(self, file_path: Path, car_name: str) -> None:
         if file_path is None:
             raise FileNotFoundError("no output filename provided")
-        self.get_dataframe().to_parquet(file_path)
 
-    def get_dataframe(self) -> GeoDataFrame:
         geom = LineString(self.track.line_coordinates(self.line_position).tolist())
-        data = dict(
-            track_name=self.track.name,
-            car=self.car.name,
-            best_time=self.best_time,
-        )
-        return GeoDataFrame.from_dict(data=[data], geometry=[geom], crs=self.track.crs).to_crs(epsg=4326)
-
-    @property
-    def best_time_str(self):
-        """
-        Property method that formats the best lap time in hours, minutes, and seconds.
-        Returns a formatted string of the best lap time.
-        """
-        if self.best_time:
-            return f"{self.best_time % 3600 // 60:02.0f}:{self.best_time % 60:06.03f}"
+        data = dict(track_name=self.track.name, car=car_name)
+        GeoDataFrame.from_dict(data=[data], geometry=[geom], crs=self.track.crs).to_crs(epsg=4326).to_parquet(file_path)
 
     @functools.cached_property
     def position_clearance(self):
         return self.track.normalize_distance(self._clearance_meter)
 
-    def update(self, new_line_position: np.ndarray | None = None) -> bool:
-        """
-        Simulates a lap on the track with the current line position or a new line position.
-        If new_line_position is provided it will be used instead of the current line position.power
+    def clip_line(self, line_position: np.ndarray | None = None) -> np.ndarray:
+        if line_position is None:
+            line_position = self.line_position
+        return np.clip(line_position, a_min=self.position_clearance, a_max=1 - self.position_clearance)
 
-        Returns True if the new line position is better than the current one, False otherwise.
-        """
-
-        sim_results = self.run_sim(self.car, new_line_position)
-
-        if new_line_position is None:
-            self.best_time = sim_results.laptime
-            return True
+    def simulate(self, car: Car) -> SimResults:
+        sim_results = run_sim(self.track, car, self.line_position)
 
         if sim_results.laptime < self.best_time:
-            improvement = self.best_time - sim_results.laptime
-            deviation = np.abs(self.line_position - new_line_position)
-            deviation /= np.max(deviation)
-
-            self.heatmap += deviation * improvement * 1e3
             self.best_time = sim_results.laptime
-            self.progress_rate += improvement
-            self.line_position = new_line_position
-            return True
+        return sim_results
 
-        self.heatmap = (self.heatmap + 0.0015) / 1.0015  # slowly to one
-        self.progress_rate *= F_ANNEAL  # slowly to zero
-
-        return False
-
-    def run_sim(self, car: Car, new_line_position: np.ndarray | None = None) -> SimResults:
-        line_position = new_line_position if new_line_position is not None else self.line_position
-        return self.simulate(
-            car=car,
-            line_coordinates=self.track.line_coordinates(line_position),
-            slope=self.track.slope,
-        )
-
-    def simulate_new_line(self) -> None:
+    def simulate_new_line(self, car: Car) -> None:
         location = np.random.choice(len(self.heatmap), p=self.heatmap / sum(self.heatmap))
         length = np.random.randint(1, MAX_DEVIATION_LENGTH)
         deviation = np.random.randn() * MAX_DEVIATION
@@ -146,10 +102,27 @@ class Raceline:
         position = np.zeros_like(self.line_position)
         position[:length] = line_adjust * deviation
         position = np.roll(position, location - length // 2)
-        new_line_position = self.line_position + position / self.track.width
-        new_line_position = np.clip(
-            new_line_position,
-            a_min=self.position_clearance,
-            a_max=1 - self.position_clearance,
-        )
-        self.update(new_line_position)
+        new_line_position = self.clip_line(self.line_position + position / self.track.width)
+        laptime = run_sim(self.track, car, new_line_position).laptime
+
+        if laptime < self.best_time:
+            improvement = self.best_time - laptime
+            deviation = np.abs(self.line_position - new_line_position)
+            deviation /= np.max(deviation)
+
+            self.heatmap += deviation * improvement * 1e3
+            self.best_time = laptime
+            self.progress_rate += improvement
+            self.line_position = new_line_position
+            return True
+
+        self.heatmap = (self.heatmap + 0.0015) / 1.0015  # slowly to one
+        self.progress_rate *= F_ANNEAL  # slowly to zero
+
+
+def run_sim(track: Track, car: Car, line_position: np.ndarray) -> SimResults:
+    return simulate(
+        car=car,
+        line_coordinates=track.line_coordinates(line_position),
+        slope=track.slope,
+    )

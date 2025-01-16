@@ -48,7 +48,7 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimRe
     v_max = np.where(
         np.abs(k_car_lat) > 1e-3,
         np.abs((car.lat_limit - g_car_lat * np.sign(k_car_lat)) / k_car_lat) ** 0.5,
-        500,
+        100,
     )
 
     v_a = np.zeros_like(v_max)  # simulated speed maximum acceleration
