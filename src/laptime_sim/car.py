@@ -1,13 +1,15 @@
 import os
 from dataclasses import dataclass, field
+import functools
 from enum import IntEnum
 from pathlib import Path
+
 
 import numpy as np
 import toml
 
 
-class Trailbraking(IntEnum):
+class DriverExperience(IntEnum):
     """Enum with trailbraking parameter corresponding with driver experience"""
 
     AMATEUR = 30
@@ -27,21 +29,6 @@ class CornerAcceleration(IntEnum):
 
 @dataclass
 class Car:
-    """
-    Args:
-    name:           Name of car
-    mass:           Mass of car [kg]
-    P_engine:       Engine power [HP]
-    acc_limit:      maximal longitudinal acceleration limited by tire grip  [m/s²]
-    dec_limit:      maximal longitudinal deceleration limited by tire grip = limit braking
-    acc_grip_max:   maximal lateral accelaration (lateral g-force)
-    c_drag:         aerodynamic drag
-    c_roll:         rolling resistance
-    trail_braking:  Trailbraking, int = 0..100
-    corner_acc:     CornerAcceleration, int = 0..100
-
-    """
-
     mass: float
     P_engine: float
     acc_limit: float
@@ -49,7 +36,7 @@ class Car:
     lat_limit: float
     c_drag: float
     c_roll: float
-    trail_braking: Trailbraking
+    trail_braking: DriverExperience
     corner_acc: CornerAcceleration
     name: str = None
     P_engine_in_watt: float = field(init=False)
@@ -70,8 +57,11 @@ class Car:
         return v and self.P_engine_in_watt / v or 0  # tractive force (limited by engine power)
 
     def get_gear(self, v):
-        """not implemented"""
-        pass
+        raise NotImplementedError("get_gear method is not implemented")
+
+    @functools.cached_property
+    def rolling_drag(self):
+        return self.c_roll * 9.81
 
     def get_acceleration(self, v, acc_lat):
         n = self.corner_acc / 50

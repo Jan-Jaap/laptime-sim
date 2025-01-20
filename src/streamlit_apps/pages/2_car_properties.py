@@ -6,7 +6,7 @@ import streamlit as st
 from laptime_sim.main import PATH_CARS
 
 import laptime_sim
-from laptime_sim.car import CornerAcceleration, Trailbraking
+from laptime_sim.car import CornerAcceleration, DriverExperience
 
 G = 9.81  # m/s²
 
@@ -53,9 +53,9 @@ def main() -> None:
 
     race_car.trail_braking = st.selectbox(
         label="Trailbraking driver experience",
-        options=Trailbraking,
-        index=list(Trailbraking).index(race_car.trail_braking),
-        format_func=lambda x: Trailbraking(x).name,
+        options=DriverExperience,
+        index=list(DriverExperience).index(race_car.trail_braking),
+        format_func=lambda x: DriverExperience(x).name,
     )
 
     race_car.corner_acc = st.selectbox(
