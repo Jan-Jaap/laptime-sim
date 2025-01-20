@@ -18,7 +18,7 @@ def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataF
     my_map = track.divisions.explore(name="divisions", show=False, style_kwds=dict(color="grey"))
     style_kwds = dict(color="black")
     track.layout.explore(m=my_map, name="border", control=False, style_kwds=style_kwds)
-    gpd.GeoSeries(track.start_finish(), crs=track.crs).explore(
+    gpd.GeoSeries(track.start_finish, crs=track.crs).explore(
         m=my_map,
         name="start_finish",
         style_kwds=dict(
@@ -125,23 +125,16 @@ def main() -> None:
     track_map = folium_track_map(track, all_racelines, selected_raceline)
     st_folium(track_map, returned_objects=[], use_container_width=True)
 
-    with st.expander("Race Track Layout"):
-        st.write(track.layout)
-        st.write(track)
-    with st.expander("Race Car"):
-        st.write(race_car)
-    with st.expander("Selected Raceline"):
+    with st.expander("Raceline speed", expanded=True):
         sim_results = raceline.simulate(race_car)
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.plot(sim_results.distance, sim_results.speed_kph)
         ax.set_ylabel("Speed in km/h")
         ax.set_xlabel("Track distance in m")
         st.pyplot(fig)
-        st.write(raceline)
-    with st.expander("SimResults"):
-        st.write(sim_results)
 
-    optimize_raceline(raceline, race_car)
+    with st.expander("Track definition"):
+        st.write(track)
 
 
 if __name__ == "__main__":

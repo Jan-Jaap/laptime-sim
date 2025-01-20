@@ -52,6 +52,10 @@ class Track:
         return self.layout[self.layout["geom_type"] == "right"]
 
     @functools.cached_property
+    def is_ring(self):
+        return self.layout.is_ring
+
+    @functools.cached_property
     def left_coords(self) -> np.ndarray:
         return self.left.get_coordinates(include_z=True).to_numpy(na_value=0)
 
@@ -88,6 +92,7 @@ class Track:
             lines.append(([(point_left), (point_right)]))
         return GeoSeries(shapely.MultiLineString(lines=lines), index=["divisions"], crs=self.crs)
 
+    @functools.cached_property
     def start_finish(self):
         p1, p2 = self.left_coords[0], self.right_coords[0]
         return GeoSeries(shapely.LineString([p1, p2]), crs=self.crs)
