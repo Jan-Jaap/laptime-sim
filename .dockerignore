@@ -1,3 +1,7 @@
+# only for local dev
+**/3_create_track.py
+**/4_racetrack_optimization.py
+
 # Git
 .git
 .gitignore
