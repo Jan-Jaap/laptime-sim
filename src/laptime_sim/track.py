@@ -79,11 +79,11 @@ class Track:
     def len(self) -> int:
         return len(self.width)
 
-    @property
+    @functools.cached_property
     def crs(self):
         return self.layout.crs
 
-    @property
+    @functools.cached_property
     def divisions(self):
         border_left = self.left_coords_2d
         border_right = self.right_coords_2d
@@ -101,6 +101,8 @@ class Track:
         return self.left_coords + (self.right_coords - self.left_coords) * np.expand_dims(line_pos, axis=1)
 
     def parameterize_line_coordinates(self, line_coords: np.ndarray):
+        # if self.is_ring.all():
+        #     assert (line_coords[0] == line_coords[-1]).all()
         return np.array(
             [
                 loc_line(pl, pr, loc)
