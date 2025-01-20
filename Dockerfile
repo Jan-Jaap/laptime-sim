@@ -2,7 +2,6 @@
 # BUILD IMAGE #
 ###############
 
-# FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS builder
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 # Copy the required uv files to create the virtual environment
