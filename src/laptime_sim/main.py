@@ -51,6 +51,8 @@ def main() -> None:
                         )
                         bar.update(update_interval)
 
+                    if i % 10000 == 0:
+                        raceline.save_line(file_path, race_car.name)
         except KeyboardInterrupt:
             logging.warning("Interrupted by CTRL+C")
             exit()

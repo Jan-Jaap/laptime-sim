@@ -52,8 +52,13 @@ class Track:
         return self.layout[self.layout["geom_type"] == "right"]
 
     @functools.cached_property
-    def is_ring(self):
-        return self.layout.is_ring
+    def is_circular(self) -> bool:
+        """
+        Whether the track is a circular track or not.
+
+        A track is circular if the first and last points are the same [start/finish].
+        """
+        return self.layout.is_ring.all()
 
     @functools.cached_property
     def left_coords(self) -> np.ndarray:
@@ -100,21 +105,7 @@ class Track:
     def line_coordinates(self, line_pos: np.ndarray = None) -> np.ndarray:
         return self.left_coords + (self.right_coords - self.left_coords) * np.expand_dims(line_pos, axis=1)
 
-    def parameterize_line_coordinates(self, line_coords: np.ndarray):
-        # if self.is_ring.all():
-        #     assert (line_coords[0] == line_coords[-1]).all()
-        return np.array(
-            [
-                loc_line(pl, pr, loc)
-                for pl, pr, loc in zip(
-                    self.left_coords_2d,
-                    self.right_coords_2d,
-                    line_coords,
-                )
-            ]
-        )
-
-    def initialize_line(self, smoothing_window: int = 20, poly_order: int = 5):
+    def initial_line(self, smoothing_window: int = 20, poly_order: int = 5):
         """
         Initializes the raceline by generating a smoothed line of coordinates
         along the track.
@@ -125,13 +116,7 @@ class Track:
         x, y, _ = self.line_coordinates(np.full_like(self.width, 0.5)).T
         smoothed_x = savgol_filter(x, smoothing_window, poly_order, mode="wrap")
         smoothed_y = savgol_filter(y, smoothing_window, poly_order, mode="wrap")
-        return self.parameterize_line_coordinates(np.array([smoothed_x, smoothed_y]).T)
-
-
-def loc_line(point_left, point_right, point_line):
-    division = shapely.LineString([(point_left), (point_right)])
-    intersect = shapely.Point(point_line)
-    return division.project(intersect, normalized=True)
+        return np.array([smoothed_x, smoothed_y]).T
 
 
 def track_list(path_tracks: Path | str):
