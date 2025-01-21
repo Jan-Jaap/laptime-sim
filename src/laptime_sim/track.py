@@ -1,8 +1,8 @@
 import functools
-import os
-from dataclasses import dataclass
+
+# from dataclasses import dataclass
 from pathlib import Path
-from typing import Self, Union
+from typing import Self
 
 import numpy as np
 import shapely
@@ -10,14 +10,11 @@ from geopandas import GeoDataFrame, GeoSeries, read_parquet
 from scipy.signal import savgol_filter
 
 
-@dataclass(frozen=True)
 class Track:
     layout: GeoDataFrame
 
-    def __post_init__(self):
-        """ensure layout is always in local utm coordinate system. This give most accurate results"""
-        utm_crs = self.layout.estimate_utm_crs()
-        super.__setattr__(self, "layout", self.layout.to_crs(utm_crs))
+    def __init__(self, layout: GeoDataFrame):
+        self.layout = layout.to_crs(layout.estimate_utm_crs())
 
     @classmethod
     def from_parquet(cls, filename: str) -> Self:
@@ -31,10 +28,6 @@ class Track:
     def normalize_distance(self, distance):
         return distance / self.width
 
-    @classmethod
-    def from_name(cls, track_name: str, path: Union[str, os.PathLike]) -> Self:
-        return cls(layout=read_parquet(path, filters=[("track_name", "==", track_name)]))
-
     @functools.cached_property
     def width(self) -> np.ndarray:
         return np.sum((self.left_coords_2d - self.right_coords_2d) ** 2, 1) ** 0.5
@@ -45,14 +38,14 @@ class Track:
 
     @functools.cached_property
     def left(self) -> GeoSeries:
-        return self.layout[self.layout["geom_type"] == "left"]
+        return self.layout[self.layout["geom_type"] == "left"].geometry
 
     @functools.cached_property
     def right(self) -> GeoSeries:
-        return self.layout[self.layout["geom_type"] == "right"]
+        return self.layout[self.layout["geom_type"] == "right"].geometry
 
     @functools.cached_property
-    def is_circular(self) -> bool:
+    def is_circular(self) -> np.bool:
         """
         Whether the track is a circular track or not.
 
@@ -121,4 +114,4 @@ class Track:
 
 def track_list(path_tracks: Path | str):
     path_tracks = Path(path_tracks)
-    return [Track.from_parquet(file) for file in path_tracks.glob("*.parquet")]
+    return [Track.from_parquet(file) for file in sorted(path_tracks.glob("*.parquet"))]

@@ -48,46 +48,35 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimRe
     v_max = np.where(
         np.abs(k_car_lat) > 1e-3,
         np.abs((car.lat_limit - g_car_lat * np.sign(k_car_lat)) / k_car_lat) ** 0.5,
-        100,
-    )
+        500,
+    )  # m/s
 
     v_a = np.zeros_like(v_max)  # simulated speed maximum acceleration
     v_b = np.zeros_like(v_max)  # simulated speed maximum braking
 
-    # data = np.column_stack((ds, k_car_lat, g_car_lon, g_car_lat, v_max))
-    calc_speed(
-        v_a,
-        ds,
-        k_car_lat,
-        g_car_lon,
-        g_car_lat,
-        v_max,
-        car.mass,
-        car.acc_limit,
-        car.lat_limit,
-        car.c_drag,
-        car.c_roll,
-        car.corner_acc,
-        car.P_engine_in_watt,
-    )
+    car_acc = {
+        "mass": car.mass,
+        "acc_limit": car.acc_limit,
+        "lat_limit": car.lat_limit,
+        "c_drag": car.c_drag,
+        "c_roll": car.c_roll,
+        "corner_acc": car.corner_acc,
+        "P_engine_in_watt": car.P_engine_in_watt,
+    }
 
-    calc_speed(
-        v_b,
-        ds[::-1],
-        k_car_lat[::-1],
-        g_car_lon[::-1],
-        g_car_lat[::-1],
-        v_max[::-1],
-        car.mass,
-        car.dec_limit,
-        car.lat_limit,
-        -car.c_drag,
-        -car.c_roll,
-        car.trail_braking,
-        0,
-    )
+    car_dec = car_acc | {
+        "acc_limit": car.dec_limit,
+        "c_drag": -car.c_drag,
+        "c_roll": -car.c_roll,
+        "corner_acc": car.trail_braking,
+        "P_engine_in_watt": 0,
+    }
 
-    v_b = v_b[::-1]  # flip the braking matrix
+    # run the simulation for both directions
+    calc_speed(v_a, ds, k_car_lat, g_car_lon, g_car_lat, v_max, **car_acc)
+    calc_speed(v_b, ds[::-1], k_car_lat[::-1], g_car_lon[::-1], g_car_lat[::-1], v_max[::-1], **car_dec)
+
+    v_b = v_b[::-1]  # flip the braking matrix back
     speed = np.fmin(v_a, v_b)
     dt = 2 * ds / (speed + np.roll(speed, 1))
     return SimResults(line_coordinates, dt, speed, Nk, ds)
@@ -103,13 +92,13 @@ def calc_speed(
     v_max,
     mass: float,
     acc_limit: float,
-    acc_grip_max: float,
+    lat_limit: float,
     c_drag: float,
     c_roll: float,
     corner_acc: int,
     P_engine_in_watt: float,
 ):
-    for i in range(-90, len(v_max) - 1):  # negative index to simulate running start....
+    for i in range(-90, len(v_max)):  # negative index to simulate running start....
         if not speed[i] < v_max[i]:  # if corner speed was maximal, all grip is used for lateral acceleration (=cornering)
             speed[i + 1] = min(v_max[i], v_max[i + 1])
             continue  # speed remains the same
@@ -117,7 +106,7 @@ def calc_speed(
         # calc lateral acceleration based on grip circle (no downforce accounted for)
         acc_lat = speed[i] ** 2 * k_car_lat[i] + g_car_lat[i]
         n = corner_acc / 50
-        a_max = (acc_limit) * (1 - (np.abs(acc_lat) / acc_grip_max) ** n) ** (1 / n)
+        a_max = (acc_limit) * (1 - (np.abs(acc_lat) / lat_limit) ** n) ** (1 / n)
 
         force_engine = speed[i] and P_engine_in_watt / speed[i] or 0
         a_max = force_engine and min(a_max, force_engine / mass) or a_max

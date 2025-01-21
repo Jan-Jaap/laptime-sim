@@ -20,17 +20,16 @@ def main() -> None:
 
     logging.info("started optimization")
     for race_car, track in itertools.product(car_list(PATH_CARS), track_list(PATH_TRACKS)):
-        raceline = laptime_sim.Raceline(track=track)
-
-        file_path = PATH_RESULTS / raceline.filename(race_car.file_name)
+        file_path = PATH_RESULTS / Path(f"{race_car.file_name}_{track.name}_simulated.parquet")
 
         try:
-            raceline.load_line(file_path)
+            raceline = laptime_sim.Raceline.from_file(track, file_path)
             logging.info(f"Loading {raceline.filename(race_car.file_name)} from {PATH_RESULTS.absolute()}")
             logging.warning("Filename exists and will be overwritten")
             logging.info(f"Track: {track.name} has {track.len} datapoints.")
         except FileNotFoundError:
             logging.info(f"File not found. Creating new file: {file_path.absolute()}")
+            raceline = laptime_sim.Raceline(track=track)
             raceline.save_line(file_path, race_car.name)
 
         raceline.simulate(race_car)
@@ -38,11 +37,9 @@ def main() -> None:
 
         try:
             with tqdm(leave=True, desc=f"{raceline.track.name}-{race_car.name}") as bar:
-                i = 0
                 update_interval = 500
-                while raceline.progress_rate > TOLERANCE:
+                for i in itertools.count():
                     raceline.simulate_new_line(race_car)
-                    i += 1
                     if i % update_interval == 0:
                         bar.set_postfix(
                             laptime=f"{raceline.best_time_str()}",
@@ -53,6 +50,9 @@ def main() -> None:
 
                     if i % 10000 == 0:
                         raceline.save_line(file_path, race_car.name)
+
+                    # if raceline.progress_rate < TOLERANCE:
+                    #     break
         except KeyboardInterrupt:
             logging.warning("Interrupted by CTRL+C")
             exit()

@@ -14,9 +14,11 @@ from laptime_sim.simresults import SimResults
 from laptime_sim.simulate import simulate
 from laptime_sim.track import Track
 
-MAX_DEVIATION = 0.5
-MAX_DEVIATION_LENGTH = 60
+MAX_DEVIATION = 0.1
+MAX_DEVIATION_LENGTH = 80
 F_ANNEAL = 0.01 ** (1 / 10000)  # from 1 to 0.01 in 10000 iterations without improvement
+
+random_generator = np.random.default_rng()
 
 
 @dataclass
@@ -34,6 +36,23 @@ class Raceline:
             self.line_position = parameterize_line_coordinates(self.track, initial_line)
         self._heatmap = np.ones_like(self.line_position)
 
+    @classmethod
+    def from_geodataframe(cls, track: Track, data: GeoDataFrame) -> Self:
+        data = data.to_crs(track.crs)
+        line_coords = data.get_coordinates(include_z=False).to_numpy(na_value=0)
+        raceline = cls(track=track)
+        raceline.line_position = parameterize_line_coordinates(track, line_coords)
+        return raceline
+
+    @classmethod
+    def from_file(cls, track: Track, file_path: Path) -> Self:
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"{file_path} doesn't exist")
+
+        data = read_parquet(file_path)
+        assert track.name == data.iloc[0].track_name
+        return cls.from_geodataframe(track, data)
+
     @property
     def line_position(self) -> np.ndarray:
         if self.track.is_circular:
@@ -50,37 +69,19 @@ class Raceline:
     def best_time_str(self) -> str:
         return f"{self.best_time % 3600 // 60:02.0f}:{self.best_time % 60:06.03f}"
 
-    @classmethod
-    def from_geodataframe(cls, data: GeoDataFrame, track: Track) -> Self:
-        data = data.to_crs(track.crs)
-        line_coords = data.get_coordinates(include_z=False).to_numpy(na_value=0)
-        raceline = cls(track=track)
-        raceline.line_position = parameterize_line_coordinates(track, line_coords)
-        return raceline
-
     def filename(self, car_name) -> Path:
         return Path(f"{car_name}_{self.track.name}_simulated.parquet")
-
-    def load_line(self, file_path: Path) -> Self:
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"{file_path} doesn't exist")
-
-        results = read_parquet(file_path)
-        results = results.to_crs(self.track.crs)
-
-        assert self.track.name == results.iloc[0].track_name
-
-        line_coords = results.get_coordinates(include_z=False).to_numpy(na_value=0)
-        self.line_position = parameterize_line_coordinates(self.track, line_coords)
-        return self
 
     def save_line(self, file_path: Path, car_name: str) -> None:
         if file_path is None:
             raise FileNotFoundError("no output filename provided")
 
+        self.dataframe(track_name=self.track.name, car_name=car_name).to_parquet(file_path)
+
+    def dataframe(self, track_name, car_name) -> GeoDataFrame:
         geom = LineString(self.track.line_coordinates(self.line_position).tolist())
-        data = dict(track_name=self.track.name, car=car_name)
-        GeoDataFrame.from_dict(data=[data], geometry=[geom], crs=self.track.crs).to_crs(epsg=4326).to_parquet(file_path)
+        data = dict(track_name=track_name, car=car_name)
+        return GeoDataFrame.from_dict(data=[data], geometry=[geom], crs=self.track.crs).to_crs(epsg=4326)
 
     @functools.cached_property
     def position_clearance(self):
@@ -97,14 +98,12 @@ class Raceline:
         return sim_results
 
     def simulate_new_line(self, car: Car) -> None:
-        rng = np.random.default_rng()
-        location = rng.choice(len(self._heatmap), p=self._heatmap / sum(self._heatmap))
+        # location = random_generator.choice(len(self._heatmap), p=self._heatmap / sum(self._heatmap))
+        location = random_generator.integers(len(self._heatmap), endpoint=True)
+        length = random_generator.integers(MAX_DEVIATION_LENGTH, endpoint=True)
+        deviation = random_generator.random() * MAX_DEVIATION
 
-        length = rng.integers(3, MAX_DEVIATION_LENGTH)
-        # length = int(rng.exponential(scale=50) + 3) % len(self._line_position)
-        deviation = rng.random() * MAX_DEVIATION
         line_adjust = (1 + np.cos(np.linspace(-np.pi, np.pi, length))) / 2
-
         position = np.zeros(len(self._line_position))
 
         if self.track.is_circular:  # ensure first and last position value are the same
@@ -128,7 +127,7 @@ class Raceline:
             self.line_position = new_line_position
             return True
 
-        # self._heatmap = (self._heatmap + 0.0015) / 1.0015  # slowly to one
+        self._heatmap = (self._heatmap + 0.00015) / 1.00015  # slowly to one
         self.progress_rate *= F_ANNEAL  # slowly to zero
 
 

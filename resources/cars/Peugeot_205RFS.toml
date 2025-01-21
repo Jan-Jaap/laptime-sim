@@ -1,10 +1,10 @@
 name = "Peugeot 205 Gti RFS"
-P_engine = 122               # 122hp engine horsepower
-lat_limit = 11.2815          # m/s² lateral acceleration limit (grip limit)
+mass = 1_045                 # kg   
+P_engine = 135               # engine horsepower
 acc_limit = 4.370355         # m/s² longitudinal acceleration limit (grip limit)
 dec_limit = 9.81             # m/s² deceleration limit (grip limit under braking)
-c_drag = 0.70                # drag coefficient [Cd * A * rho] Cd = 0.34 A = 1.72m2, rho = 1.2kg/m3
+lat_limit = 11.2815          # m/s² lateral acceleration limit (grip limit)
+c_drag = 0.5353                # drag coefficient [Cd * A * rho] Cd = ? A = ?m2, rho = 1.2kg/m3
 c_roll = 0.016               # rolling resistance coefficient
-mass = 1_045                 # kg   
 trail_braking = 70           # Trailbraking factor in % (0 = no trailbraking, 100 = full trailbraking)
 corner_acc = 50              # corner acceleration in % (0 = no corner acceleration, 100 = maximum corner acceleration)

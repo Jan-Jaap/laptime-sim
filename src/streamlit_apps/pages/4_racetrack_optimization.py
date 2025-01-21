@@ -1,35 +1,36 @@
 """This module creates a streamlit app"""
 
 import itertools
-import os
-import geopandas as gpd
+from pathlib import Path
 import streamlit as st
 from matplotlib import pyplot as plt
 
 import laptime_sim
 from laptime_sim.main import PATH_CARS, PATH_RESULTS, PATH_TRACKS
-from laptime_sim import Raceline, Car
+from laptime_sim import Raceline, Car, Track
 
 
 def format_results(data):
+    """Format a single result for display in a selectbox.
+
+    Args:
+        data: A mapping with a single key-value pair, where the key is the car name and the value is the best time.
+
+    Returns:
+        A string that displays the car name and best time in the format "Car Name (minutes:seconds.milliseconds)".
+    """
     car = list(data.keys())[0]
     if best_time := data[car]:
         return f"{car} ({best_time % 3600 // 60:02.0f}:{best_time % 60:06.03f})"
     return car
 
 
-def optimize_raceline(raceline: Raceline, car: Car):
+def optimize_raceline(track: Track, car: Car, raceline: Raceline):
     if "optimization_running" not in st.session_state:
         st.session_state["optimization_running"] = False
 
     with st.status("Raceline optimization", state="error", expanded=True) as status:
-        filename_results = PATH_RESULTS / raceline.filename(car.file_name)
-
-        if filename_results.exists():
-            st.warning(f"Filename {filename_results.name} exists and will be overwritten")
-            raceline.load_line(filename_results)
-        else:
-            st.warning(f"Filename {filename_results} does not exist. New raceline will be created.")
+        file_path = PATH_RESULTS / results_filename(track, car)
 
         placeholder_saved = st.empty()
         placeholder_laptime = st.empty()
@@ -41,8 +42,6 @@ def optimize_raceline(raceline: Raceline, car: Car):
 
                 timer1 = laptime_sim.Timer(1)
                 timer2 = laptime_sim.Timer(30)
-
-                raceline.save_line(filename_results, car.name)
 
                 placeholder_laptime.write(f"Laptime = {raceline.best_time % 3600 // 60:02.0f}:{raceline.best_time % 60:06.03f}")
 
@@ -56,44 +55,41 @@ def optimize_raceline(raceline: Raceline, car: Car):
                         timer1.reset()
 
                     if timer2.triggered:
-                        raceline.save_line(filename_results, car.name)
+                        raceline.save_line(file_path, car.name)
                         placeholder_saved.write(f"Results: {raceline.best_time_str()} saved. iteration:{itereration}")
                         timer2.reset()
 
-                raceline.save_line(filename_results, car.name)
                 st.write(f"Results: {raceline.best_time_str()} saved. iteration:{itereration}")
 
             if st.session_state.optimization_running:  # if running stop te optimization
                 st.session_state.optimization_running = False
                 placeholder_saved.write("optimization is stopped")
 
+        raceline.save_line(file_path, car.name)
+
 
 def main() -> None:
-    PATH_RESULTS.mkdir(exist_ok=True)
-
     with st.sidebar:
         track = st.radio("select track", options=laptime_sim.track_list(PATH_TRACKS), format_func=lambda x: x.name)
         race_car = st.radio("select car", options=laptime_sim.car_list(PATH_CARS), format_func=lambda x: x.name)
 
-    if not os.listdir(PATH_RESULTS):
-        all_racelines = gpd.GeoDataFrame()
-    else:
-        all_racelines = gpd.read_parquet(PATH_RESULTS, filters=[("track_name", "==", track.name)])
-
-    selected_raceline = all_racelines.query(f"car == '{race_car.name}'")
-
     st.header(f"Racetrack - {track.name}")
 
-    if selected_raceline.empty:
-        st.warning("No results found for this car.")
-        raceline = Raceline(track=track)
-    else:
-        raceline = Raceline.from_geodataframe(selected_raceline, track)
-        raceline.simulate(race_car)
-        # header.header(f"Race track display - {race_car.name}")
-        st.info(f"{race_car.name}, Best time = {raceline.best_time_str()}")
+    PATH_RESULTS.mkdir(exist_ok=True)
+    file_path = PATH_RESULTS / results_filename(track, race_car)
 
-    optimize_raceline(raceline, race_car)
+    try:
+        raceline = laptime_sim.Raceline.from_file(track, file_path)
+        st.warning(f"Filename {file_path.name} exists and will be overwritten")
+
+    except FileNotFoundError:
+        st.warning("No results found for this car. A new raceline will be created.")
+        raceline = laptime_sim.Raceline(track=track)
+
+    raceline.simulate(race_car)
+    st.info(f"{race_car.name}, Best time = {raceline.best_time_str()}")
+
+    optimize_raceline(track, race_car, raceline)
 
     with st.expander("Race Car"):
         st.write(race_car)
@@ -107,6 +103,10 @@ def main() -> None:
         st.write(raceline)
     with st.expander("SimResults"):
         st.write(sim_results)
+
+
+def results_filename(track, car):
+    return Path(f"{car.file_name}_{track.name}_simulated.parquet")
 
 
 if __name__ == "__main__":

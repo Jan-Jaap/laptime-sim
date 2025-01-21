@@ -1,0 +1,29 @@
+import pytest
+import numpy as np
+from geopandas import GeoDataFrame, GeoSeries
+import laptime_sim
+from laptime_sim.main import PATH_TRACKS
+
+track_list = laptime_sim.track_list(PATH_TRACKS)
+
+
+@pytest.mark.parametrize("track", track_list, ids=lambda x: x.name)
+class TestTrack:
+    def test_track_properties(self, track: laptime_sim.Track):
+        assert isinstance(track, laptime_sim.Track)
+        assert isinstance(track.width, np.ndarray)
+        assert isinstance(track.slope, np.ndarray)
+        assert isinstance(track.left, GeoSeries)
+        assert isinstance(track.right, GeoSeries)
+        assert isinstance(track.is_circular, np.bool)
+        assert isinstance(track.name, str)
+        assert isinstance(track.layout, GeoDataFrame)
+        assert isinstance(track.start_finish, GeoSeries)
+        assert isinstance(track.divisions, GeoSeries)
+
+    def test_track_layout(self, track: laptime_sim.Track):
+        assert len(track.left) == 1
+        assert len(track.right) == 1
+
+    def test_circular_track(self, track: laptime_sim.Track):
+        assert track.layout.is_closed.all()

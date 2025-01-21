@@ -1,8 +1,8 @@
 import os
-from dataclasses import dataclass
 import functools
 from enum import IntEnum
 from pathlib import Path
+from pydantic import BaseModel
 
 
 import numpy as np
@@ -27,8 +27,10 @@ class CornerAcceleration(IntEnum):
     DIFFERENTIAL_RWD = 90
 
 
-@dataclass
-class Car:
+# @dataclass
+
+
+class Car(BaseModel):
     mass: float
     P_engine: float
     acc_limit: float
@@ -39,24 +41,15 @@ class Car:
     trail_braking: DriverExperience
     corner_acc: CornerAcceleration
     name: str = None
-    file_name: str = None
-
-    def __post_init__(self):
-        # self.P_engine_in_watt = self.P_engine / 1.3410 * 1000
-        if self.file_name is None:
-            self.file_name = self.name.replace(" ", "_")
 
     @classmethod
     def from_toml(cls, file_name):
         """load car parameters from TOML file"""
-        return cls(**toml.load(file_name), file_name=strip_filename(file_name))
+        return cls(**toml.load(file_name))
 
-    def force_engine(self, v):
-        """return available engine force at given velocity"""
-        return v and self.P_engine_in_watt / v or 0  # tractive force (limited by engine power)
-
-    def get_gear(self, v):
-        raise NotImplementedError("get_gear method is not implemented")
+    @functools.cached_property
+    def file_name(self):
+        return self.name.replace(" ", "_")
 
     @functools.cached_property
     def P_engine_in_watt(self):
@@ -94,4 +87,4 @@ def strip_extension(path: str) -> str:
 
 def car_list(path_cars: Path | str) -> list[Car]:
     path_cars = Path(path_cars)
-    return [Car.from_toml(file) for file in path_cars.glob("*.toml")]
+    return [Car.from_toml(file) for file in sorted(path_cars.glob("*.toml"))]
