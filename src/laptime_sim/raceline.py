@@ -22,11 +22,9 @@ F_ANNEAL = 0.01 ** (1 / 10000)  # from 1 to 0.01 in 10000 iterations without imp
 class Raceline:
     track: Track
     best_time: float = np.inf
-    # heatmap: np.ndarray = None
     progress_rate: float = 1.0
     _line_position: np.ndarray = None
     _clearance_meter: float = 0.85
-    _results_path = None
 
     def __post_init__(self):
         if self._line_position is None:
@@ -98,7 +96,7 @@ class Raceline:
     def simulate_new_line(self, car: Car) -> None:
         rng = np.random.default_rng()
         location = rng.integers(len(self._line_position))
-        length = int(rng.exponential(scale=20) + 3) % len(self._line_position)
+        length = int(rng.exponential(scale=50) + 3) % len(self._line_position)
         deviation = rng.random() * MAX_DEVIATION
         line_adjust = (1 + np.cos(np.linspace(-np.pi, np.pi, length))) / 2
 
@@ -118,10 +116,7 @@ class Raceline:
 
         if laptime < self.best_time:
             improvement = self.best_time - laptime
-            # if self.heatmap is None:
-            #     self.heatmap = length
-            # else:
-            #     self.heatmap = np.append(self.heatmap, length)
+
             self.best_time = laptime
             self.progress_rate += improvement
             self.line_position = new_line_position
