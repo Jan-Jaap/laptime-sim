@@ -122,7 +122,7 @@ def calc_speed(
         force_engine = speed[i] and P_engine_in_watt / speed[i] or 0
         a_max = force_engine and min(a_max, force_engine / mass) or a_max
 
-        aero_drag = speed[i] ** 2 * c_drag / mass
+        aero_drag = speed[i] ** 2 * c_drag / 2 / mass
         rolling_drag = c_roll * 9.81
         acc_lon = a_max - aero_drag - rolling_drag
         acc_lon += g_car_lon[i]

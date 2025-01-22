@@ -15,7 +15,7 @@ class Track:
     layout: GeoDataFrame
 
     def __post_init__(self):
-        """ensure layout is always in local utm"""
+        """ensure layout is always in local utm coordinate system. This give most accurate results"""
         utm_crs = self.layout.estimate_utm_crs()
         super.__setattr__(self, "layout", self.layout.to_crs(utm_crs))
 

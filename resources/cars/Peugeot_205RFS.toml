@@ -1,8 +1,8 @@
 name = "Peugeot 205 Gti RFS"
-P_engine = 122
-lat_limit = 11.2815
-acc_limit = 4.370355
-c_drag = 0.26765
+P_engine = 122               # 122hp engine horsepower
+lat_limit = 11.2815          # m/s² lateral acceleration limit
+acc_limit = 4.370355         # m/s² longitudinal acceleration limit (limited by grip 
+c_drag = 0.7             # drag coefficient [Cd * A * rho] Cd = 0.34 A = 1.72m2, rho = 1.2kg/m3
 c_roll = 0.016
 dec_limit = 9.81
 mass = 1_045
