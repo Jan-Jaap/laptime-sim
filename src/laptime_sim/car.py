@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import functools
 from enum import IntEnum
 from pathlib import Path
@@ -39,11 +39,10 @@ class Car:
     trail_braking: DriverExperience
     corner_acc: CornerAcceleration
     name: str = None
-    P_engine_in_watt: float = field(init=False)
     file_name: str = None
 
     def __post_init__(self):
-        self.P_engine_in_watt = self.P_engine / 1.3410 * 1000
+        # self.P_engine_in_watt = self.P_engine / 1.3410 * 1000
         if self.file_name is None:
             self.file_name = self.name.replace(" ", "_")
 
@@ -58,6 +57,10 @@ class Car:
 
     def get_gear(self, v):
         raise NotImplementedError("get_gear method is not implemented")
+
+    @functools.cached_property
+    def P_engine_in_watt(self):
+        return self.P_engine / 1.3410 * 1000
 
     @functools.cached_property
     def rolling_drag(self):

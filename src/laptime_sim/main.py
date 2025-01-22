@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 PATH_TRACKS = Path("./resources/tracks/")
 PATH_CARS = Path("./resources/cars/")
 PATH_RESULTS = Path("./resources/simulated/")
-TOLERANCE = 0.00005
+TOLERANCE = 0.0000005
 
 
 def main() -> None:

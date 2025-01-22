@@ -14,7 +14,8 @@ from laptime_sim.simresults import SimResults
 from laptime_sim.simulate import simulate
 from laptime_sim.track import Track
 
-MAX_DEVIATION = 0.1
+MAX_DEVIATION = 0.5
+MAX_DEVIATION_LENGTH = 60
 F_ANNEAL = 0.01 ** (1 / 10000)  # from 1 to 0.01 in 10000 iterations without improvement
 
 
@@ -23,6 +24,7 @@ class Raceline:
     track: Track
     best_time: float = np.inf
     progress_rate: float = 1.0
+    _heatmap: np.ndarray = None
     _line_position: np.ndarray = None
     _clearance_meter: float = 0.85
 
@@ -30,6 +32,7 @@ class Raceline:
         if self._line_position is None:
             initial_line = self.track.initial_line(smoothing_window=40, poly_order=5)
             self.line_position = parameterize_line_coordinates(self.track, initial_line)
+        self._heatmap = np.ones_like(self.line_position)
 
     @property
     def line_position(self) -> np.ndarray:
@@ -95,8 +98,10 @@ class Raceline:
 
     def simulate_new_line(self, car: Car) -> None:
         rng = np.random.default_rng()
-        location = rng.integers(len(self._line_position))
-        length = int(rng.exponential(scale=50) + 3) % len(self._line_position)
+        location = rng.choice(len(self._heatmap), p=self._heatmap / sum(self._heatmap))
+
+        length = rng.integers(3, MAX_DEVIATION_LENGTH)
+        # length = int(rng.exponential(scale=50) + 3) % len(self._line_position)
         deviation = rng.random() * MAX_DEVIATION
         line_adjust = (1 + np.cos(np.linspace(-np.pi, np.pi, length))) / 2
 
@@ -116,12 +121,14 @@ class Raceline:
 
         if laptime < self.best_time:
             improvement = self.best_time - laptime
+            self._heatmap += position * improvement * 1e3
 
             self.best_time = laptime
             self.progress_rate += improvement
             self.line_position = new_line_position
             return True
 
+        # self._heatmap = (self._heatmap + 0.0015) / 1.0015  # slowly to one
         self.progress_rate *= F_ANNEAL  # slowly to zero
 
 
