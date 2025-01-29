@@ -15,7 +15,7 @@ from laptime_sim.simulate import simulate
 from laptime_sim.track import Track
 
 MAX_DEVIATION = 0.1
-MAX_DEVIATION_LENGTH = 80
+MAX_DEVIATION_LENGTH = 60
 F_ANNEAL = 0.01 ** (1 / 10000)  # from 1 to 0.01 in 10000 iterations without improvement
 
 random_generator = np.random.default_rng()
@@ -98,11 +98,9 @@ class Raceline:
         return sim_results
 
     def simulate_new_line(self, car: Car) -> None:
-        # location = random_generator.choice(len(self._heatmap), p=self._heatmap / sum(self._heatmap))
-        location = random_generator.integers(len(self._heatmap), endpoint=True)
-        length = random_generator.integers(MAX_DEVIATION_LENGTH, endpoint=True)
-        deviation = random_generator.random() * MAX_DEVIATION
-
+        location = random_generator.choice(len(self._heatmap), p=self._heatmap / sum(self._heatmap))
+        length = random_generator.integers(3, MAX_DEVIATION_LENGTH, endpoint=True)
+        deviation = random_generator.random() * max(length / MAX_DEVIATION_LENGTH, MAX_DEVIATION)
         line_adjust = (1 + np.cos(np.linspace(-np.pi, np.pi, length))) / 2
         position = np.zeros(len(self._line_position))
 
@@ -120,7 +118,7 @@ class Raceline:
 
         if laptime < self.best_time:
             improvement = self.best_time - laptime
-            self._heatmap += position * improvement * 1e3
+            self._heatmap += position * improvement * 1e2
 
             self.best_time = laptime
             self.progress_rate += improvement

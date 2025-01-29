@@ -1,14 +1,26 @@
-import pytest
+import numpy as np
 import laptime_sim
-from laptime_sim.main import PATH_CARS, PATH_TRACKS
+from laptime_sim.main import PATH_CARS
 
 
-@pytest.mark.parametrize("track", laptime_sim.track_list(PATH_TRACKS), ids=lambda track: track.name)
-# @pytest.mark.parametrize("car", laptime_sim.car_list(PATH_CARS), ids=lambda car: car.name)
-def test_simulate(track: laptime_sim.Track):
+from laptime_sim.simulate import simulate
+from laptime_sim.simulate_old import simulate as simulate_old
+
+
+def test_car_list():
+    for car in laptime_sim.car_list(PATH_CARS):
+        assert isinstance(car, laptime_sim.Car)
+
+
+def test_sim(race_car, track):
     raceline = laptime_sim.Raceline(track=track)  # .simulate(car)
-    assert isinstance(raceline, laptime_sim.Raceline)
-    # sim_results = raceline.simulate(car)
-    # assert isinstance(sim_results, laptime_sim.SimResults)
-    # assert len(sim_results.distance) == len(track.width)
-    # assert len(sim_results.speed_kph) == len(track.width)
+    line_coordinates = track.line_coordinates(raceline.line_position)
+
+    sim_results = simulate(race_car, line_coordinates, track.slope)
+    sim_results_old = simulate_old(race_car, line_coordinates, track.slope)
+
+    np.testing.assert_array_equal(sim_results.line_coordinates, sim_results_old.line_coordinates)
+    np.testing.assert_array_equal(sim_results.ds, sim_results_old.ds)
+    np.testing.assert_array_equal(sim_results.Nk, sim_results_old.Nk)
+    np.testing.assert_almost_equal(sim_results.speed, sim_results_old.speed)
+    np.testing.assert_almost_equal(sim_results.dt, sim_results_old.dt)

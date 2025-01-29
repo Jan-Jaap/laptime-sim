@@ -51,8 +51,8 @@ def main() -> None:
                     if i % 10000 == 0:
                         raceline.save_line(file_path, race_car.name)
 
-                    # if raceline.progress_rate < TOLERANCE:
-                    #     break
+                    if raceline.progress_rate < TOLERANCE:
+                        break
         except KeyboardInterrupt:
             logging.warning("Interrupted by CTRL+C")
             exit()

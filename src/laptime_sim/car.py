@@ -65,15 +65,13 @@ class Car(BaseModel):
         force_engine = v and self.P_engine_in_watt / v or 0
         acc_max = force_engine and min(acc_max, force_engine / self.mass) or acc_max
         aero_drag = v**2 * self.c_drag / 2 / self.mass  #  F=ma -> a=F/m
-        rolling_drag = self.c_roll * 9.81
-        return acc_max - aero_drag - rolling_drag
+        return acc_max - aero_drag - self.rolling_drag
 
     def get_deceleration(self, v, acc_lat):
         n = self.trail_braking / 50
         max_dec_grip = (self.dec_limit) * (1 - (np.abs(acc_lat) / self.lat_limit) ** n) ** (1 / n)
         aero_drag = v**2 * self.c_drag / 2 / self.mass  #  F=ma -> a=F/m
-        rolling_drag = self.c_roll * 9.81
-        return max_dec_grip + aero_drag + rolling_drag
+        return max_dec_grip + aero_drag + self.rolling_drag
 
 
 def strip_filename(filename: str) -> str:
