@@ -68,6 +68,20 @@ def main() -> None:
         ax.set_xlabel("Track distance in m")
         st.pyplot(fig)
 
+    with st.expander("Track slope and elevation", expanded=True):
+        fig, ax1 = plt.subplots(figsize=(10, 5))
+        ax2 = ax1.twinx()
+        ax1.plot(sim_results.distance, track.slope * 100, label="Slope in %", color="C0")
+        ax2.plot(sim_results.distance, raceline.coordinates()[:, 2], label="Elevation in m", color="C1")
+        ax1.set_ylabel("Slope in %")
+        ax2.set_ylabel("Elevation in m")
+        ax1.set_xlabel("Track distance in m")
+        ax1.tick_params(axis="y", colors="C0")
+        ax2.tick_params(axis="y", colors="C1")
+        ax1.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+        ax2.legend(loc="upper left", bbox_to_anchor=(1.05, 0.95))
+        st.pyplot(fig)
+
     with st.expander("Raceline acceleration", expanded=True):
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.plot(sim_results.distance, sim_results.a_lon / 9.81, label="Longitudinal")
@@ -75,7 +89,6 @@ def main() -> None:
         ax.set_ylabel("Acceleration in g")
         ax.set_xlabel("Track distance in m")
         ax.legend()
-        # TODO add legend
         st.pyplot(fig)
 
     acc_lat, acc = race_car.performance_envelope(0)

@@ -55,6 +55,12 @@ class Raceline:
         assert track.name == data.iloc[0].track_name
         return cls.from_geodataframe(track, data)
 
+    def coordinates(self, position: np.ndarray | None = None) -> np.ndarray:
+        if position is None:
+            position = self.line_position
+
+        return self.track.coordinates_from_position(position)
+
     def best_time_str(self) -> str:
         return f"{self.best_time % 3600 // 60:02.0f}:{self.best_time % 60:06.03f}"
 
@@ -68,7 +74,7 @@ class Raceline:
         self.dataframe(track_name=self.track.name, car_name=car_name).to_parquet(file_path)
 
     def dataframe(self, track_name, car_name) -> GeoDataFrame:
-        geom = LineString(self.track.coordinates_from_position(self.line_position).tolist())
+        geom = LineString(self.coordinates().tolist())
         data = dict(track_name=track_name, car=car_name)
         return GeoDataFrame.from_dict(data=[data], geometry=[geom], crs=self.track.crs).to_crs(epsg=4326)
 
@@ -87,7 +93,8 @@ class Raceline:
         return np.clip(line_position, a_min=self.position_clearance, a_max=1 - self.position_clearance)
 
     def update(self, car: Car) -> SimResults:
-        sim_results = run_sim(self.track, car, self.line_position)
+        # sim_results = run_sim(self.track, car, self.coordinates())
+        sim_results = simulate(car, self.coordinates(), self.track.slope)
 
         if sim_results.laptime < self.best_time:
             self.best_time = sim_results.laptime
@@ -109,8 +116,8 @@ class Raceline:
             position[location : location + length] = line_adjust[:length]
 
         new_line_position = self.clip_line(self.line_position + position * deviation / self.width)
-        laptime = run_sim(self.track, car, new_line_position).laptime
-
+        # laptime = run_sim(self.track, car, self.coordinates(new_line_position)).laptime
+        laptime = simulate(car, self.coordinates(new_line_position), self.track.slope).laptime
         if laptime < self.best_time:
             improvement = self.best_time - laptime
             self._heatmap += position * improvement * 1e3
@@ -122,11 +129,3 @@ class Raceline:
 
         self._heatmap = (self._heatmap + 0.00015) / 1.00015  # slowly to one
         self.progress_rate *= F_ANNEAL  # slowly to zero
-
-
-def run_sim(track: Track, car: Car, line_position: np.ndarray) -> SimResults:
-    return simulate(
-        car=car,
-        line_coordinates=track.coordinates_from_position(line_position),
-        slope=track.slope,
-    )
