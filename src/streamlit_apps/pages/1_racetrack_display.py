@@ -7,29 +7,25 @@ import streamlit as st
 import xyzservices.providers as xyz
 from matplotlib import pyplot as plt
 from streamlit_folium import st_folium
-
 import laptime_sim
 from laptime_sim.main import PATH_CARS, PATH_RESULTS, PATH_TRACKS
 
+style_divisions = dict(color="grey")
+style_track_border = dict(color="black")
+style_start_finish = dict(color="red", weight=5)
+style_all_racelines = dict(color="black", dashArray="2 5", opacity=0.6)
+style_selected_raceline = dict(color="blue")
 
-def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataFrame, race_line_df):
-    my_map = track.divisions.explore(name="divisions", show=False, style_kwds=dict(color="grey"))
-    style_kwds = dict(color="black")
-    track.layout.explore(m=my_map, name="border", control=False, style_kwds=style_kwds)
-    gpd.GeoSeries(track.start_finish, crs=track.crs).explore(
-        m=my_map,
-        name="start_finish",
-        style_kwds=dict(
-            color="red",
-            weight=5,
-        ),
-    )
+
+def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataFrame, race_line_df: gpd.GeoDataFrame = None):
+    my_map = track.divisions.explore(name="divisions", show=False, style_kwds=style_divisions)
+    track.layout.explore(m=my_map, name="border", control=False, style_kwds=style_track_border)
+    track.start_finish.explore(m=my_map, name="start_finish", style_kwds=style_start_finish)
     if not all_track_racelines.empty:
-        style_kwds = dict(color="black", dashArray="2 5", opacity=0.6)
-        my_map = all_track_racelines.explore(m=my_map, tooltip="car", name="results", control=True, style_kwds=style_kwds)
+        all_track_racelines.explore(m=my_map, tooltip="car", name="results", style_kwds=style_all_racelines)
 
     if race_line_df is not None and not race_line_df.empty:
-        race_line_df.explore(m=my_map, name=race_line_df.car.iloc[0], style_kwds=dict(color="blue"))
+        race_line_df.explore(m=my_map, name=race_line_df.car.iloc[0], style_kwds=style_selected_raceline)
 
     folium.TileLayer(xyz.Esri.WorldImagery).add_to(my_map)
     folium.TileLayer("openstreetmap").add_to(my_map)
@@ -58,22 +54,43 @@ def main() -> None:
         st.warning("No results found for this car.")
         raceline = laptime_sim.Raceline(track=track)
 
-    raceline.simulate(race_car)
+    sim_results = raceline.update(race_car)
     st.info(f"{race_car.name}, Best time = {raceline.best_time_str()}")
 
-    track_map = folium_track_map(track, all_racelines, raceline.dataframe(track_name=track.name, car_name=race_car.name))
-    st_folium(track_map, returned_objects=[], use_container_width=True)
+    with st.expander("Track Map", expanded=True):
+        track_map = folium_track_map(track, all_racelines, raceline.dataframe(track_name=track.name, car_name=race_car.name))
+        st_folium(track_map, returned_objects=[], use_container_width=True)
 
     with st.expander("Raceline speed", expanded=True):
-        sim_results = raceline.simulate(race_car)
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.plot(sim_results.distance, sim_results.speed_kph)
         ax.set_ylabel("Speed in km/h")
         ax.set_xlabel("Track distance in m")
         st.pyplot(fig)
 
-    with st.expander("Track definition"):
-        st.write(track.__dict__)
+    with st.expander("Raceline acceleration", expanded=True):
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(sim_results.distance, sim_results.a_lon / 9.81, label="Longitudinal")
+        ax.plot(sim_results.distance, sim_results.a_lat / 9.81, label="Lateral")
+        ax.set_ylabel("Acceleration in g")
+        ax.set_xlabel("Track distance in m")
+        ax.legend()
+        # TODO add legend
+        st.pyplot(fig)
+
+    acc_lat, acc = race_car.performance_envelope(0)
+
+    with st.expander("Raceline g-g plot", expanded=True):
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(acc_lat, acc, label="Car performance envelope", color="k")
+        ax.plot(sim_results.a_lat, sim_results.a_lon, label="Raceline")
+        ax.set_ylabel("Longitudinal acceleration in m/s2")
+        ax.set_xlabel("Lateral acceleration in m/s2")
+        ax.legend()
+        st.pyplot(fig)
+
+    # with st.expander("Track definition"):
+    #     st.write(track.__dict__)
 
 
 if __name__ == "__main__":

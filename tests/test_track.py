@@ -27,3 +27,8 @@ class TestTrack:
 
     def test_circular_track(self, track: laptime_sim.Track):
         assert track.layout.is_closed.all()
+
+    # def test_track_position(self, track: laptime_sim.Track):
+    #     coords = track.coordinates_from_pos([0.5])
+    #     pos = track.pos_from_coordinates(coords)
+    #     np.testing.assert_almost_equal(coords, track.coordinates_from_pos(pos))

@@ -60,7 +60,7 @@ def simulate(car, line_coordinates: np.ndarray, slope: np.ndarray):
             acc_lon = force_engine and min(max_acc_grip, force_engine / car.mass) or max_acc_grip
             aero_drag = v_a[i] ** 2 * car.c_drag / 2 / car.mass
             rolling_drag = car.c_roll * 9.81  # rolling resistance
-            acc_lon -= aero_drag + rolling_drag  # + g_car[j, 0]  # <--  ISSUE!!!!!!!!!!!!!!!!!!!!!!!!
+            acc_lon -= aero_drag + rolling_drag + g_car[i, 0]  # <--  ISSUE!!!!!!!!!!!!!!!!!!!!!!!!
 
             v1 = (v_a[i] ** 2 + 2 * acc_lon * ds[i]) ** 0.5
             v_a[j] = min(v1, v_max[j])
@@ -82,9 +82,9 @@ def simulate(car, line_coordinates: np.ndarray, slope: np.ndarray):
             # force_engine = 0
             # max_acc_engine = force_engine / mass
             # acc_lon = max_acc_grip
-            aero_drag = v0**2 * car.c_drag / 2 / car.mass
-            rolling_drag = car.c_roll * 9.81  # rolling resistance
-            acc_lon = max_acc_grip + aero_drag + rolling_drag  # + g_car[::-1][j, 0]
+            aero_drag = v0**2 * -car.c_drag / 2 / car.mass
+            rolling_drag = -car.c_roll * 9.81  # rolling resistance
+            acc_lon = max_acc_grip - aero_drag - rolling_drag + g_car[::-1][i, 0]
 
             # acc_lon += g_car[::-1][j, 0]
             v1 = (v0**2 + 2 * acc_lon * ds[::-1][i]) ** 0.5

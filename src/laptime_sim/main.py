@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 PATH_TRACKS = Path("./resources/tracks/")
 PATH_CARS = Path("./resources/cars/")
 PATH_RESULTS = Path("./resources/simulated/")
-TOLERANCE = 0.0000005
+TOLERANCE = 0.0005
 
 
 def main() -> None:
@@ -32,7 +32,7 @@ def main() -> None:
             raceline = laptime_sim.Raceline(track=track)
             raceline.save_line(file_path, race_car.name)
 
-        raceline.simulate(race_car)
+        raceline.update(race_car)
         loaded_best_time = raceline.best_time
 
         try:
@@ -43,8 +43,8 @@ def main() -> None:
                     if i % update_interval == 0:
                         bar.set_postfix(
                             laptime=f"{raceline.best_time_str()}",
-                            progress=f"{raceline.best_time - loaded_best_time:.4f}",
-                            progress_rate=f"{raceline.progress_rate:.3g}",
+                            improvement=f"{raceline.best_time - loaded_best_time:.4f}",
+                            progress=f"{1 / (1 + (raceline.progress_rate - TOLERANCE) * 100):.3%}",
                         )
                         bar.update(update_interval)
 
@@ -52,6 +52,12 @@ def main() -> None:
                         raceline.save_line(file_path, race_car.name)
 
                     if raceline.progress_rate < TOLERANCE:
+                        bar.set_postfix(
+                            laptime=f"{raceline.best_time_str()}",
+                            improvement=f"{raceline.best_time - loaded_best_time:.4f}",
+                            status="finished",
+                        )
+                        bar.update(update_interval)
                         break
         except KeyboardInterrupt:
             logging.warning("Interrupted by CTRL+C")

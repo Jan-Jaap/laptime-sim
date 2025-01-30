@@ -6,7 +6,6 @@ from laptime_sim.car import Car
 """Race simulator for determining the laptime when racing optimal speed"""
 
 # gravity vector
-g = np.array([[0, 0, 9.81]])
 
 
 def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimResults:
@@ -41,6 +40,7 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimRe
     Bt[:, 2] = slope  # align Bt with the track and normalize
     Bt = Bt / mag(Bt)[:, None]
 
+    g = np.array([[0, 0, 9.81]])
     g_car_lon = np.einsum("ij,ij->i", g, T, optimize=True)
     g_car_lat = np.einsum("ij,ij->i", g, Bt, optimize=True)
     k_car_lat = np.einsum("ij,ij->i", Nk, Bt, optimize=True)
@@ -73,7 +73,7 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimRe
     # run the simulation in forward direction for acceleration
     calc_speed(v_a, ds, k_car_lat, g_car_lon, g_car_lat, v_max, **car_acc)
     # run the simulation in reverse direction for braking
-    calc_speed(v_b[::-1], ds[::-1], k_car_lat[::-1], g_car_lon[::-1], g_car_lat[::-1], v_max[::-1], **car_dec)
+    calc_speed(v_b[::-1], ds[::-1], k_car_lat[::-1], -g_car_lon[::-1], g_car_lat[::-1], v_max[::-1], **car_dec)
     # v_b = v_b[::-1]  # flip the braking array not required since we pass in the pointer backwards
 
     speed = np.fmin(v_a, v_b)
@@ -111,11 +111,11 @@ def calc_speed(
 
         # calc longitudinal acceleration. It's not the most readable code, but it's really fast
         force_engine = speed[i] and P_engine_in_watt / speed[i] or 0
-        a_lon = force_engine and min(max_acc_grip, force_engine / mass) or max_acc_grip
+        acc_lon = force_engine and min(max_acc_grip, force_engine / mass) or max_acc_grip
 
         aero_drag = speed[i] ** 2 * c_drag / 2 / mass  # F=ma -> a=F/m
         rolling_drag = c_roll * 9.81
-        acc_lon = a_lon - aero_drag - rolling_drag
+        acc_lon -= aero_drag + rolling_drag + g_car_lon[i]
 
         speed[j] = min(
             (speed[i] ** 2 + 2 * acc_lon * ds[i]) ** 0.5,

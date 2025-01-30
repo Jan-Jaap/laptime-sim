@@ -14,7 +14,7 @@ def test_car_list():
 
 def test_sim(race_car, track):
     raceline = laptime_sim.Raceline(track=track)  # .simulate(car)
-    line_coordinates = track.line_coordinates(raceline.line_position)
+    line_coordinates = track.coordinates_from_position(raceline.line_position)
 
     sim_results = simulate(race_car, line_coordinates, track.slope)
     sim_results_old = simulate_old(race_car, line_coordinates, track.slope)

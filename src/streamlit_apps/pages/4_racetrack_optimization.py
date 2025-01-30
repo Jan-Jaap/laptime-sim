@@ -86,7 +86,7 @@ def main() -> None:
         st.warning("No results found for this car. A new raceline will be created.")
         raceline = laptime_sim.Raceline(track=track)
 
-    raceline.simulate(race_car)
+    raceline.update(race_car)
     st.info(f"{race_car.name}, Best time = {raceline.best_time_str()}")
 
     optimize_raceline(track, race_car, raceline)
@@ -94,7 +94,7 @@ def main() -> None:
     with st.expander("Race Car"):
         st.write(race_car)
     with st.expander("Selected Raceline"):
-        sim_results = raceline.simulate(race_car)
+        sim_results = raceline.update(race_car)
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.plot(sim_results.distance, sim_results.speed_kph)
         ax.set_ylabel("Speed in km/h")

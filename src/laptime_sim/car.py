@@ -73,6 +73,12 @@ class Car(BaseModel):
         aero_drag = v**2 * self.c_drag / 2 / self.mass  #  F=ma -> a=F/m
         return max_dec_grip + aero_drag + self.rolling_drag
 
+    def performance_envelope(self, v):
+        acc_lat = np.linspace(-self.lat_limit, self.lat_limit, 100)
+        acc = self.get_acceleration(v=0, acc_lat=acc_lat)
+        dec = self.get_deceleration(v=v, acc_lat=acc_lat)
+        return acc_lat, np.column_stack((acc, -dec))
+
 
 def strip_filename(filename: str) -> str:
     filename = os.path.basename(filename).replace("_simulated", "")

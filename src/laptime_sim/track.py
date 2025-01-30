@@ -25,9 +25,6 @@ class Track:
             return False
         return self.name == other.name
 
-    def normalize_distance(self, distance):
-        return distance / self.width
-
     @functools.cached_property
     def width(self) -> np.ndarray:
         return np.sum((self.left_coords_2d - self.right_coords_2d) ** 2, 1) ** 0.5
@@ -95,10 +92,10 @@ class Track:
         p1, p2 = self.left_coords[0], self.right_coords[0]
         return GeoSeries(shapely.LineString([p1, p2]), crs=self.crs)
 
-    def line_coordinates(self, line_pos: np.ndarray = None) -> np.ndarray:
-        return self.left_coords + (self.right_coords - self.left_coords) * np.expand_dims(line_pos, axis=1)
+    def centerline(self):
+        return (self.left_coords + self.right_coords) / 2
 
-    def initial_line(self, smoothing_window: int = 20, poly_order: int = 5):
+    def initial_line(self, window_length: int = 40, polyorder: int = 4):
         """
         Initializes the raceline by generating a smoothed line of coordinates
         along the track.
@@ -106,12 +103,41 @@ class Track:
         Parameters:
         - track: Track - The track to initialize the raceline on.
         """
-        x, y, _ = self.line_coordinates(np.full_like(self.width, 0.5)).T
-        smoothed_x = savgol_filter(x, smoothing_window, poly_order, mode="wrap")
-        smoothed_y = savgol_filter(y, smoothing_window, poly_order, mode="wrap")
-        return np.array([smoothed_x, smoothed_y]).T
+
+        initial_line = savgol_filter(self.centerline(), window_length, polyorder, axis=0, mode="wrap")
+
+        if self.is_circular:
+            initial_line[-1] = initial_line[0]  # ensure circular track hack
+        return initial_line
+
+    def position_from_coordinates(self, line_coords: np.ndarray) -> np.ndarray:
+        if self.is_circular:
+            assert (line_coords[0] == line_coords[-1]).all()
+            line_coords = line_coords[:-1]
+        return np.array(
+            [
+                loc_line(pl, pr, loc)
+                for pl, pr, loc in zip(
+                    self.left_coords_2d,
+                    self.right_coords_2d,
+                    line_coords,
+                )
+            ]
+        )
+
+    def coordinates_from_position(self, line_pos: np.ndarray = None) -> np.ndarray:
+        if self.is_circular:
+            assert self.len - len(line_pos) == 1
+            line_pos = np.append(line_pos, line_pos[0])
+        return self.left_coords + (self.right_coords - self.left_coords) * np.expand_dims(line_pos, axis=1)
 
 
 def track_list(path_tracks: Path | str):
     path_tracks = Path(path_tracks)
     return [Track.from_parquet(file) for file in sorted(path_tracks.glob("*.parquet"))]
+
+
+def loc_line(point_left, point_right, point_line):
+    division = shapely.LineString([(point_left), (point_right)])
+    intersect = shapely.Point(point_line)
+    return division.project(intersect, normalized=True)
