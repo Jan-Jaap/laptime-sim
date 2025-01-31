@@ -1,7 +1,4 @@
-import sys
 import streamlit as st
-
-sys.path.append("src")
 
 
 def main() -> None:

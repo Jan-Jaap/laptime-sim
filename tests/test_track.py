@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from geopandas import GeoDataFrame, GeoSeries
 import laptime_sim
-from laptime_sim.main import PATH_TRACKS
+from main import PATH_TRACKS
 
 track_list = laptime_sim.track_list(PATH_TRACKS)
 

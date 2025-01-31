@@ -3,7 +3,7 @@
 import numpy as np
 import plotly.express as px
 import streamlit as st
-from laptime_sim.main import PATH_CARS
+from main import PATH_CARS
 
 import laptime_sim
 from laptime_sim.car import CornerAcceleration, DriverExperience

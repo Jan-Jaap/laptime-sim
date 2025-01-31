@@ -6,7 +6,7 @@ import streamlit as st
 from matplotlib import pyplot as plt
 
 import laptime_sim
-from laptime_sim.main import PATH_CARS, PATH_RESULTS, PATH_TRACKS
+from main import PATH_CARS, PATH_RESULTS, PATH_TRACKS
 from laptime_sim import Raceline, Car, Track
 
 

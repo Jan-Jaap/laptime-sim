@@ -2,15 +2,16 @@
 # BUILD IMAGE #
 ###############
 
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 # Copy the required uv files to create the virtual environment
 ADD pyproject.toml .python-version uv.lock /app/
 WORKDIR /app
 
-# Install dependencies (runtime only)
+# Install dependencies
 RUN uv sync --frozen --no-install-project --no-dev
-# RUN uv sync --frozen --no-install-project
+
+FROM builder AS runtime
 
 # activate the project virtual environment by placing its binary directory at the front of the path 
 ENV PATH="/app/.venv/bin:$PATH" PYTHONPATH="$PYTHONPATH:/app/src"
@@ -21,5 +22,4 @@ ADD . /app
 # Expose the port that the application will run on
 EXPOSE 8501
 
-CMD ["streamlit", "run", "./src/streamlit_apps/Welcome.py"]
-
+ENTRYPOINT exec streamlit run ./src/streamlit_apps/Welcome.py

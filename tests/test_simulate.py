@@ -1,6 +1,6 @@
 import numpy as np
 import laptime_sim
-from laptime_sim.main import PATH_CARS
+from main import PATH_CARS
 
 
 from laptime_sim.simulate import simulate

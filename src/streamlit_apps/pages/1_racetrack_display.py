@@ -8,7 +8,8 @@ import xyzservices.providers as xyz
 from matplotlib import pyplot as plt
 from streamlit_folium import st_folium
 import laptime_sim
-from laptime_sim.main import PATH_CARS, PATH_RESULTS, PATH_TRACKS
+from main import PATH_CARS, PATH_TRACKS, PATH_RESULTS
+
 
 style_divisions = dict(color="grey")
 style_track_border = dict(color="black")

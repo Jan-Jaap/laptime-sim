@@ -1,6 +1,6 @@
 import pytest
 import laptime_sim
-from laptime_sim.main import PATH_CARS, PATH_TRACKS
+from main import PATH_CARS, PATH_TRACKS
 
 
 @pytest.fixture(scope="module")
