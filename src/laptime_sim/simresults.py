@@ -30,6 +30,12 @@ class SimResults:
         laptime (float): The total time of the simulation in seconds.
     """
 
+    line_coordinates: np.ndarray
+    dt: np.ndarray
+    speed: np.ndarray
+    Nk: np.ndarray  # should be (N, 3) array of normal vectors in car frame with magnitude 1/R
+    ds: np.ndarray
+
     @cached_property
     def laptime(self) -> float:
         """
