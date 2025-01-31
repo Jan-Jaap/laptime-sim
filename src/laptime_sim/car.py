@@ -112,15 +112,6 @@ class Car(BaseModel):
         return acc_lat, np.column_stack((acc, -dec))
 
 
-def strip_filename(filename: str) -> str:
-    filename = os.path.basename(filename).replace("_simulated", "")
-    return strip_extension(filename)
-
-
-def strip_extension(path: str) -> str:
-    return os.path.splitext(path)[0]
-
-
 def car_list(path_cars: Path | str) -> list[Car]:
     path_cars = Path(path_cars)
     return [Car.from_toml(file) for file in sorted(path_cars.glob("*.toml"))]

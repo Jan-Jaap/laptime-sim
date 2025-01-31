@@ -20,12 +20,6 @@ PATH_TRACKS = "./tracks/"
 
 
 def main() -> None:
-    """
-    Main function that processes the uploaded track shapefile to create a new track layout.
-
-    Returns:
-        None
-    """
     st.set_page_config("Create Track layout")
     st.header("Create Track layout")
 

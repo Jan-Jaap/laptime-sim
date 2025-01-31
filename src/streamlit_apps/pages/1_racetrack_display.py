@@ -19,6 +19,23 @@ style_selected_raceline = dict(color="blue")
 
 
 def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataFrame, race_line_df: gpd.GeoDataFrame = None):
+    """
+    Create a folium map of a track with its divisions, start finish line, the border of the track, and all racelines.
+
+    Parameters
+    ----------
+    track: laptime_sim.Track
+        The track to display
+    all_track_racelines: gpd.GeoDataFrame
+        A geopandas dataframe with all racelines of all cars
+    race_line_df: gpd.GeoDataFrame, default None
+        A geopandas dataframe with the raceline of the selected car
+
+    Returns
+    -------
+    folium.Map
+        The generated map
+    """
     my_map = track.divisions.explore(name="divisions", show=False, style_kwds=style_divisions)
     track.layout.explore(m=my_map, name="border", control=False, style_kwds=style_track_border)
     track.start_finish.explore(m=my_map, name="start_finish", style_kwds=style_start_finish)

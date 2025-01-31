@@ -11,14 +11,6 @@ from laptime_sim import Raceline, Car, Track
 
 
 def format_results(data):
-    """Format a single result for display in a selectbox.
-
-    Args:
-        data: A mapping with a single key-value pair, where the key is the car name and the value is the best time.
-
-    Returns:
-        A string that displays the car name and best time in the format "Car Name (minutes:seconds.milliseconds)".
-    """
     car = list(data.keys())[0]
     if best_time := data[car]:
         return f"{car} ({best_time % 3600 // 60:02.0f}:{best_time % 60:06.03f})"

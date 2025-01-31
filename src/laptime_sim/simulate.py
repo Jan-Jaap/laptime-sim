@@ -97,6 +97,30 @@ def calc_speed(
     corner_acc: int,
     P_engine_in_watt: float,
 ):
+    """
+    Run the race simulator in forward or reverse direction to determine the laptime when racing optimal speed.
+
+    The function calculates the speed for each point in the raceline and returns the array of speeds.
+    The function is optimized for speed and uses numba's njit decorator to compile the function to machine code.
+
+    Parameters:
+        speed (np.ndarray): The array of speeds to be calculated.
+        ds (np.ndarray): The array of distances between points in the raceline.
+        k_car_lat (np.ndarray): The array of lateral curvature of the raceline.
+        g_car_lon (np.ndarray): The array of longitudinal gravity components.
+        g_car_lat (np.ndarray): The array of lateral gravity components.
+        v_max (np.ndarray): The array of maximum speeds for each point in the raceline.
+        mass (float): The mass of the car.
+        acc_limit (float): The acceleration limit of the car.
+        lat_limit (float): The lateral acceleration limit of the car.
+        c_drag (float): The drag coefficient of the car.
+        c_roll (float): The rolling resistance coefficient of the car.
+        corner_acc (int): The acceleration in corners (0-100).
+        P_engine_in_watt (float): The power of the engine in watt.
+
+    Returns:
+        np.ndarray: The array of calculated speeds.
+    """
     for i in range(-90, len(v_max) - 1):  # negative index to simulate running start....
         j = i + 1
 
@@ -127,4 +151,14 @@ def calc_speed(
 
 @nb.njit
 def mag(vector: np.ndarray) -> np.ndarray:
+    """
+    Calculate the magnitude of vectors along the second axis of the input array.
+
+    Parameters:
+        vector (np.ndarray): A numpy array where each row represents a vector.
+
+    Returns:
+        np.ndarray: A 1D numpy array containing the magnitudes of the vectors.
+    """
+
     return np.sum(vector**2, 1) ** 0.5
