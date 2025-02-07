@@ -2,6 +2,9 @@
 
 A simple and fast laptime simulator for determining the laptime when racing optimal speed.
 
+It uses an approximate implementation of the algoritm described in this paper.
+http://jameshakewill.com/Lap_Time_Simulation.pdf
+
 I'm no math wizard. Optimization of laptimes is done by bruteforce trying different lines and using the fastest line found. By trying thousands of different options, we can come close (enough) to the optimum raceline. Some would call this AI...
 
 
