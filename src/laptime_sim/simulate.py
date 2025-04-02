@@ -29,7 +29,6 @@ def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimRe
     T = dX / ds[:, None]  # unit tangent (direction of travel)
     B = np.cross(dX, ddX)  # binormal
     k = mag(B) / ds**3  # magnitude of curvature
-
     B = B / mag(B)[:, None]  # unit binormal
     N = np.cross(B, T)  # unit normal vector
     Nk = N * k[:, None]  # curvature normal vector
@@ -115,7 +114,7 @@ def calc_speed(
         lat_limit (float): The lateral acceleration limit of the car.
         c_drag (float): The drag coefficient of the car.
         c_roll (float): The rolling resistance coefficient of the car.
-        corner_acc (int): The acceleration in corners (0-100).
+        corner_acc (int): The acceleration factor during cornering (0-100).
         P_engine_in_watt (float): The power of the engine in watt.
 
     Returns:

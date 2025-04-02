@@ -1,25 +1,45 @@
-###############
-# BUILD IMAGE #
-###############
+## ------------------------------- Builder Stage ------------------------------ ## 
+FROM python:3.13-bookworm AS builder
 
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+RUN apt-get update && apt-get install --no-install-recommends -y \
+        build-essential && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy the required uv files to create the virtual environment
-ADD pyproject.toml .python-version uv.lock /app/
+# Download the latest installer, install it and then remove it
+ADD https://astral.sh/uv/install.sh /install.sh
+RUN chmod -R 655 /install.sh && /install.sh && rm /install.sh
+
+# Set up the UV environment path correctly
+ENV PATH="/root/.local/bin:$PATH"
+
 WORKDIR /app
 
-# Install dependencies
-RUN uv sync --frozen --no-install-project --no-dev
+COPY ./pyproject.toml .
 
-FROM builder AS runtime
+RUN uv sync
 
-# activate the project virtual environment by placing its binary directory at the front of the path 
-ENV PATH="/app/.venv/bin:$PATH" PYTHONPATH="$PYTHONPATH:/app/src"
+## ------------------------------- Production Stage ------------------------------ ##
+FROM python:3.13-slim-bookworm AS production
 
-# add the source code last (avoid rebuilding venv on every change)
-ADD . /app
+# Set environment variables for DB and access token
+# ENV DB_PASSWORD=${DB_PASSWORD}
+# ENV DB_USER=${DB_USER}
+# ENV DB_NAME=${DB_NAME}
+# ENV DB_HOST=${DB_HOST}
+# ENV ACCESS_TOKEN_SECRET_KEY=${ACCESS_TOKEN_SECRET_KEY}
 
-# Expose the port that the application will run on
-EXPOSE 8501
+WORKDIR /app
 
-ENTRYPOINT exec streamlit run ./src/streamlit_apps/Welcome.py
+COPY /src src
+COPY --from=builder /app/.venv .venv
+
+# Set up environment variables for production
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Expose the specified port for FastAPI
+EXPOSE $PORT
+
+# ENTRYPOINT exec streamlit run ./src/streamlit_apps/Welcome.py
+CMD ["streamlit", "run", "./src/streamlit_apps/Welcome.py"]
+# Start the application with Uvicorn in production mode, using environment variable references
+# CMD ["uvicorn", "src.main:app", "--log-level", "info", "--host", "0.0.0.0" , "--port", "8080"]
