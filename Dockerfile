@@ -28,7 +28,7 @@ COPY /resources resources
 COPY /src src
 
 # Set up environment variables for production
-ENV PATH="/app/.venv/bin:$PATH" PYTHONPATH="$PYTHONPATH:/app/src"
+ENV PATH="/app/.venv/bin:$PATH" PYTHONPATH="/app/src"
 
 # Expose the specified port for Streamlit
 EXPOSE $PORT
