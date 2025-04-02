@@ -1,5 +1,5 @@
 ## ------------------------------- Builder Stage ------------------------------ ## 
-FROM python:3.13-bookworm AS builder
+FROM python:3.12-bookworm AS builder
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
         build-essential && \
@@ -16,30 +16,22 @@ WORKDIR /app
 
 COPY ./pyproject.toml .
 
-RUN uv sync
+RUN uv sync --no-dev
 
 ## ------------------------------- Production Stage ------------------------------ ##
-FROM python:3.13-slim-bookworm AS production
-
-# Set environment variables for DB and access token
-# ENV DB_PASSWORD=${DB_PASSWORD}
-# ENV DB_USER=${DB_USER}
-# ENV DB_NAME=${DB_NAME}
-# ENV DB_HOST=${DB_HOST}
-# ENV ACCESS_TOKEN_SECRET_KEY=${ACCESS_TOKEN_SECRET_KEY}
+FROM python:3.12-slim-bookworm AS production
 
 WORKDIR /app
 
-COPY /src src
 COPY --from=builder /app/.venv .venv
+COPY /resources resources
+COPY /src src
 
 # Set up environment variables for production
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:$PATH" PYTHONPATH="$PYTHONPATH:/app/src"
 
-# Expose the specified port for FastAPI
+# Expose the specified port for Streamlit
 EXPOSE $PORT
 
 # ENTRYPOINT exec streamlit run ./src/streamlit_apps/Welcome.py
 CMD ["streamlit", "run", "./src/streamlit_apps/Welcome.py"]
-# Start the application with Uvicorn in production mode, using environment variable references
-# CMD ["uvicorn", "src.main:app", "--log-level", "info", "--host", "0.0.0.0" , "--port", "8080"]
