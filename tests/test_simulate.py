@@ -1,6 +1,6 @@
 import numpy as np
 import laptime_sim
-from main import PATH_CARS
+from main import CAR_LIST
 
 
 from laptime_sim.simulate import simulate
@@ -8,7 +8,7 @@ from laptime_sim.simulate_old import simulate as simulate_old
 
 
 def test_car_list():
-    for car in laptime_sim.car_list(PATH_CARS):
+    for car in laptime_sim.car_list(CAR_LIST):
         assert isinstance(car, laptime_sim.Car)
 
 

@@ -113,4 +113,10 @@ class Car(BaseModel):
 
 def car_list(path_cars: Path | str) -> list[Car]:
     path_cars = Path(path_cars)
-    return [Car.from_toml(file) for file in sorted(path_cars.glob("*.toml"))]
+
+    cars = []
+    for file in sorted(path_cars.glob("*.toml")):
+        car_data = toml.load(file)
+        car = Car(**car_data)
+        cars.append(car)
+    return cars

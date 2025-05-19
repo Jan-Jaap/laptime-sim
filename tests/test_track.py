@@ -2,16 +2,16 @@ import pytest
 import numpy as np
 from geopandas import GeoDataFrame, GeoSeries
 import laptime_sim
-from main import PATH_TRACKS
+from main import TRACK_LIST
 
-track_list = laptime_sim.track_list(PATH_TRACKS)
+track_list = laptime_sim.track_list(TRACK_LIST)
 
 
 @pytest.mark.parametrize("track", track_list, ids=lambda x: x.name)
 class TestTrack:
     def test_track_properties(self, track: laptime_sim.Track):
         assert isinstance(track, laptime_sim.Track)
-        assert isinstance(track.width, np.ndarray)
+        assert isinstance(track.get_width, np.ndarray)
         assert isinstance(track.slope, np.ndarray)
         assert isinstance(track.left, GeoSeries)
         assert isinstance(track.right, GeoSeries)

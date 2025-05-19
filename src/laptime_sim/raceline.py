@@ -2,7 +2,6 @@ import functools
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Self
 
 import numpy as np
 from numpy.typing import NDArray
@@ -22,93 +21,42 @@ BORDER_CLEARANCE_M: float = 0.85
 random_generator = np.random.default_rng()
 
 
-def empty_array() -> NDArray:
-    """Returns an empty NumPy array of type float64."""
-    return np.empty(0, dtype=np.float64)
-
-
 @dataclass
 class Raceline:
     track: Track
-    line_position: NDArray = field(default_factory=empty_array)  # np.empty(0)
     best_time: float = np.inf
     progress_rate: float = 1.0
-    _heatmap: NDArray = field(init=False)
+    _position: NDArray = field(init=False, repr=False)
+    _heatmap: NDArray = field(init=False, repr=False)
 
-    def __post_init__(self):
-        """
-        Initializes the Raceline class by setting the initial line position and heatmap.
-        """
-        if self.line_position.size == 0:
-            initial_line = self.track.initial_line()
-            line_position = self.track.position_from_coordinates(initial_line)
-            self.line_position = self.clip_line(line_position)
-        self._heatmap = np.ones_like(self.line_position)
+    def __post_init__(self) -> None:
+        self._position = np.zeros_like(self.width)
+        self._heatmap = np.ones_like(self.width)
 
-    @classmethod
-    def from_coordinates(cls, track: Track, line_coords: NDArray) -> Self:
-        """
-        Creates a Raceline instance from track and line coordinates.
+    def load_file(self, file_path: Path) -> None:
 
-        Parameters:
-        - track: Track - The track to initialize the raceline on.
-        - line_coords: NDArray - The coordinates of the raceline.
-
-        Returns:
-        - Raceline: An instance of the Raceline class.
-        """
-        return cls(track=track, line_position=track.position_from_coordinates(line_coords))
-
-    @classmethod
-    def from_geodataframe(cls, track: Track, data: GeoDataFrame) -> Self:
-        """
-        Creates a Raceline instance from a track and a GeoDataFrame.
-
-        Parameters:
-        - track: Track - The track to initialize the raceline on.
-        - data: GeoDataFrame - The GeoDataFrame containing raceline data.
-
-        Returns:
-        - Raceline: An instance of the Raceline class.
-        """
-        data = data.to_crs(data.estimate_utm_crs())
-        line_coords = data.get_coordinates(include_z=False).to_numpy(na_value=0)
-        return cls.from_coordinates(track=track, line_coords=line_coords)
-
-    @classmethod
-    def from_file(cls, track: Track, file_path: Path) -> Self:
-        """
-        Creates a Raceline instance from a file.
-
-        Parameters:
-        - track: Track - The track to initialize the raceline on.
-        - file_path: Path - The path to the file containing raceline data.
-
-        Returns:
-        - Raceline: An instance of the Raceline class.
-
-        Raises:
-        - FileNotFoundError: If the provided file path does not exist.
-        """
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"{file_path} doesn't exist")
 
         data = read_parquet(file_path)
-        assert track.name == data.iloc[0].track_name
-        return cls.from_geodataframe(track, data)
+        assert self.track.name == data.iloc[0].track_name
+        data = data.to_crs(data.estimate_utm_crs())
+        coordinates = data.get_coordinates(include_z=False).to_numpy(na_value=0)
+        # check if first and last coordinates are the same
 
-    def coordinates(self) -> NDArray:
-        """
-        Converts raceline position to coordinates.
+        assert len(coordinates) == self.track.len, f"Track length {self.track.len} != coordinates length {len(coordinates)}"
 
-        Parameters:
-        - position: NDArray  - The position array to convert.
+        if self.track.is_circular:
+            assert np.array_equal(coordinates[0], coordinates[-1]), "First and last coordinates are not the same"
 
-        Returns:
-        - NDArray: The coordinates corresponding to the position.
-        """
+        self.set_coordinates(coordinates)
 
-        return self.track.coordinates_from_position(self.line_position)
+    def set_coordinates(self, coordinates: NDArray) -> None:
+        self._position = self.track.position_from_coordinates(coordinates)
+
+    def get_coordinates(self) -> NDArray:
+        """Returns the coordinates of the raceline."""
+        return self.track.coordinates_from_position(self._position)
 
     def best_time_str(self) -> str:
         """
@@ -118,18 +66,6 @@ class Raceline:
         - str: The best laptime in "MM:SS.mmm" format.
         """
         return f"{self.best_time % 3600 // 60:02.0f}:{self.best_time % 60:06.03f}"
-
-    def filename(self, car_name) -> Path:
-        """
-        Generates a file name for the raceline data.
-
-        Parameters:
-        - car_name: str - The name of the car.
-
-        Returns:
-        - Path: The path with the generated file name.
-        """
-        return Path(f"{car_name}_{self.track.name}_simulated.parquet")
 
     def save_line(self, file_path: Path, car_name: str) -> None:
         """
@@ -158,7 +94,7 @@ class Raceline:
         Returns:
         - GeoDataFrame: The raceline data as a GeoDataFrame.
         """
-        coordinates: list = self.coordinates().tolist()
+        coordinates: list = self.get_coordinates().tolist()
         geom = LineString(coordinates)
 
         data = dict(track_name=[track_name], car=[car_name], geometry=[geom])
@@ -199,7 +135,7 @@ class Raceline:
         """
         return np.clip(line_position, a_min=self.position_clearance, a_max=1 - self.position_clearance)
 
-    def update(self, car: Car) -> SimResults:
+    def simulate(self, car: Car) -> SimResults:
         """
         Updates the raceline with a new simulation for the given car.
 
@@ -209,13 +145,13 @@ class Raceline:
         Returns:
         - SimResults: The simulation results.
         """
-        sim_results = simulate(car, self.coordinates(), self.track.slope)
+        sim_results = simulate(car, self.get_coordinates(), self.track.slope)
 
         if sim_results.laptime < self.best_time:
             self.best_time = sim_results.laptime
         return sim_results
 
-    def simulate_new_line(self, car: Car) -> None:
+    def try_random_line(self, car: Car) -> None:
         """
         Simulates a new line with a random deviation and length.
 
@@ -226,22 +162,29 @@ class Raceline:
         - None
         """
 
-        location = random_generator.choice(len(self._heatmap), p=self._heatmap / sum(self._heatmap))
+        idx_len = len(self.width)
+
+        # Choose a random location and length for the deviation
+        location_index = random_generator.choice(len(self._heatmap), p=self._heatmap / sum(self._heatmap))
         length = random_generator.integers(3, MAX_DEVIATION_LENGTH, endpoint=True)
         deviation = random_generator.uniform(-1, 1) * max(length / MAX_DEVIATION_LENGTH, MAX_DEVIATION)
+
+        # Create a position array with the deviation
+        position = np.zeros(idx_len)
         line_adjust = (1 + np.cos(np.linspace(-np.pi, np.pi, length))) / 2
-        position = np.zeros(len(self.line_position))
-
-        if self.track.is_circular:  # ensure first and last position value are the same
+        if self.track.is_circular:
             position[:length] = line_adjust
-            position = np.roll(position, location - length // 2)
-        else:  # Start position is fixed.  Finish position can change.
-            if location + length > len(self.line_position):
-                length = len(self.line_position) - location
-            position[location : location + length] = line_adjust[:length]
+            position = np.roll(position, location_index - length // 2)
+        else:
+            if location_index + length > idx_len:
+                length = idx_len - location_index
+            position[location_index : location_index + length] = line_adjust[:length]
 
-        new_line_position = self.clip_line(self.line_position + position * deviation / self.width)
+        # Calculate the new line position and coordinates
+        new_line_position = self.clip_line(self._position + position * deviation / self.width)
         new_coordinates = self.track.coordinates_from_position(new_line_position)
+
+        # Simulate the new line and check if it's better
         laptime = simulate(car, new_coordinates, self.track.slope).laptime
         if laptime < self.best_time:
             improvement = self.best_time - laptime
@@ -249,8 +192,9 @@ class Raceline:
 
             self.best_time = laptime
             self.progress_rate += improvement
-            self.line_position = new_line_position
+            self._position = new_line_position
             return
 
-        self._heatmap = (self._heatmap + 0.00015) / 1.00015  # slowly to one
-        self.progress_rate *= F_ANNEAL  # slowly to zero
+        # If the new line is not better, slowly decay the heatmap and progress rate
+        self._heatmap = (self._heatmap + 0.00015) / 1.00015
+        self.progress_rate *= F_ANNEAL

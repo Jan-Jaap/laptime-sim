@@ -3,7 +3,7 @@
 import numpy as np
 import plotly.express as px
 import streamlit as st
-from main import PATH_CARS
+from main import CAR_LIST
 
 import laptime_sim
 from laptime_sim.car import CornerAcceleration, DriverExperience
@@ -49,7 +49,7 @@ def main() -> None:
     st.set_page_config(page_title="HSR Webracing", layout="wide")
     st.header("Display car properties")
 
-    race_car = st.radio(label="select file", options=laptime_sim.car_list(PATH_CARS), format_func=lambda x: x.name)
+    race_car = st.radio(label="select file", options=laptime_sim.car_list(CAR_LIST), format_func=lambda x: x.name)
 
     race_car.trail_braking = st.selectbox(
         label="Trailbraking driver experience",

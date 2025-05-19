@@ -9,8 +9,9 @@ from laptime_sim import car_list, track_list
 
 logging.basicConfig(level=logging.INFO)
 
-PATH_TRACKS = Path("./resources/tracks/")
-PATH_CARS = Path("./resources/cars/")
+TRACK_LIST = track_list("./resources/tracks/")
+CAR_LIST = car_list("./resources/cars/")
+
 PATH_RESULTS = Path("./resources/simulated/")
 TOLERANCE = 0.0005
 
@@ -19,27 +20,28 @@ def main() -> None:
     PATH_RESULTS.mkdir(exist_ok=True)
 
     logging.info("started optimization")
-    for race_car, track in itertools.product(car_list(PATH_CARS), track_list(PATH_TRACKS)):
+    for race_car, track in itertools.product(CAR_LIST, TRACK_LIST):
         file_path = PATH_RESULTS / Path(f"{race_car.file_name}_{track.name}_simulated.parquet")
 
+        raceline = laptime_sim.Raceline(track)
+
         try:
-            raceline = laptime_sim.Raceline.from_file(track, file_path)
-            logging.info(f"Loading {raceline.filename(race_car.file_name)} from {PATH_RESULTS.absolute()}")
+            raceline.load_file(file_path)
+            logging.info(f"Loading {file_path.name} from {file_path.parent}")
             logging.warning("Filename exists and will be overwritten")
             logging.info(f"Track: {track.name} has {track.len} datapoints.")
         except FileNotFoundError:
             logging.info(f"File not found. Creating new file: {file_path.absolute()}")
-            raceline = laptime_sim.Raceline(track=track)
             raceline.save_line(file_path, race_car.name)
 
-        raceline.update(race_car)
+        raceline.simulate(race_car)
         loaded_best_time = raceline.best_time
 
         try:
             with tqdm(leave=True, desc=f"{raceline.track.name}-{race_car.name}") as bar:
                 update_interval = 500
                 for i in itertools.count():
-                    raceline.simulate_new_line(race_car)
+                    raceline.try_random_line(race_car)
                     if i % update_interval == 0:
                         bar.set_postfix(
                             laptime=f"{raceline.best_time_str()}",

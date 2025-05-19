@@ -6,7 +6,7 @@ import streamlit as st
 from matplotlib import pyplot as plt
 
 import laptime_sim
-from main import PATH_CARS, PATH_RESULTS, PATH_TRACKS
+from main import CAR_LIST, PATH_RESULTS, TRACK_LIST
 from laptime_sim import Raceline, Car, Track
 
 
@@ -39,7 +39,7 @@ def optimize_raceline(track: Track, car: Car, raceline: Raceline):
 
                 timer3 = laptime_sim.Timer()
                 for itereration in itertools.count():
-                    raceline.simulate_new_line(car)
+                    raceline.try_random_line(car)
                     if timer1.triggered:
                         placeholder_laptime.write(
                             f"Laptime = {raceline.best_time_str()}. iteration:{itereration}, iteration_rate:{itereration / timer3.elapsed_time.total_seconds():.0f}"
@@ -51,7 +51,7 @@ def optimize_raceline(track: Track, car: Car, raceline: Raceline):
                         placeholder_saved.write(f"Results: {raceline.best_time_str()} saved. iteration:{itereration}")
                         timer2.reset()
 
-                st.write(f"Results: {raceline.best_time_str()} saved. iteration:{itereration}")
+                    # st.write(f"Results: {raceline.best_time_str()} saved. iteration:{itereration}")
 
             if st.session_state.optimization_running:  # if running stop te optimization
                 st.session_state.optimization_running = False
@@ -62,23 +62,22 @@ def optimize_raceline(track: Track, car: Car, raceline: Raceline):
 
 def main() -> None:
     with st.sidebar:
-        track = st.radio("select track", options=laptime_sim.track_list(PATH_TRACKS), format_func=lambda x: x.name)
-        race_car = st.radio("select car", options=laptime_sim.car_list(PATH_CARS), format_func=lambda x: x.name)
+        track = st.radio("select track", options=TRACK_LIST, format_func=lambda x: x.name)
+        race_car = st.radio("select car", options=CAR_LIST, format_func=lambda x: x.name)
 
     st.header(f"Racetrack - {track.name}")
 
     PATH_RESULTS.mkdir(exist_ok=True)
     file_path = PATH_RESULTS / results_filename(track, race_car)
+    raceline = laptime_sim.Raceline(track)
 
     try:
-        raceline = laptime_sim.Raceline.from_file(track, file_path)
+        raceline.load_file(file_path)
         st.warning(f"Filename {file_path.name} exists and will be overwritten")
-
     except FileNotFoundError:
         st.warning("No results found for this car. A new raceline will be created.")
-        raceline = laptime_sim.Raceline(track=track)
 
-    raceline.update(race_car)
+    raceline.simulate(race_car)
     st.info(f"{race_car.name}, Best time = {raceline.best_time_str()}")
 
     optimize_raceline(track, race_car, raceline)
@@ -86,7 +85,7 @@ def main() -> None:
     with st.expander("Race Car"):
         st.write(race_car)
     with st.expander("Selected Raceline"):
-        sim_results = raceline.update(race_car)
+        sim_results = raceline.simulate(race_car)
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.plot(sim_results.distance, sim_results.speed_kph)
         ax.set_ylabel("Speed in km/h")

@@ -8,7 +8,7 @@ import xyzservices.providers as xyz
 from matplotlib import pyplot as plt
 from streamlit_folium import st_folium
 import laptime_sim
-from main import PATH_CARS, PATH_TRACKS, PATH_RESULTS
+from main import CAR_LIST, TRACK_LIST, PATH_RESULTS
 
 
 style_divisions = dict(color="grey")
@@ -57,8 +57,8 @@ def folium_track_map(
 
 def main() -> None:
     with st.sidebar:
-        track = st.radio("select track", options=laptime_sim.track_list(PATH_TRACKS), format_func=lambda x: x.name)
-        race_car = st.radio("select car", options=laptime_sim.car_list(PATH_CARS), format_func=lambda x: x.name)
+        track = st.radio("select track", options=TRACK_LIST, format_func=lambda x: x.name)
+        race_car = st.radio("select car", options=CAR_LIST, format_func=lambda x: x.name)
 
     st.header(f"Racetrack - {track.name}")
 
@@ -70,13 +70,14 @@ def main() -> None:
     except ValueError:
         all_racelines = gpd.GeoDataFrame()
 
+    raceline = laptime_sim.Raceline(track)
+
     try:
-        raceline = laptime_sim.Raceline.from_file(track, file_path)
+        raceline.load_file(file_path)
     except FileNotFoundError:
         st.warning("No results found for this car.")
-        raceline = laptime_sim.Raceline(track=track)
 
-    sim_results = raceline.update(race_car)
+    sim_results = raceline.simulate(race_car)
     st.info(f"{race_car.name}, Best time = {raceline.best_time_str()}")
 
     with st.expander("Track Map", expanded=True):
@@ -94,7 +95,7 @@ def main() -> None:
         fig, ax1 = plt.subplots(figsize=(10, 5))
         ax2 = ax1.twinx()
         ax1.plot(sim_results.distance, track.slope * 100, label="Slope in %", color="C0")
-        ax2.plot(sim_results.distance, raceline.coordinates()[:, 2], label="Elevation in m", color="C1")
+        ax2.plot(sim_results.distance, raceline.get_coordinates()[:, 2], label="Elevation in m", color="C1")
         ax1.set_ylabel("Slope in %")
         ax2.set_ylabel("Elevation in m")
         ax1.set_xlabel("Track distance in m")

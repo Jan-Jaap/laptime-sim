@@ -1,7 +1,6 @@
 import functools
 
-# from dataclasses import dataclass
-from os import PathLike
+
 from pathlib import Path
 
 import numpy as np
@@ -29,19 +28,6 @@ class Track:
         - layout (GeoDataFrame): The layout of the track.
         """
         self.layout = layout.to_crs(layout.estimate_utm_crs())
-
-    @classmethod
-    def from_parquet(cls, filename: str | PathLike[str]):
-        """
-        Creates a Track object from a Parquet file.
-
-        Parameters:
-        - filename (str): The path to the Parquet file.
-
-        Returns:
-        - Track: A Track object.
-        """
-        return cls(layout=read_parquet(filename))
 
     def __eq__(self, other):
         """
@@ -283,7 +269,9 @@ def track_list(path_tracks: Path | str):
     - list[Track]: A list of Track instances.
     """
     path_tracks = Path(path_tracks)
-    return [Track.from_parquet(file) for file in sorted(path_tracks.glob("*.parquet"))]
+    if not path_tracks.is_dir():
+        raise FileNotFoundError(f"Path {path_tracks} is not a directory.")
+    return [Track(layout=read_parquet(file)) for file in sorted(path_tracks.glob("*.parquet"))]
 
 
 def loc_line(point_left, point_right, point_line):
