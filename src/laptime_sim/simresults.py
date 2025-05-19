@@ -2,6 +2,7 @@ import dataclasses
 from functools import cached_property
 
 import numpy as np
+from numpy.typing import NDArray
 import pandas as pd
 
 OUTPUT_COLUMNS_NAMES = dict(
@@ -20,21 +21,21 @@ class SimResults:
     Represents the results of a simulation.
 
     Attributes:
-        line_coordinates (np.ndarray): The coordinates of the raceline.
-        dt (np.ndarray): The time differences between consecutive points.
-        speed (np.ndarray): The speed at each point.
-        Nk (np.ndarray): The normal vectors in car frame with magnitude 1/R. Shape is (N, 3).
-        ds (np.ndarray): The distances between consecutive points.
+        line_coordinates (NDArray): The coordinates of the raceline.
+        dt (NDArray): The time differences between consecutive points.
+        speed (NDArray): The speed at each point.
+        Nk (NDArray): The normal vectors in car frame with magnitude 1/R. Shape is (N, 3).
+        ds (NDArray): The distances between consecutive points.
 
     Properties:
         laptime (float): The total time of the simulation in seconds.
     """
 
-    line_coordinates: np.ndarray
-    dt: np.ndarray
-    speed: np.ndarray
-    Nk: np.ndarray  # should be (N, 3) array of normal vectors in car frame with magnitude 1/R
-    ds: np.ndarray
+    line_coordinates: NDArray
+    dt: NDArray
+    speed: NDArray
+    Nk: NDArray  # should be (N, 3) array of normal vectors in car frame with magnitude 1/R
+    ds: NDArray
 
     @cached_property
     def laptime(self) -> float:
@@ -56,42 +57,42 @@ class SimResults:
         return f"{self.laptime % 3600 // 60:02.0f}:{self.laptime % 60:06.03f}"
 
     @cached_property
-    def a_lat(self) -> np.ndarray:
+    def a_lat(self) -> NDArray:
         """
         The lateral acceleration at each point.
 
         Returns:
-            np.ndarray: The lateral acceleration at each point.
+            NDArray: The lateral acceleration at each point.
         """
         return -(self.speed**2) * self.Nk[:, 0]
 
     @cached_property
-    def a_lon(self) -> np.ndarray:
+    def a_lon(self) -> NDArray:
         """
         The longitudinal acceleration at each point.
 
         Returns:
-            np.ndarray: The longitudinal acceleration at each point.
+            NDArray: The longitudinal acceleration at each point.
         """
         return np.gradient(self.speed, self.distance) * self.speed
 
     @cached_property
-    def distance(self) -> np.ndarray:
+    def distance(self) -> NDArray:
         """
         The cumulative sum of the distances between consecutive points.
 
         Returns:
-            np.ndarray: The cumulative sum of the distances between consecutive points.
+            NDArray: The cumulative sum of the distances between consecutive points.
         """
         return self.ds.cumsum() - self.ds[0]
 
     @cached_property
-    def speed_kph(self) -> np.ndarray:
+    def speed_kph(self) -> NDArray:
         """
         The speed in kilometers per hour at each point.
 
         Returns:
-            np.ndarray: The speed in kilometers per hour at each point.
+            NDArray: The speed in kilometers per hour at each point.
         """
         return self.speed * 3.6
 

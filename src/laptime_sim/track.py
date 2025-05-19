@@ -1,10 +1,11 @@
 import functools
 
 # from dataclasses import dataclass
+from os import PathLike
 from pathlib import Path
-from typing import Self
 
 import numpy as np
+from numpy.typing import NDArray
 import shapely
 from geopandas import GeoDataFrame, GeoSeries, read_parquet
 from scipy.signal import savgol_filter
@@ -30,7 +31,7 @@ class Track:
         self.layout = layout.to_crs(layout.estimate_utm_crs())
 
     @classmethod
-    def from_parquet(cls, filename: str) -> Self:
+    def from_parquet(cls, filename: str | PathLike[str]):
         """
         Creates a Track object from a Parquet file.
 
@@ -57,22 +58,22 @@ class Track:
         return self.name == other.name
 
     @functools.cached_property
-    def width(self) -> np.ndarray:
+    def width(self) -> NDArray:
         """
         Calculates the width of the track at each point.
 
         Returns:
-        - np.ndarray: The width of the track at each point.
+        - NDArray: The width of the track at each point.
         """
         return np.sum((self.left_coords_2d - self.right_coords_2d) ** 2, 1) ** 0.5
 
     @functools.cached_property
-    def slope(self) -> np.ndarray:
+    def slope(self) -> NDArray:
         """
         Calculates the slope of the track at each point.
 
         Returns:
-        - np.ndarray: The slope of the track at each point.
+        - NDArray: The slope of the track at each point.
         """
         return (self.right_coords[:, 2] - self.left_coords[:, 2]) / self.width
 
@@ -109,42 +110,42 @@ class Track:
         return self.layout.is_ring.all()
 
     @functools.cached_property
-    def left_coords(self) -> np.ndarray:
+    def left_coords(self) -> NDArray:
         """
         Returns the coordinates of the left border of the track.
 
         Returns:
-        - np.ndarray: The coordinates of the left border of the track.
+        - NDArray: The coordinates of the left border of the track.
         """
         return self.left.get_coordinates(include_z=True).to_numpy(na_value=0)
 
     @functools.cached_property
-    def right_coords(self) -> np.ndarray:
+    def right_coords(self) -> NDArray:
         """
         Returns the coordinates of the right border of the track.
 
         Returns:
-        - np.ndarray: The coordinates of the right border of the track.
+        - NDArray: The coordinates of the right border of the track.
         """
         return self.right.get_coordinates(include_z=True).to_numpy(na_value=0)
 
     @functools.cached_property
-    def left_coords_2d(self) -> np.ndarray:
+    def left_coords_2d(self) -> NDArray:
         """
         Returns the 2D coordinates of the left border of the track.
 
         Returns:
-        - np.ndarray: The 2D coordinates of the left border of the track.
+        - NDArray: The 2D coordinates of the left border of the track.
         """
         return self.left.get_coordinates().to_numpy(na_value=0)
 
     @functools.cached_property
-    def right_coords_2d(self) -> np.ndarray:
+    def right_coords_2d(self) -> NDArray:
         """
         Returns the 2D coordinates of the right border of the track.
 
         Returns:
-        - np.ndarray: The 2D coordinates of the right border of the track.
+        - NDArray: The 2D coordinates of the right border of the track.
         """
         return self.right.get_coordinates().to_numpy(na_value=0)
 
@@ -209,7 +210,7 @@ class Track:
         Returns the centerline of the track as a 2D array of coordinates.
 
         Returns:
-        - np.ndarray: The centerline of the track as a 2D array of coordinates.
+        - NDArray: The centerline of the track as a 2D array of coordinates.
         """
         return (self.left_coords + self.right_coords) / 2
 
@@ -223,7 +224,7 @@ class Track:
         - polyorder (int): The order of the polynomial used for the Savitzky-Golay filter.
 
         Returns:
-        - np.ndarray: The smoothed line of coordinates.
+        - NDArray: The smoothed line of coordinates.
         """
         initial_line = savgol_filter(self.centerline(), window_length, polyorder, axis=0, mode="wrap")
 
@@ -231,15 +232,15 @@ class Track:
             initial_line[-1] = initial_line[0]  # ensure circular track hack
         return initial_line
 
-    def position_from_coordinates(self, line_coords: np.ndarray) -> np.ndarray:
+    def position_from_coordinates(self, line_coords: NDArray) -> NDArray:
         """
         Calculates the position of the raceline at each point.
 
         Parameters:
-        - line_coords (np.ndarray): The coordinates of the raceline.
+        - line_coords (NDArray): The coordinates of the raceline.
 
         Returns:
-        - np.ndarray: The position of the raceline at each point.
+        - NDArray: The position of the raceline at each point.
         """
         if self.is_circular:
             assert (line_coords[0] == line_coords[-1]).all()
@@ -255,15 +256,15 @@ class Track:
             ]
         )
 
-    def coordinates_from_position(self, line_pos: np.ndarray = None) -> np.ndarray:
+    def coordinates_from_position(self, line_pos: NDArray) -> NDArray:
         """
         Calculates the coordinates of the raceline at each point.
 
         Parameters:
-        - line_pos (np.ndarray): The position of the raceline at each point.
+        - line_pos (NDArray): The position of the raceline at each point.
 
         Returns:
-        - np.ndarray: The coordinates of the raceline at each point.
+        - NDArray: The coordinates of the raceline at each point.
         """
         if self.is_circular:
             assert self.len - len(line_pos) == 1

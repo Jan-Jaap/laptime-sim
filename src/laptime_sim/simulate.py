@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.typing import NDArray
 import numba as nb
 from laptime_sim.simresults import SimResults
 from laptime_sim.car import Car
@@ -8,14 +9,14 @@ from laptime_sim.car import Car
 # gravity vector
 
 
-def simulate(car: Car, line_coordinates: np.ndarray, slope: np.ndarray) -> SimResults:
+def simulate(car: Car, line_coordinates: NDArray, slope: NDArray) -> SimResults:
     """
     Run the race simulator to determine the laptime when racing optimal speed.
 
     Args:
         car (Car): The car object representing the vehicle.
-        line_coordinates (np.ndarray): The array of coordinates representing the raceline.
-        slope (np.ndarray): The array of slopes at each point in the raceline.
+        line_coordinates (NDArray): The array of coordinates representing the raceline.
+        slope (NDArray): The array of slopes at each point in the raceline.
 
     Returns:
         SimResults: The simulation results containing the line coordinates, timestep, speed,
@@ -103,12 +104,12 @@ def calc_speed(
     The function is optimized for speed and uses numba's njit decorator to compile the function to machine code.
 
     Parameters:
-        speed (np.ndarray): The array of speeds to be calculated.
-        ds (np.ndarray): The array of distances between points in the raceline.
-        k_car_lat (np.ndarray): The array of lateral curvature of the raceline.
-        g_car_lon (np.ndarray): The array of longitudinal gravity components.
-        g_car_lat (np.ndarray): The array of lateral gravity components.
-        v_max (np.ndarray): The array of maximum speeds for each point in the raceline.
+        speed (NDArray): The array of speeds to be calculated.
+        ds (NDArray): The array of distances between points in the raceline.
+        k_car_lat (NDArray): The array of lateral curvature of the raceline.
+        g_car_lon (NDArray): The array of longitudinal gravity components.
+        g_car_lat (NDArray): The array of lateral gravity components.
+        v_max (NDArray): The array of maximum speeds for each point in the raceline.
         mass (float): The mass of the car.
         acc_limit (float): The acceleration limit of the car.
         lat_limit (float): The lateral acceleration limit of the car.
@@ -118,7 +119,7 @@ def calc_speed(
         P_engine_in_watt (float): The power of the engine in watt.
 
     Returns:
-        np.ndarray: The array of calculated speeds.
+        NDArray: The array of calculated speeds.
     """
     for i in range(-90, len(v_max) - 1):  # negative index to simulate running start....
         j = i + 1
@@ -149,15 +150,15 @@ def calc_speed(
 
 
 @nb.njit
-def mag(vector: np.ndarray) -> np.ndarray:
+def mag(vector: NDArray) -> NDArray:
     """
     Calculate the magnitude of vectors along the second axis of the input array.
 
     Parameters:
-        vector (np.ndarray): A numpy array where each row represents a vector.
+        vector (NDArray): A numpy array where each row represents a vector.
 
     Returns:
-        np.ndarray: A 1D numpy array containing the magnitudes of the vectors.
+        NDArray: A 1D numpy array containing the magnitudes of the vectors.
     """
 
     return np.sum(vector**2, 1) ** 0.5

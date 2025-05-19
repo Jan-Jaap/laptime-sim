@@ -18,7 +18,11 @@ style_all_racelines = dict(color="black", dashArray="2 5", opacity=0.6)
 style_selected_raceline = dict(color="blue")
 
 
-def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataFrame, race_line_df: gpd.GeoDataFrame = None):
+def folium_track_map(
+    track: laptime_sim.Track,
+    all_track_racelines: gpd.GeoDataFrame,
+    race_line_df: gpd.GeoDataFrame | None = None,
+):
     """
     Create a folium map of a track with its divisions, start finish line, the border of the track, and all racelines.
 
@@ -37,15 +41,15 @@ def folium_track_map(track: laptime_sim.Track, all_track_racelines: gpd.GeoDataF
         The generated map
     """
     my_map = track.divisions.explore(name="divisions", show=False, style_kwds=style_divisions)
-    track.layout.explore(m=my_map, name="border", control=False, style_kwds=style_track_border)
+    track.layout.explore(m=my_map, name="border", tooltip=False, control=False, style_kwds=style_track_border)
     track.start_finish.explore(m=my_map, name="start_finish", style_kwds=style_start_finish)
     if not all_track_racelines.empty:
-        all_track_racelines.explore(m=my_map, tooltip="car", name="results", style_kwds=style_all_racelines)
+        all_track_racelines.explore(m=my_map, tooltip=True, name="results", style_kwds=style_all_racelines)
 
     if race_line_df is not None and not race_line_df.empty:
         race_line_df.explore(m=my_map, name=race_line_df.car.iloc[0], style_kwds=style_selected_raceline)
 
-    folium.TileLayer(xyz.Esri.WorldImagery).add_to(my_map)
+    folium.TileLayer(xyz.Esri.WorldImagery).add_to(my_map)  # type: ignore
     folium.TileLayer("openstreetmap").add_to(my_map)
     folium.LayerControl().add_to(my_map)
     return my_map

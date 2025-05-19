@@ -1,10 +1,11 @@
 import functools
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self
 
 import numpy as np
+from numpy.typing import NDArray
 from geopandas import GeoDataFrame, read_parquet
 from shapely import LineString
 
@@ -21,32 +22,37 @@ BORDER_CLEARANCE_M: float = 0.85
 random_generator = np.random.default_rng()
 
 
+def empty_array() -> NDArray:
+    """Returns an empty NumPy array of type float64."""
+    return np.empty(0, dtype=np.float64)
+
+
 @dataclass
 class Raceline:
     track: Track
+    line_position: NDArray = field(default_factory=empty_array)  # np.empty(0)
     best_time: float = np.inf
     progress_rate: float = 1.0
-    _heatmap: np.ndarray = None
-    line_position: np.ndarray = None
+    _heatmap: NDArray = field(init=False)
 
     def __post_init__(self):
         """
         Initializes the Raceline class by setting the initial line position and heatmap.
         """
-        if self.line_position is None:
+        if self.line_position.size == 0:
             initial_line = self.track.initial_line()
             line_position = self.track.position_from_coordinates(initial_line)
             self.line_position = self.clip_line(line_position)
         self._heatmap = np.ones_like(self.line_position)
 
     @classmethod
-    def from_coordinates(cls, track: Track, line_coords: np.ndarray) -> Self:
+    def from_coordinates(cls, track: Track, line_coords: NDArray) -> Self:
         """
         Creates a Raceline instance from track and line coordinates.
 
         Parameters:
         - track: Track - The track to initialize the raceline on.
-        - line_coords: np.ndarray - The coordinates of the raceline.
+        - line_coords: NDArray - The coordinates of the raceline.
 
         Returns:
         - Raceline: An instance of the Raceline class.
@@ -91,20 +97,18 @@ class Raceline:
         assert track.name == data.iloc[0].track_name
         return cls.from_geodataframe(track, data)
 
-    def coordinates(self, position: np.ndarray | None = None) -> np.ndarray:
+    def coordinates(self) -> NDArray:
         """
         Converts raceline position to coordinates.
 
         Parameters:
-        - position: np.ndarray | None - The position array to convert.
+        - position: NDArray  - The position array to convert.
 
         Returns:
-        - np.ndarray: The coordinates corresponding to the position.
+        - NDArray: The coordinates corresponding to the position.
         """
-        if position is None:
-            position = self.line_position
 
-        return self.track.coordinates_from_position(position)
+        return self.track.coordinates_from_position(self.line_position)
 
     def best_time_str(self) -> str:
         """
@@ -154,9 +158,11 @@ class Raceline:
         Returns:
         - GeoDataFrame: The raceline data as a GeoDataFrame.
         """
-        geom = LineString(self.coordinates().tolist())
-        data = dict(track_name=track_name, car=car_name)
-        return GeoDataFrame.from_dict(data=[data], geometry=[geom], crs=self.track.crs).to_crs(epsg=4326)
+        coordinates: list = self.coordinates().tolist()
+        geom = LineString(coordinates)
+
+        data = dict(track_name=[track_name], car=[car_name], geometry=[geom])
+        return GeoDataFrame.from_dict(data, crs=self.track.crs).to_crs(epsg=4326)
 
     @functools.cached_property
     def width(self):
@@ -164,7 +170,7 @@ class Raceline:
         Returns the track width, excluding the last point if the track is circular.
 
         Returns:
-        - np.ndarray: The width of the track.
+        - NDArray: The width of the track.
         """
         if self.track.is_circular:
             return self.track.width[:-1]
@@ -177,19 +183,19 @@ class Raceline:
         Computes the position clearance based on border clearance and track width.
 
         Returns:
-        - np.ndarray: The position clearance values.
+        - NDArray: The position clearance values.
         """
         return BORDER_CLEARANCE_M / self.width
 
-    def clip_line(self, line_position: np.ndarray) -> np.ndarray:
+    def clip_line(self, line_position: NDArray) -> NDArray:
         """
         Clips the line position within the track boundaries.
 
         Parameters:
-        - line_position: np.ndarray - The line position array to clip.
+        - line_position: NDArray - The line position array to clip.
 
         Returns:
-        - np.ndarray: The clipped line position.
+        - NDArray: The clipped line position.
         """
         return np.clip(line_position, a_min=self.position_clearance, a_max=1 - self.position_clearance)
 
@@ -230,12 +236,13 @@ class Raceline:
             position[:length] = line_adjust
             position = np.roll(position, location - length // 2)
         else:  # Start position is fixed.  Finish position can change.
-            if location + length > len(self._line_position):
-                length = len(self._line_position) - location
+            if location + length > len(self.line_position):
+                length = len(self.line_position) - location
             position[location : location + length] = line_adjust[:length]
 
         new_line_position = self.clip_line(self.line_position + position * deviation / self.width)
-        laptime = simulate(car, self.coordinates(new_line_position), self.track.slope).laptime
+        new_coordinates = self.track.coordinates_from_position(new_line_position)
+        laptime = simulate(car, new_coordinates, self.track.slope).laptime
         if laptime < self.best_time:
             improvement = self.best_time - laptime
             self._heatmap += position * improvement * 1e3

@@ -1,9 +1,9 @@
 import numpy as np
-
+from numpy.typing import NDArray
 from laptime_sim.simresults import SimResults
 
 
-def simulate(car, line_coordinates: np.ndarray, slope: np.ndarray):
+def simulate(car, line_coordinates: NDArray, slope: NDArray):
     # distance between nodes
     # ds = mag(np.diff(line_coordinates.T, 1, prepend=np.c_[line_coordinates[-1]]).T)
 
@@ -101,9 +101,9 @@ def simulate(car, line_coordinates: np.ndarray, slope: np.ndarray):
     return SimResults(line_coordinates, dt, speed, Nk, ds)
 
 
-def mag(vector: np.ndarray) -> np.ndarray:
+def mag(vector: NDArray) -> NDArray:
     return np.sum(vector**2, 1) ** 0.5
 
 
-def dot(u: np.ndarray, v: np.ndarray) -> np.ndarray:
+def dot(u: NDArray, v: NDArray) -> NDArray:
     return np.einsum("ij,ij->i", u, v)
