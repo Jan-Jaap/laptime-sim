@@ -1,4 +1,3 @@
-import os
 import functools
 from enum import IntEnum
 from pathlib import Path
@@ -30,7 +29,7 @@ class Car(BaseModel):
     A class representing a car with its physical properties and capabilities.
     """
 
-    name: str = Field(None, description="Name of the car")
+    name: str = Field(..., description="Name of the car")
     mass: PositiveFloat = Field(..., description="Mass of the car in kilograms")
     P_engine: PositiveFloat = Field(..., description="Engine power in horsepower")
     acc_limit: PositiveFloat = Field(..., description="Longitudinal acceleration limit (grip limit) in m/s²")

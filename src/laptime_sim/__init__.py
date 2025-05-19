@@ -10,7 +10,6 @@ __all__ = [
     "car_list",
     "Track",
     "track_list",
-    "all_racelines",
     "Raceline",
     "SimResults",
     "Timer",
