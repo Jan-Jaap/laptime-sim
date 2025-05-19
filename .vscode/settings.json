@@ -1,14 +1,15 @@
 {
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
-
-  "terminal.integrated.env.osx": {
-    "PYTHONPATH": "${workspaceFolder}/src",
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
+  "terminal.integrated.env.windows": {
+    "PYTHONPATH": "${workspaceFolder}/src;${workspaceFolder}/tests"
   },
   "terminal.integrated.env.linux": {
-    "PYTHONPATH": "${workspaceFolder}/src",
-  },
-  "terminal.integrated.env.windows": {
-    "PYTHONPATH": "${workspaceFolder}/src",
+    "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}/tests"
   }
+
+  
 }
