@@ -18,41 +18,37 @@ style_all_racelines = dict(color="black", dashArray="2 5", opacity=0.6)
 style_selected_raceline = dict(color="blue")
 
 
-def folium_track_map(
-    track: laptime_sim.Track,
-    all_track_racelines: gpd.GeoDataFrame,
-    race_line_df: gpd.GeoDataFrame | None = None,
-):
-    """
-    Create a folium map of a track with its divisions, start finish line, the border of the track, and all racelines.
+def create_track_map(track: laptime_sim.Track) -> folium.Map:
+    """Add track border to the map"""
+    return track.layout.explore(m=None, name="border", tooltip=False, control=False, style_kwds=style_track_border)
 
-    Parameters
-    ----------
-    track: laptime_sim.Track
-        The track to display
-    all_track_racelines: gpd.GeoDataFrame
-        A geopandas dataframe with all racelines of all cars
-    race_line_df: gpd.GeoDataFrame, default None
-        A geopandas dataframe with the raceline of the selected car
 
-    Returns
-    -------
-    folium.Map
-        The generated map
-    """
-    my_map = track.divisions.explore(name="divisions", show=False, style_kwds=style_divisions)
-    track.layout.explore(m=my_map, name="border", tooltip=False, control=False, style_kwds=style_track_border)
+def add_divisions(my_map: folium.Map | None, track: laptime_sim.Track) -> None:
+    """Add track divisions to the map"""
+    track.divisions.explore(m=my_map, name="divisions", show=False, style_kwds=style_divisions)
+
+
+def add_start_finish(my_map: folium.Map | None, track: laptime_sim.Track) -> None:
+    """Add start/finish line to the map"""
     track.start_finish.explore(m=my_map, name="start_finish", style_kwds=style_start_finish)
-    if not all_track_racelines.empty:
-        all_track_racelines.explore(m=my_map, tooltip=True, name="results", style_kwds=style_all_racelines)
 
-    if race_line_df is not None and not race_line_df.empty:
-        race_line_df.explore(m=my_map, name=race_line_df.car.iloc[0], style_kwds=style_selected_raceline)
 
+def add_racelines(my_map: folium.Map | None, racelines: gpd.GeoDataFrame, style_kwds=style_all_racelines) -> None:
+    """Add all racelines to the map"""
+    if not racelines.empty:
+        racelines.explore(m=my_map, tooltip=True, name="results", style_kwds=style_kwds)
+
+
+def add_points(my_map: folium.Map | None, point: gpd.GeoSeries) -> None:
+    """Add points to the map"""
+    point.explore(m=my_map, tooltip=True, style_kwds=style_start_finish)
+
+
+def add_base_layers(my_map: folium.Map) -> None:
+    """Add base map layers and layer control"""
     folium.TileLayer(xyz.Esri.WorldImagery).add_to(my_map)  # type: ignore
     folium.TileLayer("openstreetmap").add_to(my_map)
     folium.LayerControl().add_to(my_map)
-    return my_map
 
 
 def main() -> None:
@@ -80,9 +76,29 @@ def main() -> None:
     sim_results = raceline.simulate(race_car)
     st.info(f"{race_car.name}, Best time = {raceline.best_time_str()}")
 
-    with st.expander("Track Map", expanded=True):
-        track_map = folium_track_map(track, all_racelines, raceline.dataframe(track_name=track.name, car_name=race_car.name))
-        st_folium(track_map, returned_objects=[], use_container_width=True)
+    race_line_df = raceline.dataframe(track_name=track.name, car_name=race_car.name)
+
+    expander_track_map = st.expander("Track map", expanded=True)
+
+    point_index = st.slider("Select point on raceline", min_value=0, max_value=track.len - 1, value=0)
+    selected_point = raceline.get_point(point_index)
+
+    with expander_track_map:
+        # track_map = folium_track_map(track, all_racelines, raceline.dataframe(track_name=track.name, car_name=race_car.name))
+        my_map = create_track_map(track)
+        add_divisions(my_map, track)
+        add_start_finish(my_map, track)
+        add_racelines(my_map, all_racelines)
+        add_racelines(my_map, race_line_df, style_kwds=style_selected_raceline)
+        add_points(my_map, selected_point)
+        add_base_layers(my_map)
+        st_folium(my_map, returned_objects=[], use_container_width=True)
+
+    with st.expander("Raceline data", expanded=True):
+        raceline_datapoint = sim_results.get_dataframe().iloc[point_index]
+        raceline_datapoint["slope"] = track.slope[point_index] * 100
+        st.write(raceline_datapoint, use_container_width=True)
+        # st.write(
 
     with st.expander("Raceline speed", expanded=True):
         fig, ax = plt.subplots(figsize=(10, 5))
@@ -124,9 +140,6 @@ def main() -> None:
         ax.set_xlabel("Lateral acceleration in m/s2")
         ax.legend()
         st.pyplot(fig)
-
-    # with st.expander("Track definition"):
-    #     st.write(track.__dict__)
 
 
 if __name__ == "__main__":

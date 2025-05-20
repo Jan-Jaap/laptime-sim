@@ -44,22 +44,22 @@ class Track:
         return self.name == other.name
 
     @functools.cached_property
-    def width(self) -> NDArray:
+    def width(self) -> NDArray[np.float64]:
         """
         Calculates the width of the track at each point.
 
         Returns:
-        - NDArray: The width of the track at each point.
+        - NDArray[np.float64]: The width of the track at each point.
         """
         return np.sum((self.left_coords_2d - self.right_coords_2d) ** 2, 1) ** 0.5
 
     @functools.cached_property
-    def slope(self) -> NDArray:
+    def slope(self) -> NDArray[np.float64]:
         """
         Calculates the slope of the track at each point.
 
         Returns:
-        - NDArray: The slope of the track at each point.
+        - NDArray[np.float64]: The slope of the track at each point.
         """
         return (self.right_coords[:, 2] - self.left_coords[:, 2]) / self.width
 
@@ -96,42 +96,42 @@ class Track:
         return self.layout.is_ring.all()
 
     @functools.cached_property
-    def left_coords(self) -> NDArray:
+    def left_coords(self) -> NDArray[np.float64]:
         """
         Returns the coordinates of the left border of the track.
 
         Returns:
-        - NDArray: The coordinates of the left border of the track.
+        - NDArray[np.float64]: The coordinates of the left border of the track.
         """
         return self.left.get_coordinates(include_z=True).to_numpy(na_value=0)
 
     @functools.cached_property
-    def right_coords(self) -> NDArray:
+    def right_coords(self) -> NDArray[np.float64]:
         """
         Returns the coordinates of the right border of the track.
 
         Returns:
-        - NDArray: The coordinates of the right border of the track.
+        - NDArray[np.float64]: The coordinates of the right border of the track.
         """
         return self.right.get_coordinates(include_z=True).to_numpy(na_value=0)
 
     @functools.cached_property
-    def left_coords_2d(self) -> NDArray:
+    def left_coords_2d(self) -> NDArray[np.float64]:
         """
         Returns the 2D coordinates of the left border of the track.
 
         Returns:
-        - NDArray: The 2D coordinates of the left border of the track.
+        - NDArray[np.float64]: The 2D coordinates of the left border of the track.
         """
         return self.left.get_coordinates().to_numpy(na_value=0)
 
     @functools.cached_property
-    def right_coords_2d(self) -> NDArray:
+    def right_coords_2d(self) -> NDArray[np.float64]:
         """
         Returns the 2D coordinates of the right border of the track.
 
         Returns:
-        - NDArray: The 2D coordinates of the right border of the track.
+        - NDArray[np.float64]: The 2D coordinates of the right border of the track.
         """
         return self.right.get_coordinates().to_numpy(na_value=0)
 
@@ -196,7 +196,7 @@ class Track:
         Returns the centerline of the track as a 2D array of coordinates.
 
         Returns:
-        - NDArray: The centerline of the track as a 2D array of coordinates.
+        - NDArray[np.float64]: The centerline of the track as a 2D array of coordinates.
         """
         return (self.left_coords + self.right_coords) / 2
 
@@ -218,15 +218,15 @@ class Track:
             initial_line[-1] = initial_line[0]  # ensure circular track hack
         return initial_line
 
-    def position_from_coordinates(self, line_coords: NDArray) -> NDArray:
+    def position_from_coordinates(self, line_coords: NDArray[np.float64]) -> NDArray[np.float64]:
         """
         Calculates the position of the raceline at each point.
 
         Parameters:
-        - line_coords (NDArray): The coordinates of the raceline.
+        - line_coords (NDArray[np.float64]): The coordinates of the raceline.
 
         Returns:
-        - NDArray: The position of the raceline at each point.
+        - NDArray[np.float64]: The position of the raceline at each point.
         """
         if self.is_circular:
             assert (line_coords[0] == line_coords[-1]).all()
@@ -242,15 +242,15 @@ class Track:
             ]
         )
 
-    def coordinates_from_position(self, line_pos: NDArray) -> NDArray:
+    def coordinates_from_position(self, line_pos: NDArray[np.float64]) -> NDArray[np.float64]:
         """
         Calculates the coordinates of the raceline at each point.
 
         Parameters:
-        - line_pos (NDArray): The position of the raceline at each point.
+        - line_pos (NDArray[np.float64]): The position of the raceline at each point.
 
         Returns:
-        - NDArray: The coordinates of the raceline at each point.
+        - NDArray[np.float64]: The coordinates of the raceline at each point.
         """
         if self.is_circular:
             assert self.len - len(line_pos) == 1

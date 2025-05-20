@@ -5,8 +5,8 @@ from pathlib import Path
 
 import numpy as np
 from numpy.typing import NDArray
-from geopandas import GeoDataFrame, read_parquet
-from shapely import LineString
+from geopandas import GeoDataFrame, GeoSeries, read_parquet
+from shapely import LineString, Point
 
 from laptime_sim.car import Car
 from laptime_sim.simresults import SimResults
@@ -100,6 +100,18 @@ class Raceline:
         data = dict(track_name=[track_name], car=[car_name], geometry=[geom])
         return GeoDataFrame.from_dict(data, crs=self.track.crs).to_crs(epsg=4326)
 
+    def get_point(self, index: int) -> GeoSeries:
+        """
+        Returns the coordinates of the raceline at a given index.
+        Parameters:
+        - index: int - The index of the raceline point.
+        Returns:
+        - GeoSeries: The coordinates of the raceline at the given index.
+        """
+        coordinates = self.get_coordinates()
+
+        return GeoSeries(Point([coordinates[index]]), crs=self.track.crs)
+
     @functools.cached_property
     def width(self):
         """
@@ -186,13 +198,12 @@ class Raceline:
 
         # Simulate the new line and check if it's better
         laptime = simulate(car, new_coordinates, self.track.slope).laptime
-        if laptime < self.best_time:
-            improvement = self.best_time - laptime
-            self._heatmap += position * improvement * 1e3
-
-            self.best_time = laptime
-            self.progress_rate += improvement
+        if improvement := self.best_time - laptime > 0:
             self._position = new_line_position
+            self.best_time = laptime
+
+            self._heatmap += position * improvement * 1e3
+            self.progress_rate += improvement
             return
 
         # If the new line is not better, slowly decay the heatmap and progress rate

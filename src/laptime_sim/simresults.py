@@ -11,6 +11,7 @@ OUTPUT_COLUMNS_NAMES = dict(
     speed_kph="Speed (km/h)",
     a_lon="Longitudinal acceleration (m/s2)",
     a_lat="Lateral acceleration (m/s2)",
+    curvature_radius_x="Curvature radius (m)",
     time="Timestamp",
 )
 
@@ -31,11 +32,11 @@ class SimResults:
         laptime (float): The total time of the simulation in seconds.
     """
 
-    line_coordinates: NDArray
-    dt: NDArray
-    speed: NDArray
-    Nk: NDArray  # should be (N, 3) array of normal vectors in car frame with magnitude 1/R
-    ds: NDArray
+    line_coordinates: NDArray[np.float64]
+    dt: NDArray[np.float64]
+    speed: NDArray[np.float64]
+    Nk: NDArray[np.float64]  # should be (N, 3) array of normal vectors in car frame with magnitude 1/R
+    ds: NDArray[np.float64]
 
     @cached_property
     def laptime(self) -> float:
@@ -96,6 +97,16 @@ class SimResults:
         """
         return self.speed * 3.6
 
+    @cached_property
+    def curvature_radius_x(self) -> NDArray:
+        """
+        The curvature in the x direction.
+
+        Returns:
+            NDArray: The curvature in the x direction.
+        """
+        return 1 / self.Nk[:, 0]
+
     def get_dataframe(self) -> pd.DataFrame:
         """
         Returns a pandas DataFrame containing the simulation results.
@@ -118,6 +129,7 @@ class SimResults:
         df["distance"] = self.distance
         df["a_lat"] = self.a_lat
         df["a_lon"] = self.a_lon
+        df["curvature_radius_x"] = self.curvature_radius_x
         df["speed"] = self.speed
         df["speed_kph"] = self.speed * 3.6
         return df.set_index("time").rename(columns=OUTPUT_COLUMNS_NAMES)
