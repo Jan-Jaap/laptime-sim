@@ -29,7 +29,7 @@ def simulate(car: Car, line_coordinates: NDArray, slope: NDArray) -> SimResults:
     ds = mag(dX)  # traveled distance
     T = dX / ds[:, None]  # unit tangent (direction of travel)
     B = np.cross(dX, ddX)  # binormal
-    k = mag(B) / ds**3  # magnitude of curvature
+    k = mag(B) / np.power(ds, 3)  # magnitude of curvature
     B = B / mag(B)[:, None]  # unit binormal
     N = np.cross(B, T)  # unit normal vector
     Nk = N * k[:, None]  # curvature normal vector
