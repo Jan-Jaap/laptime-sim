@@ -14,12 +14,9 @@ No lint, typecheck, or CI config exists.
 
 `src/main.py` loads `./resources/cars/` and `./resources/tracks/` **at import time** using relative paths, and the tests import `main`. Anything importing `main` — including pytest — must run from the repo root, else it fails with `FileNotFoundError`.
 
-## Test suite status (verified broken at last commit)
+## Test suite
 
-`uv run pytest` fails at collection on every test module; this is pre-existing, not caused by your change:
-
-- `tests/test_simulate.py` imports `laptime_sim.simulate_old`, which no longer exists as source (only a stale `__pycache__` .pyc).
-- `tests/conftest.py` and `tests/test_track.py` pass `CAR_LIST`/`TRACK_LIST` from `main.py` back into `laptime_sim.car_list()` / `laptime_sim.track_list()`. Since the "bugfix CAR_LIST" commit, those constants are already `list[Car]` / `list[Track]` objects, not paths → `TypeError`. Fix: use the constants directly (drop the re-wrap).
+`CAR_LIST`/`TRACK_LIST` in `main.py` are already `list[Car]`/`list[Track]` objects — do **not** pass them back into `car_list()`/`track_list()` (those take directory paths). Pytest collects only `tests/` (`testpaths` in pyproject); `src/temp/` scratch files are not tests.
 
 ## Architecture
 

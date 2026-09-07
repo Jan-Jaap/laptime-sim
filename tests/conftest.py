@@ -5,12 +5,12 @@ from main import CAR_LIST, TRACK_LIST
 
 @pytest.fixture(scope="module")
 def car_list() -> list[laptime_sim.Car]:
-    return laptime_sim.car_list(CAR_LIST)
+    return CAR_LIST
 
 
 @pytest.fixture(scope="module")
 def track_list() -> list[laptime_sim.Track]:
-    return laptime_sim.track_list(TRACK_LIST)
+    return TRACK_LIST
 
 
 @pytest.fixture(scope="module")
