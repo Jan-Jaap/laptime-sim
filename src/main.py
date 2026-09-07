@@ -1,5 +1,6 @@
 import itertools
 import logging
+import time
 from pathlib import Path
 
 from tqdm import tqdm
@@ -13,7 +14,7 @@ TRACK_LIST = track_list("./resources/tracks/")
 CAR_LIST = car_list("./resources/cars/")
 
 PATH_RESULTS = Path("./resources/simulated/")
-TOLERANCE = 0.0005
+TOLERANCE = 0.1
 
 
 def main() -> None:
@@ -39,19 +40,32 @@ def main() -> None:
 
         try:
             with tqdm(leave=True, desc=f"{raceline.track.name}-{race_car.name}") as bar:
-                update_interval = 500
-                for i in itertools.count():
+                update_seconds = 1.0
+                last_update = time.monotonic()
+                save_seconds = 10.0
+                last_save = time.monotonic()
+                pending = 0
+                bar.set_postfix(
+                    laptime=f"{raceline.best_time_str()}",
+                    improvement=f"{raceline.best_time - loaded_best_time:.4f}",
+                )
+                for _ in itertools.count():
                     raceline.try_random_line(race_car)
-                    if i % update_interval == 0:
+                    pending += 1
+
+                    if time.monotonic() - last_update >= update_seconds:
                         bar.set_postfix(
                             laptime=f"{raceline.best_time_str()}",
                             improvement=f"{raceline.best_time - loaded_best_time:.4f}",
                             progress=f"{1 / (1 + (raceline.progress_rate - TOLERANCE) * 100):.3%}",
                         )
-                        bar.update(update_interval)
+                        bar.update(pending)
+                        pending = 0
+                        last_update = time.monotonic()
 
-                    if i % 10000 == 0:
+                    if time.monotonic() - last_save >= save_seconds:
                         raceline.save_line(file_path, race_car.name)
+                        last_save = time.monotonic()
 
                     if raceline.progress_rate < TOLERANCE:
                         bar.set_postfix(
@@ -59,10 +73,13 @@ def main() -> None:
                             improvement=f"{raceline.best_time - loaded_best_time:.4f}",
                             status="finished",
                         )
-                        bar.update(update_interval)
+                        bar.update(pending)
                         break
         except KeyboardInterrupt:
             logging.warning("Interrupted by CTRL+C")
+            exit()
+        except SystemError as exc:
+            logging.warning(f"Interrupted during numba cache load: {exc}")
             exit()
         finally:
             raceline.save_line(file_path, race_car.name)

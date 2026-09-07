@@ -201,7 +201,7 @@ class Raceline:
 
         # Simulate the new line and check if it's better
         laptime = simulate(car, new_coordinates, self.track.slope).laptime
-        if improvement := self.best_time - laptime > 0:
+        if np.isfinite(improvement := self.best_time - laptime) and improvement > 0:
             self._position = new_line_position
             self.best_time = laptime
 
