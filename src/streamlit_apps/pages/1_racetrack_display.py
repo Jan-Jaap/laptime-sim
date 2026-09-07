@@ -64,6 +64,8 @@ def main() -> None:
 
     try:
         all_racelines = gpd.read_parquet(PATH_RESULTS, filters=[("track_name", "==", track.name)])
+        # ignore racelines orphaned by car renames (see AGENTS.md)
+        all_racelines = all_racelines[all_racelines["car"].isin([car.name for car in CAR_LIST])]
     except ValueError:
         all_racelines = gpd.GeoDataFrame()
 
