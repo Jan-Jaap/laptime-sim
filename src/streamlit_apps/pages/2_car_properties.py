@@ -1,8 +1,8 @@
 """This module creates a streamlit app"""
 
 import numpy as np
-import plotly.express as px
 import streamlit as st
+from matplotlib import pyplot as plt
 
 import laptime_sim
 from laptime_sim.car import CornerAcceleration, DriverExperience
@@ -12,36 +12,29 @@ G = 9.81  # m/s²
 
 
 def plot_car_lon(race_car: laptime_sim.Car, v1):
-    v = range(300)
-    fig = px.line(
-        dict(
-            v=v,
-            acc=[race_car.get_acceleration(v=v0 / 3.6, acc_lat=0) / G for v0 in v],
-            dec=[-race_car.get_deceleration(v=v0 / 3.6, acc_lat=0) / G for v0 in v],
-        ),
-        x=["acc", "dec"],
-        y="v",
-    )
-    fig.add_vline(x=0, line_color="grey")
-    fig.add_hline(y=v1, line_color="grey")
+    v = np.arange(300)
+    fig, ax = plt.subplots(figsize=(5, 6))
+    ax.plot([race_car.get_acceleration(v=v0 / 3.6, acc_lat=0) / G for v0 in v], v, label="acc")
+    ax.plot([-race_car.get_deceleration(v=v0 / 3.6, acc_lat=0) / G for v0 in v], v, label="dec")
+    ax.axvline(0, color="grey", lw=1)
+    ax.axhline(v1, color="grey", lw=1)
+    ax.set_xlabel("Longitudinal acceleration (g)")
+    ax.set_ylabel("Velocity (km/h)")
+    ax.legend()
     return fig
 
 
 def plot_car_lat(race_car: laptime_sim.Car, v1):
     x = np.linspace(-race_car.lat_limit, race_car.lat_limit, 100)
 
-    fig = px.line(
-        dict(
-            x=x / G,
-            acc=[race_car.get_acceleration(v=v1 / 3.6, acc_lat=lat) / G for lat in x],
-            dec=[-race_car.get_deceleration(v=v1 / 3.6, acc_lat=lat) / G for lat in x],
-        ),
-        x="x",
-        y=["acc", "dec"],
-    )
-    fig.add_vline(x=0, line_color="grey")
-    fig.add_hline(y=0, line_color="grey")
-
+    fig, ax = plt.subplots(figsize=(5, 6))
+    ax.plot(x / G, [race_car.get_acceleration(v=v1 / 3.6, acc_lat=lat) / G for lat in x], label="acc")
+    ax.plot(x / G, [-race_car.get_deceleration(v=v1 / 3.6, acc_lat=lat) / G for lat in x], label="dec")
+    ax.axvline(0, color="grey", lw=1)
+    ax.axhline(0, color="grey", lw=1)
+    ax.set_xlabel("Lateral acceleration (g)")
+    ax.set_ylabel("Longitudinal acceleration (g)")
+    ax.legend()
     return fig
 
 
@@ -68,8 +61,8 @@ def main() -> None:
     v1 = st.slider("Velocity in km/h", min_value=0, max_value=300)
 
     col1, col2 = st.columns(2)
-    col1.plotly_chart(plot_car_lon(race_car, v1))
-    col2.plotly_chart(plot_car_lat(race_car, v1))
+    col1.pyplot(plot_car_lon(race_car, v1))
+    col2.pyplot(plot_car_lat(race_car, v1))
 
     with st.expander("Car parameters"):
         st.write(race_car)

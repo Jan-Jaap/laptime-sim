@@ -7,8 +7,6 @@ from laptime_sim.simresults import SimResults
 
 """Race simulator for determining the laptime when racing optimal speed"""
 
-# gravity vector
-
 
 def simulate(car: Car, line_coordinates: NDArray, slope: NDArray) -> SimResults:
     """
@@ -23,66 +21,173 @@ def simulate(car: Car, line_coordinates: NDArray, slope: NDArray) -> SimResults:
         SimResults: The simulation results containing the line coordinates, timestep, speed,
         curvature direction, and distance.
     """
-
-    # Calculate the first and second derivative of the points
-    dX = np.gradient(line_coordinates, axis=0)
-    ddX = np.gradient(dX, axis=0)
-    ds = mag(dX)  # traveled distance
-    T = dX / ds[:, None]  # unit tangent (direction of travel)
-    B = np.cross(dX, ddX)  # binormal
-    k = mag(B) / np.power(ds, 3)  # magnitude of curvature
-    B = B / mag(B)[:, None]  # unit binormal
-    N = np.cross(B, T)  # unit normal vector
-    Nk = N * k[:, None]  # curvature normal vector
-
-    # Rotate Tt 90deg CW in xy-plane
-    Bt = T[:, [1, 0, 2]]
-    Bt[:, 1] *= -1
-    Bt[:, 2] = slope  # align Bt with the track and normalize
-    Bt = Bt / mag(Bt)[:, None]
-
-    g = np.array([[0, 0, 9.81]])
-    g_car_lon = np.einsum("ij,ij->i", g, T, optimize=True)
-    g_car_lat = np.einsum("ij,ij->i", g, Bt, optimize=True)
-    k_car_lat = np.einsum("ij,ij->i", Nk, Bt, optimize=True)
-
-    v_max = np.sqrt(np.fmax(0, car.lat_limit - g_car_lat * np.sign(k_car_lat)) / np.fmax(1e-3, np.abs(k_car_lat)))
-
-    car_acc = {
-        "mass": car.mass,
-        "acc_limit": car.acc_limit,
-        "lat_limit": car.lat_limit,
-        "c_drag": car.c_drag,
-        "c_roll": car.c_roll,
-        "corner_acc": car.corner_acc,
-        "P_engine_in_watt": car.P_engine_in_watt,
-    }
-
-    car_dec = {
-        "mass": car.mass,
-        "acc_limit": car.dec_limit,
-        "lat_limit": car.lat_limit,
-        "c_drag": -car.c_drag,
-        "c_roll": -car.c_roll,
-        "corner_acc": car.trail_braking,
-        "P_engine_in_watt": 0,
-    }
-
-    v_a = np.zeros_like(v_max)  # simulated speed maximum acceleration
-    v_b = np.zeros_like(v_max)  # simulated speed maximum braking
-
-    # run the simulation in forward direction for acceleration
-    calc_speed(v_a, ds, k_car_lat, g_car_lon, g_car_lat, v_max, **car_acc)
-    # run the simulation in reverse direction for braking
-    calc_speed(v_b[::-1], ds[::-1], k_car_lat[::-1], -g_car_lon[::-1], g_car_lat[::-1], v_max[::-1], **car_dec)
-    # v_b = v_b[::-1]  # flip the braking array not required since we pass in the pointer backwards
-
-    speed = np.fmin(v_a, v_b)
-    dt = 2 * ds / (speed + np.roll(speed, 1))
+    dt, speed, Nk, ds = _simulate_kernel(
+        line_coordinates,
+        slope,
+        lat_limit=car.lat_limit,
+        mass=car.mass,
+        acc_limit=car.acc_limit,
+        dec_limit=car.dec_limit,
+        c_drag=car.c_drag,
+        c_roll=car.c_roll,
+        corner_acc=car.corner_acc,
+        trail_braking=car.trail_braking,
+        P_engine_in_watt=car.P_engine_in_watt,
+    )
     return SimResults(line_coordinates, dt, speed, Nk, ds)
 
 
-@nb.njit
+@nb.njit(cache=True)
+def _simulate_kernel(  # noqa: PLR0913, PLR0914
+    line_coordinates,
+    slope,
+    lat_limit,
+    mass,
+    acc_limit,
+    dec_limit,
+    c_drag,
+    c_roll,
+    corner_acc,
+    trail_braking,
+    P_engine_in_watt,
+):
+    """
+    Compiled equivalent of the original numpy precompute (gradient, curvature,
+    gravity projection) followed by the forward acceleration and reverse
+    braking passes. Bit-for-bit equivalent to the original formula's semantics.
+
+    Returns: (dt, speed, Nk, ds)
+    """
+    n = line_coordinates.shape[0]
+
+    dX = np.empty((n, 3))
+    ddX = np.empty((n, 3))
+    for i in range(n):
+        for j in range(3):
+            if i == 0:
+                dX[i, j] = line_coordinates[1, j] - line_coordinates[0, j]
+            elif i == n - 1:
+                dX[i, j] = line_coordinates[n - 1, j] - line_coordinates[n - 2, j]
+            else:
+                dX[i, j] = 0.5 * (line_coordinates[i + 1, j] - line_coordinates[i - 1, j])
+    for i in range(n):
+        for j in range(3):
+            if i == 0:
+                ddX[i, j] = dX[1, j] - dX[0, j]
+            elif i == n - 1:
+                ddX[i, j] = dX[n - 1, j] - dX[n - 2, j]
+            else:
+                ddX[i, j] = 0.5 * (dX[i + 1, j] - dX[i - 1, j])
+
+    ds = np.empty(n)
+    Nk = np.empty((n, 3))
+    g_car_lon = np.empty(n)
+    g_car_lat = np.empty(n)
+    k_car_lat = np.empty(n)
+    v_max = np.empty(n)
+
+    for i in range(n):
+        m = np.sqrt(dX[i, 0] ** 2 + dX[i, 1] ** 2 + dX[i, 2] ** 2)
+        ds[i] = m
+        tx = dX[i, 0] / m
+        ty = dX[i, 1] / m
+        tz = dX[i, 2] / m
+
+        bx = dX[i, 1] * ddX[i, 2] - dX[i, 2] * ddX[i, 1]
+        by = dX[i, 2] * ddX[i, 0] - dX[i, 0] * ddX[i, 2]
+        bz = dX[i, 0] * ddX[i, 1] - dX[i, 1] * ddX[i, 0]
+        bm = np.sqrt(bx * bx + by * by + bz * bz)
+        k = bm / (m * m * m)
+        bx /= bm
+        by /= bm
+        bz /= bm
+
+        nx = by * tz - bz * ty
+        ny = bz * tx - bx * tz
+        nz = bx * ty - by * tx
+        Nk[i, 0] = nx * k
+        Nk[i, 1] = ny * k
+        Nk[i, 2] = nz * k
+
+        # Rotate T 90deg CW in the xy-plane and align with the track slope
+        btx = ty
+        bty = -tx
+        btz = slope[i]
+        btm = np.sqrt(btx * btx + bty * bty + btz * btz)
+        btx /= btm
+        bty /= btm
+        btz /= btm
+
+        g_car_lon[i] = 9.81 * tz
+        g_car_lat[i] = 9.81 * btz
+        k_car_lat[i] = Nk[i, 0] * btx + Nk[i, 1] * bty + Nk[i, 2] * btz
+
+        if k_car_lat[i] > 0:
+            sgn = 1.0
+        elif k_car_lat[i] < 0:
+            sgn = -1.0
+        else:
+            sgn = 0.0
+        kk = abs(k_car_lat[i])
+        if kk < 1e-3:
+            kk = 1e-3
+        num = lat_limit - g_car_lat[i] * sgn
+        if num < 0:
+            num = 0.0
+        v_max[i] = np.sqrt(num / kk)
+
+    v_a = np.zeros(n)  # simulated speed maximum acceleration
+    v_b = np.zeros(n)  # simulated speed maximum braking
+
+    # run the simulation in forward direction for acceleration
+    calc_speed(
+        v_a,
+        ds,
+        k_car_lat,
+        g_car_lon,
+        g_car_lat,
+        v_max,
+        mass,
+        acc_limit,
+        lat_limit,
+        c_drag,
+        c_roll,
+        corner_acc,
+        P_engine_in_watt,
+    )
+    # run the simulation in reverse direction for braking
+    calc_speed(
+        v_b[::-1],
+        ds[::-1],
+        k_car_lat[::-1],
+        -g_car_lon[::-1],
+        g_car_lat[::-1],
+        v_max[::-1],
+        mass,
+        dec_limit,
+        lat_limit,
+        -c_drag,
+        -c_roll,
+        trail_braking,
+        0.0,
+    )
+
+    speed = np.empty(n)
+    for i in range(n):
+        if v_a[i] < v_b[i]:
+            speed[i] = v_a[i]
+        else:
+            speed[i] = v_b[i]
+
+    dt = np.empty(n)
+    for i in range(n):
+        im = i - 1 if i > 0 else n - 1  # np.roll(speed, 1) semantics
+        dt[i] = 2.0 * ds[i] / (speed[i] + speed[im])
+
+    return dt, speed, Nk, ds
+
+
+@nb.njit(cache=True)
 def calc_speed(
     speed,
     ds,
@@ -152,7 +257,7 @@ def calc_speed(
     return speed
 
 
-@nb.njit
+@nb.njit(cache=True)
 def mag(vector: NDArray) -> NDArray:
     """
     Calculate the magnitude of vectors along the second axis of the input array.

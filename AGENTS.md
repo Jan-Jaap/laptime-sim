@@ -22,7 +22,7 @@ No typecheck or CI config exists. Lint/format with ruff (dev dep; config in `pyp
 
 - `src/main.py` — CLI entrypoint: simulated-annealing brute-force raceline optimization over every car × track. Saves one parquet per combo to `resources/simulated/` (gitignored) and **resumes from an existing file** if present, so deleting it restarts optimization from scratch.
 - `src/laptime_sim/` — core library: `Track` (geopandas parquet; reprojects to UTM on init; borders tagged via a `geom_type` column with values `left`/`right`, written by streamlit page `3_create_track.py`), `Car` (pydantic, loaded from TOML in `resources/cars/`, power given in hp), `Raceline` (stores the line as a normalized 0–1 position across track width per point — not coordinates; use `coordinates_from_position` to convert).
-- `simulate.py` — physics core; hot loops are numba `@njit`, so the first call in a session pays JIT compilation (slow first sim/test run — not a hang).
+- `simulate.py` — physics core; hot loops are numba `@njit(cache=True)`. First run compiles (~seconds), afterwards the numba cache in `__pycache__` makes runs fast. `tests/test_benchmark.py` reports ms/iteration (`uv run pytest tests/test_benchmark.py -s`).
 - `src/temp/` — untracked scratch code (gitignored); ignore it.
 
 ## Conventions

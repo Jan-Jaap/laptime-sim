@@ -1,11 +1,20 @@
 import functools
 from pathlib import Path
 
+import numba as nb
 import numpy as np
 import shapely
 from geopandas import GeoDataFrame, GeoSeries, read_parquet
 from numpy.typing import NDArray
 from scipy.signal import savgol_filter
+
+
+@nb.njit(cache=True)
+def _interpolate_positions(left_coords, right_coords, line_pos, out):
+    """Elementwise interpolation of the raceline between the track borders."""
+    for i in range(line_pos.shape[0]):
+        for j in range(3):
+            out[i, j] = left_coords[i, j] + (right_coords[i, j] - left_coords[i, j]) * line_pos[i]
 
 
 class Track:
@@ -253,8 +262,13 @@ class Track:
         """
         if self.is_circular:
             assert self.len - len(line_pos) == 1
-            line_pos = np.append(line_pos, line_pos[0])
-        return self.left_coords + (self.right_coords - self.left_coords) * np.expand_dims(line_pos, axis=1)
+            out = np.empty((self.len, 3))
+            _interpolate_positions(self.left_coords, self.right_coords, line_pos, out[: self.len - 1])
+            out[self.len - 1] = out[0]
+            return out
+        out = np.empty((self.len, 3))
+        _interpolate_positions(self.left_coords, self.right_coords, line_pos, out)
+        return out
 
 
 def track_list(path_tracks: Path | str):

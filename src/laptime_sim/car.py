@@ -1,10 +1,10 @@
 import functools
+import tomllib
+from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
 
 import numpy as np
-import toml
-from pydantic import BaseModel, Field, PositiveFloat
 
 
 class DriverExperience(IntEnum):
@@ -25,26 +25,39 @@ class CornerAcceleration(IntEnum):
     DIFFERENTIAL_RWD = 90
 
 
-class Car(BaseModel):
+@dataclass
+class Car:
     """
     A class representing a car with its physical properties and capabilities.
     """
 
-    name: str = Field(..., description="Name of the car")
-    mass: PositiveFloat = Field(..., description="Mass of the car in kilograms")
-    P_engine: PositiveFloat = Field(..., description="Engine power in horsepower")
-    acc_limit: PositiveFloat = Field(..., description="Longitudinal acceleration limit (grip limit) in m/s²")
-    dec_limit: PositiveFloat = Field(..., description="Deceleration limit (grip limit under braking) in m/s²")
-    lat_limit: PositiveFloat = Field(..., description="Lateral acceleration limit (grip limit) in m/s²")
-    c_drag: PositiveFloat = Field(..., description="Drag coefficient")
-    c_roll: PositiveFloat = Field(..., description="Rolling resistance coefficient")
-    trail_braking: DriverExperience = Field(ge=0, le=100, description="Trailbraking factor")
-    corner_acc: CornerAcceleration = Field(ge=0, le=100, description="Corner acceleration factor")
+    name: str
+    mass: float  # Mass of the car in kilograms
+    P_engine: float  # Engine power in horsepower
+    acc_limit: float  # Longitudinal acceleration limit (grip limit) in m/s²
+    dec_limit: float  # Deceleration limit (grip limit under braking) in m/s²
+    lat_limit: float  # Lateral acceleration limit (grip limit) in m/s²
+    c_drag: float  # Drag coefficient
+    c_roll: float  # Rolling resistance coefficient
+    trail_braking: DriverExperience  # Trailbraking factor
+    corner_acc: CornerAcceleration  # Corner acceleration factor
+
+    def __post_init__(self):
+        for field_name in ("mass", "P_engine", "acc_limit", "dec_limit", "lat_limit", "c_drag", "c_roll"):
+            if getattr(self, field_name) <= 0:
+                raise ValueError(f"{field_name} must be positive, got {getattr(self, field_name)}")
+        if not 0 <= self.trail_braking <= 100:
+            raise ValueError(f"trail_braking must be in the range 0-100, got {self.trail_braking}")
+        if not 0 <= self.corner_acc <= 100:
+            raise ValueError(f"corner_acc must be in the range 0-100, got {self.corner_acc}")
+        self.trail_braking = DriverExperience(self.trail_braking)
+        self.corner_acc = CornerAcceleration(self.corner_acc)
 
     @classmethod
     def from_toml(cls, file_name):
         """Load car parameters from TOML file."""
-        return cls(**toml.load(file_name))
+        with open(file_name, "rb") as f:
+            return cls(**tomllib.load(f))
 
     @functools.cached_property
     def file_name(self):
@@ -115,9 +128,4 @@ class Car(BaseModel):
 def car_list(path_cars: Path | str) -> list[Car]:
     path_cars = Path(path_cars)
 
-    cars = []
-    for file in sorted(path_cars.glob("*.toml")):
-        car_data = toml.load(file)
-        car = Car(**car_data)
-        cars.append(car)
-    return cars
+    return [Car.from_toml(file) for file in sorted(path_cars.glob("*.toml"))]

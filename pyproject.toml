@@ -12,12 +12,9 @@ dependencies = [
     "streamlit>=1.44.1",
     "geopandas>=1.0.1",
     "matplotlib>=3.10.1",
-    "pydantic>=2.11.1",
     "numba>=0.61.0",
-    "plotly>=6.0.1",
     "tqdm>=4.67.1",
     "scipy>=1.15.2",
-    "mapclassify>=2.8.1",
 ]
 
 [tool.uv]
@@ -27,7 +24,6 @@ package = false
 [dependency-groups]
 dev = [
     "pytest",
-    "icecream",
     "ruff>=0.16.6",
 ]
 

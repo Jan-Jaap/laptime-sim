@@ -32,6 +32,7 @@ class Raceline:
     def __post_init__(self) -> None:
         self._position = np.zeros_like(self.width)
         self._heatmap = np.ones_like(self.width)
+        self._heatmap_sum = float(self._heatmap.sum())
 
     def load_file(self, file_path: Path) -> None:
 
@@ -179,7 +180,7 @@ class Raceline:
         idx_len = len(self.width)
 
         # Choose a random location and length for the deviation
-        location_index = random_generator.choice(len(self._heatmap), p=self._heatmap / sum(self._heatmap))
+        location_index = random_generator.choice(idx_len, p=self._heatmap / self._heatmap_sum)
         length = random_generator.integers(3, MAX_DEVIATION_LENGTH, endpoint=True)
         deviation = random_generator.uniform(-1, 1) * max(length / MAX_DEVIATION_LENGTH, MAX_DEVIATION)
 
@@ -205,9 +206,11 @@ class Raceline:
             self.best_time = laptime
 
             self._heatmap += position * improvement * 1e3
+            self._heatmap_sum += improvement * 1e3 * float(line_adjust[:length].sum())
             self.progress_rate += improvement
             return
 
         # If the new line is not better, slowly decay the heatmap and progress rate
         self._heatmap = (self._heatmap + 0.00015) / 1.00015
+        self._heatmap_sum = (self._heatmap_sum + idx_len * 0.00015) / 1.00015
         self.progress_rate *= F_ANNEAL
