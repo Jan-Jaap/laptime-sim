@@ -1,5 +1,5 @@
 ## ------------------------------- Builder Stage ------------------------------ ## 
-FROM python:3.12-bookworm AS builder
+FROM python:3.14-bookworm AS builder
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
         build-essential && \
@@ -19,7 +19,7 @@ COPY ./pyproject.toml .
 RUN uv sync --no-dev
 
 ## ------------------------------- Production Stage ------------------------------ ##
-FROM python:3.12-slim-bookworm AS production
+FROM python:3.14-slim-bookworm AS production
 
 WORKDIR /app
 

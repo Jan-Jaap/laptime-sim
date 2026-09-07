@@ -40,7 +40,8 @@ class Timer:
         """
         A property method that returns the elapsed time in seconds since the timer was last reset.
 
-        Returns a datetime.timedelta object which is the difference between the current time and the time the timer was last reset.
+        Returns a datetime.timedelta object which is the difference between
+        the current time and the time the timer was last reset.
         """
 
         return datetime.datetime.now() - self._time

@@ -1,8 +1,9 @@
+import numba as nb
 import numpy as np
 from numpy.typing import NDArray
-import numba as nb
-from laptime_sim.simresults import SimResults
+
 from laptime_sim.car import Car
+from laptime_sim.simresults import SimResults
 
 """Race simulator for determining the laptime when racing optimal speed"""
 
@@ -124,7 +125,9 @@ def calc_speed(
     for i in range(-90, len(v_max) - 1):  # negative index to simulate running start....
         j = i + 1
 
-        if not speed[i] < v_max[i]:  # if corner speed was maximal, all grip is used for lateral acceleration (=cornering)
+        if (
+            not speed[i] < v_max[i]
+        ):  # if corner speed was maximal, all grip is used for lateral acceleration (=cornering)
             speed[j] = min(speed[i], v_max[j])
             continue  # speed remains the same
 

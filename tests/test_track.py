@@ -1,6 +1,7 @@
-import pytest
 import numpy as np
+import pytest
 from geopandas import GeoDataFrame, GeoSeries
+
 import laptime_sim
 from main import TRACK_LIST
 

@@ -1,8 +1,9 @@
 """This module creates a streamlit app"""
 
 import math
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any
 
 import folium
 import geopandas as gpd
@@ -34,12 +35,16 @@ def main() -> None:
     point_count = st.number_input("POINT_COUNT", min_value=100, max_value=5000, value=POINT_COUNT, step=10)
     transect_length = st.number_input("TRANSECT_LENGTH", min_value=1, max_value=100, value=TRANSECT_LENGTH, step=1)
     track_name = st.text_input("Track name", value=Path(uploaded_file.name).stem)
-    smooth_factor_centerline = st.slider("smooth_factor_centerline", min_value=6, max_value=POINT_COUNT, value=6, step=1)
+    smooth_factor_centerline = st.slider(
+        "smooth_factor_centerline", min_value=6, max_value=POINT_COUNT, value=6, step=1
+    )
     smooth_factor_track = st.slider("smooth_factor_track", min_value=6, max_value=POINT_COUNT, value=6, step=1)
 
     start_finish = track.to_crs(epsg=4326).geometry.iloc[0].boundary.interpolate(0)
     start_finish_input_text = st.text_input("Start finish", value=f"{start_finish.y:.6f},{start_finish.x:.6f}")
-    start_finish = gpd.GeoSeries(shapely.Point([float(x) for x in start_finish_input_text.split(",")][::-1]), crs="EPSG:4326")
+    start_finish = gpd.GeoSeries(
+        shapely.Point([float(x) for x in start_finish_input_text.split(",")][::-1]), crs="EPSG:4326"
+    )
     start_finish = start_finish.to_crs(track.crs)
 
     track = correct_inside_out(track)
@@ -160,7 +165,9 @@ def create_centerline(track, nr_points=600, start_finish=None) -> shapely.Linear
     inner = redistribute_vertices(inner, nr_points, offset_inner)
     outer = redistribute_vertices(outer, nr_points, offset_outer)
 
-    return shapely.LinearRing([((x1 + x2) / 2, (y1 + y2) / 2) for (x1, y1), (x2, y2) in zip(inner.coords, outer.coords)])
+    return shapely.LinearRing(
+        [((x1 + x2) / 2, (y1 + y2) / 2) for (x1, y1), (x2, y2) in zip(inner.coords, outer.coords, strict=False)]
+    )
 
 
 def smooth_line(line: shapely.LinearRing, smooth_factor: int = 50) -> shapely.LinearRing:
@@ -178,7 +185,7 @@ def smooth_line(line: shapely.LinearRing, smooth_factor: int = 50) -> shapely.Li
     x_smoothed = savgol_filter(x, smooth_factor, 5, mode="wrap")
     y_smoothed = savgol_filter(y, smooth_factor, 5, mode="wrap")
 
-    return shapely.LinearRing(list(zip(x_smoothed, y_smoothed)))
+    return shapely.LinearRing(list(zip(x_smoothed, y_smoothed, strict=False)))
 
 
 def generate_transect(
@@ -209,7 +216,7 @@ def generate_transect(
     return ((x2 - dy, y2 - dx)), (x2 + dy, y2 + dx)
 
 
-def transect(line: shapely.LinearRing, length: Optional[float] = None) -> shapely.MultiLineString:
+def transect(line: shapely.LinearRing, length: float | None = None) -> shapely.MultiLineString:
     """
     Generate a MultiLineString containing transect lines based on a LinearRing.
 

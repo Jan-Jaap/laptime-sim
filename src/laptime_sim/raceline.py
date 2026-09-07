@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
-from numpy.typing import NDArray
 from geopandas import GeoDataFrame, GeoSeries, read_parquet
+from numpy.typing import NDArray
 from shapely import LineString, Point
 
 from laptime_sim.car import Car
@@ -44,7 +44,9 @@ class Raceline:
         coordinates = data.get_coordinates(include_z=False).to_numpy(na_value=0)
         # check if first and last coordinates are the same
 
-        assert len(coordinates) == self.track.len, f"Track length {self.track.len} != coordinates length {len(coordinates)}"
+        assert len(coordinates) == self.track.len, (
+            f"Track length {self.track.len} != coordinates length {len(coordinates)}"
+        )
 
         if self.track.is_circular:
             assert np.array_equal(coordinates[0], coordinates[-1]), "First and last coordinates are not the same"

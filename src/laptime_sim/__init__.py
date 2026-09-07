@@ -1,9 +1,8 @@
 from .car import Car, car_list
 from .raceline import Raceline
 from .simresults import SimResults
-
-from .track import Track, track_list
 from .timer import Timer
+from .track import Track, track_list
 
 __all__ = [
     "Car",

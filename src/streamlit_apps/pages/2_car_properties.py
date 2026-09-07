@@ -3,10 +3,10 @@
 import numpy as np
 import plotly.express as px
 import streamlit as st
-from main import CAR_LIST
 
 import laptime_sim
 from laptime_sim.car import CornerAcceleration, DriverExperience
+from main import CAR_LIST
 
 G = 9.81  # m/s²
 
@@ -68,14 +68,8 @@ def main() -> None:
     v1 = st.slider("Velocity in km/h", min_value=0, max_value=300)
 
     col1, col2 = st.columns(2)
-    col1.plotly_chart(
-        plot_car_lon(race_car, v1),
-        use_container_width=True,
-    )
-    col2.plotly_chart(
-        plot_car_lat(race_car, v1),
-        use_container_width=True,
-    )
+    col1.plotly_chart(plot_car_lon(race_car, v1))
+    col2.plotly_chart(plot_car_lat(race_car, v1))
 
     with st.expander("Car parameters"):
         st.write(race_car)

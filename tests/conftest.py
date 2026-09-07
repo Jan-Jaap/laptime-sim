@@ -1,4 +1,5 @@
 import pytest
+
 import laptime_sim
 from main import CAR_LIST, TRACK_LIST
 

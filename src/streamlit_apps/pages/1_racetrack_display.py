@@ -1,15 +1,16 @@
 """This module creates a streamlit app"""
 
 from pathlib import Path
+
 import folium
 import geopandas as gpd
 import streamlit as st
 import xyzservices.providers as xyz
 from matplotlib import pyplot as plt
 from streamlit_folium import st_folium
-import laptime_sim
-from main import CAR_LIST, TRACK_LIST, PATH_RESULTS
 
+import laptime_sim
+from main import CAR_LIST, PATH_RESULTS, TRACK_LIST
 
 style_divisions = dict(color="grey")
 style_track_border = dict(color="black")
@@ -84,7 +85,7 @@ def main() -> None:
     selected_point = raceline.get_point(point_index)
 
     with expander_track_map:
-        # track_map = folium_track_map(track, all_racelines, raceline.dataframe(track_name=track.name, car_name=race_car.name))
+        # track_map = folium_track_map(track, all_racelines)
         my_map = create_track_map(track)
         add_divisions(my_map, track)
         add_start_finish(my_map, track)
@@ -97,7 +98,7 @@ def main() -> None:
     with st.expander("Raceline data", expanded=True):
         raceline_datapoint = sim_results.get_dataframe().iloc[point_index]
         raceline_datapoint["slope"] = track.slope[point_index] * 100
-        st.write(raceline_datapoint, use_container_width=True)
+        st.write(raceline_datapoint)
         # st.write(
 
     with st.expander("Raceline speed", expanded=True):

@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "JanJaapvandeVelde", email = "janjaap.vandevelde@gmail.com" },
 ]
-requires-python = "<4.0,>=3.12"
+requires-python = "<4.0,>=3.14"
 dependencies = [
     "streamlit-folium>=0.24.0",
     "streamlit>=1.44.1",
@@ -25,7 +25,11 @@ package = false
 # no-build = true
 
 [dependency-groups]
-dev = ["pytest", "icecream"]
+dev = [
+    "pytest",
+    "icecream",
+    "ruff>=0.16.6",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -34,3 +38,13 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["src/temp"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"

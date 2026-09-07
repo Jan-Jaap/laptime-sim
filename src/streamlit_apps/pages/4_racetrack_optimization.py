@@ -2,12 +2,13 @@
 
 import itertools
 from pathlib import Path
+
 import streamlit as st
 from matplotlib import pyplot as plt
 
 import laptime_sim
+from laptime_sim import Car, Raceline, Track
 from main import CAR_LIST, PATH_RESULTS, TRACK_LIST
-from laptime_sim import Raceline, Car, Track
 
 
 def format_results(data):
@@ -35,14 +36,18 @@ def optimize_raceline(track: Track, car: Car, raceline: Raceline):
                 timer1 = laptime_sim.Timer(1)
                 timer2 = laptime_sim.Timer(30)
 
-                placeholder_laptime.write(f"Laptime = {raceline.best_time % 3600 // 60:02.0f}:{raceline.best_time % 60:06.03f}")
+                placeholder_laptime.write(
+                    f"Laptime = {raceline.best_time % 3600 // 60:02.0f}:{raceline.best_time % 60:06.03f}"
+                )
 
                 timer3 = laptime_sim.Timer()
                 for itereration in itertools.count():
                     raceline.try_random_line(car)
                     if timer1.triggered:
                         placeholder_laptime.write(
-                            f"Laptime = {raceline.best_time_str()}. iteration:{itereration}, iteration_rate:{itereration / timer3.elapsed_time.total_seconds():.0f}"
+                            f"Laptime = {raceline.best_time_str()}. "
+                            f"iteration:{itereration}, "
+                            f"iteration_rate:{itereration / timer3.elapsed_time.total_seconds():.0f}"
                         )
                         timer1.reset()
 

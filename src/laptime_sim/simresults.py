@@ -2,8 +2,8 @@ import dataclasses
 from functools import cached_property
 
 import numpy as np
-from numpy.typing import NDArray
 import pandas as pd
+from numpy.typing import NDArray
 
 OUTPUT_COLUMNS_NAMES = dict(
     distance="Distance (m)",
@@ -121,7 +121,8 @@ class SimResults:
                 - speed_kph: The speed in kilometers per hour at each point.
 
         Note:
-            The DataFrame is indexed by the 'time' column. The column names are renamed using the OUTPUT_COLUMNS_NAMES dict.
+            The DataFrame is indexed by the 'time' column. The column names are
+            renamed using the OUTPUT_COLUMNS_NAMES dict.
 
         """
         df = pd.DataFrame()

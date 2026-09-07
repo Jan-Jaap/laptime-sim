@@ -2,13 +2,13 @@
 
 ## Commands
 
-- Setup: `uv sync` (Python 3.12 pinned in `.python-version`). The project itself is **not** installed (`[tool.uv] package = false`); imports are resolved via pytest `pythonpath = ["src"]` and Docker `PYTHONPATH=/app/src`.
+- Setup: `uv sync` (Python 3.14 pinned in `.python-version`). The project itself is **not** installed (`[tool.uv] package = false`); imports are resolved via pytest `pythonpath = ["src"]` and Docker `PYTHONPATH=/app/src`.
 - Tests: `uv run pytest` — **must run from repo root**, see below.
 - Single test: `uv run pytest tests/test_track.py -k name`
 - Streamlit app: `uv run streamlit run src/streamlit_apps/Welcome.py` (multipage; pages auto-discovered from `src/streamlit_apps/pages/`)
 - Docker: `docker compose up --build -d` → http://localhost:8501
 
-No lint, typecheck, or CI config exists.
+No typecheck or CI config exists. Lint/format with ruff (dev dep; config in `pyproject.toml`): `uv run ruff check --fix` then `uv run ruff format` on `src tests`; `src/temp/` is excluded.
 
 ## Import-time cwd requirement
 

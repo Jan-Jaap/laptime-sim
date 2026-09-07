@@ -1,12 +1,10 @@
 import functools
-
-
 from pathlib import Path
 
 import numpy as np
-from numpy.typing import NDArray
 import shapely
 from geopandas import GeoDataFrame, GeoSeries, read_parquet
+from numpy.typing import NDArray
 from scipy.signal import savgol_filter
 
 
@@ -176,8 +174,8 @@ class Track:
         border_left = self.left_coords_2d
         border_right = self.right_coords_2d
         lines = []
-        for point_left, point_right in zip(border_left, border_right):
-            lines.append(([(point_left), (point_right)]))
+        for point_left, point_right in zip(border_left, border_right, strict=False):
+            lines.append([(point_left), (point_right)])
         return GeoSeries(shapely.MultiLineString(lines=lines), index=["divisions"], crs=self.crs)
 
     @functools.cached_property
@@ -238,6 +236,7 @@ class Track:
                     self.left_coords_2d,
                     self.right_coords_2d,
                     line_coords,
+                    strict=False,
                 )
             ]
         )

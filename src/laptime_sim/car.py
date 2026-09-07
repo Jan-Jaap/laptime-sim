@@ -1,9 +1,10 @@
 import functools
 from enum import IntEnum
 from pathlib import Path
-from pydantic import BaseModel, Field, PositiveFloat
+
 import numpy as np
 import toml
+from pydantic import BaseModel, Field, PositiveFloat
 
 
 class DriverExperience(IntEnum):

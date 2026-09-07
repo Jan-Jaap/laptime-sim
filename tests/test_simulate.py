@@ -1,8 +1,8 @@
 import numpy as np
-import laptime_sim
-from main import CAR_LIST
 
+import laptime_sim
 from laptime_sim.simulate import simulate
+from main import CAR_LIST
 
 
 def test_car_list():
