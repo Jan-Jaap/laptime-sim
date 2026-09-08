@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 from scipy.signal import savgol_filter
 
 
-@nb.njit(cache=True)
+@nb.njit(cache=True, nogil=True)
 def _interpolate_positions(left_coords, right_coords, line_pos, out):
     """Elementwise interpolation of the raceline between the track borders."""
     for i in range(line_pos.shape[0]):

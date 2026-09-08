@@ -15,6 +15,7 @@ CAR_LIST = car_list("./resources/cars/")
 
 PATH_RESULTS = Path("./resources/simulated/")
 TOLERANCE = 0.1
+BATCH_SIZE = 100
 
 
 def main() -> None:
@@ -50,7 +51,7 @@ def main() -> None:
                     improvement=f"{raceline.best_time - loaded_best_time:.4f}",
                 )
                 for _ in itertools.count():
-                    raceline.try_random_line(race_car)
+                    raceline.try_random_lines(race_car, BATCH_SIZE)
                     pending += 1
 
                     if time.monotonic() - last_update >= update_seconds:
@@ -59,7 +60,7 @@ def main() -> None:
                             improvement=f"{raceline.best_time - loaded_best_time:.4f}",
                             progress=f"{1 / (1 + (raceline.progress_rate - TOLERANCE) * 100):.3%}",
                         )
-                        bar.update(pending)
+                        bar.update(pending * BATCH_SIZE)
                         pending = 0
                         last_update = time.monotonic()
 
@@ -73,7 +74,7 @@ def main() -> None:
                             improvement=f"{raceline.best_time - loaded_best_time:.4f}",
                             status="finished",
                         )
-                        bar.update(pending)
+                        bar.update(pending * BATCH_SIZE)
                         break
         except KeyboardInterrupt:
             logging.warning("Interrupted by CTRL+C")

@@ -37,7 +37,7 @@ def simulate(car: Car, line_coordinates: NDArray, slope: NDArray) -> SimResults:
     return SimResults(line_coordinates, dt, speed, Nk, ds)
 
 
-@nb.njit(cache=True)
+@nb.njit(cache=True, nogil=True)
 def _simulate_kernel(  # noqa: PLR0913, PLR0914
     line_coordinates,
     slope,
