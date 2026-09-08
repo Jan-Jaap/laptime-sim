@@ -1,16 +1,15 @@
 import functools
-from pathlib import Path
 
 import numba as nb
 import numpy as np
 import shapely
-from geopandas import GeoDataFrame, GeoSeries, read_parquet
+from geopandas import GeoDataFrame, GeoSeries
 from numpy.typing import NDArray
 from scipy.signal import savgol_filter
 
 
 @nb.njit(cache=True, nogil=True)
-def _interpolate_positions(left_coords, right_coords, line_pos, out):
+def interpolate_positions(left_coords, right_coords, line_pos, out):
     """Elementwise interpolation of the raceline between the track borders."""
     for i in range(line_pos.shape[0]):
         for j in range(3):
@@ -263,28 +262,12 @@ class Track:
         if self.is_circular:
             assert self.len - len(line_pos) == 1
             out = np.empty((self.len, 3))
-            _interpolate_positions(self.left_coords, self.right_coords, line_pos, out[: self.len - 1])
+            interpolate_positions(self.left_coords, self.right_coords, line_pos, out[: self.len - 1])
             out[self.len - 1] = out[0]
             return out
         out = np.empty((self.len, 3))
-        _interpolate_positions(self.left_coords, self.right_coords, line_pos, out)
+        interpolate_positions(self.left_coords, self.right_coords, line_pos, out)
         return out
-
-
-def track_list(path_tracks: Path | str):
-    """
-    Returns a list of Track instances from a directory of parquet files.
-
-    Parameters:
-    - path_tracks (Path | str): The path to the directory of parquet files.
-
-    Returns:
-    - list[Track]: A list of Track instances.
-    """
-    path_tracks = Path(path_tracks)
-    if not path_tracks.is_dir():
-        raise FileNotFoundError(f"Path {path_tracks} is not a directory.")
-    return [Track(layout=read_parquet(file)) for file in sorted(path_tracks.glob("*.parquet"))]
 
 
 def loc_line(point_left, point_right, point_line):

@@ -3,7 +3,9 @@ import pytest
 from geopandas import GeoDataFrame, GeoSeries
 
 import laptime_sim
-from main import TRACK_LIST
+from laptime_sim.registry import tracks
+
+TRACK_LIST = tracks()
 
 track_list = TRACK_LIST
 

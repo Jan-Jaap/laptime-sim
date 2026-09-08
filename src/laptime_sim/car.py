@@ -2,7 +2,6 @@ import functools
 import tomllib
 from dataclasses import dataclass
 from enum import IntEnum
-from pathlib import Path
 
 import numpy as np
 
@@ -123,9 +122,3 @@ class Car:
         acc = self.get_acceleration(v=0, acc_lat=acc_lat)
         dec = self.get_deceleration(v=v, acc_lat=acc_lat)
         return acc_lat, np.column_stack((acc, -dec))
-
-
-def car_list(path_cars: Path | str) -> list[Car]:
-    path_cars = Path(path_cars)
-
-    return [Car.from_toml(file) for file in sorted(path_cars.glob("*.toml"))]

@@ -1,9 +1,12 @@
 import dataclasses
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 from numpy.typing import NDArray
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 OUTPUT_COLUMNS_NAMES = dict(
     distance="Distance (m)",
@@ -14,6 +17,19 @@ OUTPUT_COLUMNS_NAMES = dict(
     curvature_radius_x="Curvature radius (m)",
     time="Timestamp",
 )
+
+
+def format_laptime(seconds: float) -> str:
+    """
+    Formats a laptime in seconds as "MM:SS.mmm".
+
+    Parameters:
+    - seconds: float - The laptime in seconds.
+
+    Returns:
+    - str: The laptime in "MM:SS.mmm" format.
+    """
+    return f"{seconds % 3600 // 60:02.0f}:{seconds % 60:06.03f}"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -53,9 +69,9 @@ class SimResults:
         Returns a string representing the simulation results.
 
         Returns:
-            str: The string representing the simulation results.
+            str: The best laptime in "MM:SS.mmm" format.
         """
-        return f"{self.laptime % 3600 // 60:02.0f}:{self.laptime % 60:06.03f}"
+        return format_laptime(self.laptime)
 
     @cached_property
     def a_lat(self) -> NDArray:
@@ -125,6 +141,8 @@ class SimResults:
             renamed using the OUTPUT_COLUMNS_NAMES dict.
 
         """
+        import pandas as pd
+
         df = pd.DataFrame()
         df["time"] = self.dt.cumsum()
         df["distance"] = self.distance

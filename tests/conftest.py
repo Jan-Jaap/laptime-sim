@@ -1,7 +1,10 @@
 import pytest
 
 import laptime_sim
-from main import CAR_LIST, TRACK_LIST
+from laptime_sim.registry import cars, tracks
+
+CAR_LIST = cars()
+TRACK_LIST = tracks()
 
 
 @pytest.fixture(scope="module")

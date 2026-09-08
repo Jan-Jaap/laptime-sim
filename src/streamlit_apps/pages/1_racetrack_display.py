@@ -1,7 +1,5 @@
 """This module creates a streamlit app"""
 
-from pathlib import Path
-
 import folium
 import geopandas as gpd
 import streamlit as st
@@ -10,7 +8,10 @@ from matplotlib import pyplot as plt
 from streamlit_folium import st_folium
 
 import laptime_sim
-from main import CAR_LIST, PATH_RESULTS, TRACK_LIST
+from laptime_sim.registry import cars, load_result, read_results, tracks
+
+CAR_LIST = cars()
+TRACK_LIST = tracks()
 
 style_divisions = dict(color="grey")
 style_track_border = dict(color="black")
@@ -59,21 +60,10 @@ def main() -> None:
 
     st.header(f"Racetrack - {track.name}")
 
-    PATH_RESULTS.mkdir(exist_ok=True)
-    file_path = PATH_RESULTS / Path(f"{race_car.file_name}_{track.name}_simulated.parquet")
+    all_racelines = read_results(track, [car.name for car in CAR_LIST])
 
-    try:
-        all_racelines = gpd.read_parquet(PATH_RESULTS, filters=[("track_name", "==", track.name)])
-        # ignore racelines orphaned by car renames (see AGENTS.md)
-        all_racelines = all_racelines[all_racelines["car"].isin([car.name for car in CAR_LIST])]
-    except ValueError:
-        all_racelines = gpd.GeoDataFrame()
-
-    raceline = laptime_sim.Raceline(track)
-
-    try:
-        raceline.load_file(file_path)
-    except FileNotFoundError:
+    raceline, found = load_result(track, race_car)
+    if not found:
         st.warning("No results found for this car.")
 
     sim_results = raceline.simulate(race_car)

@@ -1,8 +1,10 @@
 import numpy as np
 
 import laptime_sim
+from laptime_sim.registry import cars
 from laptime_sim.simulate import simulate
-from main import CAR_LIST
+
+CAR_LIST = cars()
 
 
 def test_car_list():

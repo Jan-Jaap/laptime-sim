@@ -6,7 +6,9 @@ from matplotlib import pyplot as plt
 
 import laptime_sim
 from laptime_sim.car import CornerAcceleration, DriverExperience
-from main import CAR_LIST
+from laptime_sim.registry import cars
+
+CAR_LIST = cars()
 
 G = 9.81  # m/s²
 

@@ -21,7 +21,7 @@ def simulate(car: Car, line_coordinates: NDArray, slope: NDArray) -> SimResults:
         SimResults: The simulation results containing the line coordinates, timestep, speed,
         curvature direction, and distance.
     """
-    dt, speed, Nk, ds = _simulate_kernel(
+    dt, speed, Nk, ds = simulate_kernel(
         line_coordinates,
         slope,
         lat_limit=car.lat_limit,
@@ -38,7 +38,7 @@ def simulate(car: Car, line_coordinates: NDArray, slope: NDArray) -> SimResults:
 
 
 @nb.njit(cache=True, nogil=True)
-def _simulate_kernel(  # noqa: PLR0913, PLR0914
+def simulate_kernel(  # noqa: PLR0913, PLR0914
     line_coordinates,
     slope,
     lat_limit,
@@ -255,18 +255,3 @@ def calc_speed(
         )
 
     return speed
-
-
-@nb.njit(cache=True)
-def mag(vector: NDArray) -> NDArray:
-    """
-    Calculate the magnitude of vectors along the second axis of the input array.
-
-    Parameters:
-        vector (NDArray): A numpy array where each row represents a vector.
-
-    Returns:
-        NDArray: A 1D numpy array containing the magnitudes of the vectors.
-    """
-
-    return np.sum(vector**2, 1) ** 0.5
