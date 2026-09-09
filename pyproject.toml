@@ -17,10 +17,6 @@ dependencies = [
     "scipy>=1.15.2",
 ]
 
-[tool.uv]
-package = false
-# no-build = true
-
 [dependency-groups]
 dev = [
     "pytest",
@@ -33,7 +29,6 @@ build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 120

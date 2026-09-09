@@ -16,7 +16,7 @@ WORKDIR /app
 
 COPY ./pyproject.toml .
 
-RUN uv sync --no-dev
+RUN uv sync --no-dev --no-install-project
 
 ## ------------------------------- Production Stage ------------------------------ ##
 FROM python:3.14-slim-bookworm AS production

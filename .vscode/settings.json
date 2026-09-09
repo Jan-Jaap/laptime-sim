@@ -3,13 +3,5 @@
   "python.testing.pytestEnabled": true,
   "python.testing.pytestArgs": [
     "tests"
-  ],
-  "terminal.integrated.env.windows": {
-    "PYTHONPATH": "${workspaceFolder}/src;${workspaceFolder}/tests"
-  },
-  "terminal.integrated.env.linux": {
-    "PYTHONPATH": "${workspaceFolder}/src:${workspaceFolder}/tests"
-  }
-
-  
+  ]
 }
