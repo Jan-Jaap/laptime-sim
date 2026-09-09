@@ -17,7 +17,7 @@ def test_benchmark(race_car, track):
 
     t0 = time.perf_counter()
     for _ in range(n):
-        raceline.try_random_line(race_car)
+        raceline.try_random_lines(race_car, 1)
     t_rand = (time.perf_counter() - t0) / n
 
     print(

@@ -1,64 +1,20 @@
-# only for local dev
+# local dev only
 **/3_create_track.py
 **/4_racetrack_optimization.py
 
-# Git
+# scratch, caches, runtime data — never ship
+src/temp/
+resources/simulated/
 .git
-.gitignore
-.gitattributes
-
-# Docker
-docker-compose.yml
-Dockerfile
-.docker
-.dockerignore
-
-# Byte-compiled / optimized / DLL files
+.venv/
+.vscode/
+.pytest_cache/
+.ruff_cache/
 **/__pycache__/
 **/*.py[cod]
 
-# Distribution / packaging
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.coverage
-.cache
-nosetests.xml
-coverage.xml
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
-
-# Virtual environment
-.env
-.venv/
-venv/
-
-# VS Code
-.vscode/
+# docker files themselves
+Dockerfile
+docker-compose.yml
+.dockerignore
+.gitignore
