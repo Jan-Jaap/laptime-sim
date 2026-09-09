@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import geopandas as gpd
@@ -7,21 +8,51 @@ from laptime_sim.car import Car
 from laptime_sim.raceline import Raceline
 from laptime_sim.track import Track
 
-PATH_CARS = Path("./resources/cars/")
-PATH_TRACKS = Path("./resources/tracks/")
-PATH_RESULTS = Path("./resources/simulated/")
+_ROOT = Path(__file__).resolve().parents[2]
+PATH_CARS = _ROOT / "resources" / "cars"
+PATH_TRACKS = _ROOT / "resources" / "tracks"
+PATH_RESULTS = _ROOT / "resources" / "simulated"
 
 
-def cars(path_cars: Path = PATH_CARS) -> list[Car]:
+def cars(path_cars: Path | None = None) -> list[Car]:
     """Returns a list of Car instances from a directory of TOML files."""
+    path_cars = PATH_CARS if path_cars is None else path_cars
     return [Car.from_toml(file) for file in sorted(path_cars.glob("*.toml"))]
 
 
-def tracks(path_tracks: Path = PATH_TRACKS) -> list[Track]:
+def tracks(path_tracks: Path | None = None) -> list[Track]:
     """Returns a list of Track instances from a directory of parquet files."""
+    path_tracks = PATH_TRACKS if path_tracks is None else path_tracks
     if not path_tracks.is_dir():
         raise FileNotFoundError(f"Path {path_tracks} is not a directory.")
     return [Track(layout=gpd.read_parquet(file)) for file in sorted(path_tracks.glob("*.parquet"))]
+
+
+def _safe_file_name(name: str) -> str:
+    """Strips path separators and Windows-invalid characters from a file stem."""
+    cleaned = re.sub(r'[<>:"/\\|?*]', "_", name).strip(" ._")
+    if not cleaned:
+        raise ValueError(f"name {name!r} contains only invalid characters")
+    return cleaned
+
+
+def save_track(track: gpd.GeoDataFrame, name: str) -> Path:
+    """
+    Writes a track layout to the tracks directory.
+
+    Parameters:
+    - track: GeoDataFrame - The track layout with 'track_name' and 'geom_type' columns.
+    - name: str - The track name to use for the parquet file.
+
+    Returns:
+    - Path: The path the track was written to.
+    """
+    if "track_name" not in track.columns or "geom_type" not in track.columns:
+        raise ValueError("track must have 'track_name' and 'geom_type' columns")
+    PATH_TRACKS.mkdir(parents=True, exist_ok=True)
+    path = PATH_TRACKS / f"{_safe_file_name(name)}.parquet"
+    track.to_parquet(path)
+    return path
 
 
 def results_path(car: Car, track: Track) -> Path:

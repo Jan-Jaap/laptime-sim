@@ -1,6 +1,9 @@
 import os
+import time
+from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numba as nb
 import numpy as np
@@ -9,6 +12,9 @@ from numpy.typing import NDArray
 from laptime_sim.car import Car
 from laptime_sim.simulate import simulate_kernel
 from laptime_sim.track import interpolate_positions
+
+if TYPE_CHECKING:
+    from laptime_sim.raceline import Raceline
 
 N_THREADS = os.cpu_count() or 4
 
@@ -192,3 +198,110 @@ def run_batch(
     positions = np.vstack([result[1] for result in results])
     perturbations = np.vstack([result[2] for result in results])
     return laptimes, positions, perturbations
+
+
+MAX_DEVIATION = 0.1
+MAX_DEVIATION_LENGTH = 60
+F_ANNEAL = 0.01 ** (1 / 10000)  # from 1 to 0.01 in 10000 iterations without improvement
+
+random_generator = np.random.default_rng()
+
+
+def anneal_step(raceline: Raceline, car: Car, batch_size: int, rng: np.random.Generator | None = None) -> None:
+    """
+    Simulates a batch of random candidate lines in parallel on threads and keeps
+    the best one if it improves on the current best line. Decays the raceline's
+    heatmap and progress rate otherwise.
+
+    Operates on the raceline's package-internal state (_position/_heatmap/_geometry).
+    """
+    rng = random_generator if rng is None else rng
+    idx_len = len(raceline.width)
+
+    # Choose random locations and lengths for the deviations
+    cdf = raceline._heatmap.cumsum()
+    locations = np.minimum(
+        cdf.searchsorted(rng.random(batch_size) * cdf[-1], side="right"),
+        idx_len - 1,
+    )
+    lengths = rng.integers(3, MAX_DEVIATION_LENGTH, size=batch_size, endpoint=True)
+    deviations = rng.uniform(-1, 1, batch_size) * np.maximum(lengths / MAX_DEVIATION_LENGTH, MAX_DEVIATION)
+
+    laptimes, positions, perturbations = run_batch(
+        raceline._geometry, raceline._position, locations, lengths, deviations, car
+    )
+
+    try:
+        winner = int(np.nanargmin(laptimes))
+    except ValueError:
+        winner = -1
+
+    if winner >= 0 and np.isfinite(improvement := raceline.best_time - laptimes[winner]) and improvement > 0:
+        raceline._position = positions[winner].copy()
+        raceline.best_time = laptimes[winner]
+
+        raceline._heatmap += perturbations[winner] * improvement * 1e3
+        raceline.progress_rate += improvement
+        return
+
+    # If the new line is not better, slowly decay the heatmap and progress rate
+    raceline._heatmap += 0.00015
+    raceline._heatmap /= 1.00015
+    raceline.progress_rate *= F_ANNEAL
+
+
+def _status(raceline: Raceline, candidates: int, pending: int, baseline: float, finished: bool) -> dict:
+    return {
+        "candidates": candidates,
+        "pending": pending,
+        "best_time": raceline.best_time,
+        "best_time_str": raceline.best_time_str(),
+        "improvement": raceline.best_time - baseline,
+        "progress_rate": raceline.progress_rate,
+        "finished": finished,
+    }
+
+
+def optimize(
+    raceline: Raceline,
+    car: Car,
+    *,
+    batch_size: int = 100,
+    tolerance: float = 0.1,
+    baseline: float = 0.0,
+    update_every: float = 1.0,
+    save_every: float = 10.0,
+    on_save: Callable[[], None] | None = None,
+    rng: np.random.Generator | None = None,
+) -> Iterator[dict]:
+    """
+    Anneals candidate lines until the raceline converges (progress_rate < tolerance).
+
+    The raceline must have been simulated for this car first (`raceline.simulate(car)`),
+    so best_time is finite. Yields a status dict every update_every seconds and calls
+    on_save every save_every seconds — always before the corresponding yield, so saving
+    still happens when the consumer breaks out of the loop.
+    """
+    if not np.isfinite(raceline.best_time):
+        raise ValueError("raceline.best_time is not finite — call raceline.simulate(car) before optimize()")
+
+    start = time.monotonic()
+    last_update = start
+    last_save = start
+    pending = 0
+    candidates = 0
+    while True:
+        anneal_step(raceline, car, batch_size, rng)
+        pending += batch_size
+        candidates += batch_size
+        now = time.monotonic()
+        finished = raceline.progress_rate < tolerance
+        if on_save is not None and now - last_save >= save_every:
+            on_save()
+            last_save = now
+        if finished or now - last_update >= update_every:
+            yield _status(raceline, candidates, pending, baseline, finished=finished)
+            pending = 0
+            last_update = now
+        if finished:
+            return

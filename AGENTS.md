@@ -2,32 +2,46 @@
 
 ## Commands
 
-- Setup: `uv sync` (Python 3.14 pinned in `.python-version`). The project itself is **not** installed (`[tool.uv] package = false`); imports are resolved via pytest `pythonpath = ["src"]` and Docker `PYTHONPATH=/app/src`.
-- Tests: `uv run pytest` — **must run from repo root**, see below.
+- Setup: `uv sync` (Python 3.14 pinned in `.python-version`). Installs dependencies **and the project itself** (editable), so `import laptime_sim` resolves in any shell — no `PYTHONPATH` setup needed locally.
+- CLI optimizer: `uv run laptime-sim` — long-running by design: optimizes every car × track until convergence, autosaves every 10 s. Interrupt with Ctrl+C (results are saved on interrupt).
+- Tests: `uv run pytest` (run from repo root so pytest discovers `testpaths`). ~10 s once the numba cache is warm.
 - Single test: `uv run pytest tests/test_track.py -k name`
-- Streamlit app: `uv run streamlit run src/streamlit_apps/Welcome.py` (multipage; pages auto-discovered from `src/streamlit_apps/pages/`)
-- Docker: `docker compose up --build -d` → http://localhost:8501
+- Benchmark: `uv run pytest tests/test_benchmark.py -s` (ms/iteration). The first-ever run pays numba JIT compilation; the cache in `__pycache__` makes later runs fast.
+- Streamlit app: `uv run streamlit run src/streamlit_apps/Welcome.py` (multipage; pages auto-discovered from `src/streamlit_apps/pages/`).
+- Docker: `docker compose up --build -d` → http://localhost:8501 (the builder runs `uv sync --no-install-project` because `src/` isn't copied yet; the runtime image sets `PYTHONPATH=/app/src` — keep that flag if you touch the Dockerfile).
 
-No typecheck or CI config exists. Lint/format with ruff (dev dep; config in `pyproject.toml`): `uv run ruff check --fix` then `uv run ruff format` on `src tests`; `src/temp/` is excluded.
+CI (`.github/workflows/ci.yml`) runs ruff check + ruff format --check + pytest on push/PR. No typecheck config. Lint/format with ruff (dev dep; config in `pyproject.toml`): `uv run ruff check --fix` then `uv run ruff format` on `src tests`; `src/temp/` is excluded.
 
-## cwd requirement
+## Resource paths
 
-`laptime_sim.registry` resolves `./resources/...` **relative to the current working directory**, and everything that loads resources (CLI, streamlit pages, tests) goes through it. Run all commands from the repo root, else loading fails with `FileNotFoundError`.
+`laptime_sim.registry` anchors `resources/...` to the package location (`_ROOT = Path(__file__).resolve().parents[2]`), so resource loading works from any cwd — locally (editable install) and in Docker (`/app`). Every load/save of cars, tracks, and results goes through it; `cars()`/`tracks()` accept a `path` override for tests, and the writers resolve their directories at call time. Result files land in `resources/simulated/` (gitignored).
 
 ## Test suite
 
-`registry.cars()`/`registry.tracks()` return `list[Car]`/`list[Track]` objects. Pytest collects only `tests/` (`testpaths` in pyproject); `src/temp/` scratch files are not tests.
+- `registry.cars()`/`registry.tracks()` return `list[Car]`/`list[Track]` objects. Pytest collects only `tests/` (`testpaths` in pyproject); `src/temp/` scratch files are not tests. `tests/conftest.py` and some test modules still call `cars()`/`tracks()` at import time.
+- `tests/test_streamlit_apps.py` imports every streamlit page module: pages must stay importable without a running streamlit server (page bodies load resources only inside `main()`/cached loaders).
+- `tests/test_car_parity.py` guards `Car.get_acceleration`/`get_deceleration` (used by the UI) against drifting from the physics inline in `simulate.calc_speed` (used by the optimizer) — change both together.
 
 ## Architecture
 
-- `src/main.py` — CLI entrypoint: simulated-annealing brute-force raceline optimization over every car × track. Saves one parquet per combo to `resources/simulated/` (gitignored) and **resumes from an existing file** if present, so deleting it restarts optimization from scratch. Resources and result files are handled via `laptime_sim.registry` inside `main()`.
-- `src/laptime_sim/` — core library: `Track` (geopandas parquet; reprojects to UTM on init; borders tagged via a `geom_type` column with values `left`/`right`, written by streamlit page `3_create_track.py`), `Car` (dataclass, loaded from TOML in `resources/cars/`, power given in hp), `Raceline` (stores the line as a normalized 0–1 position across track width per point — not coordinates; use `coordinates_from_position` to convert), `registry` (single place for resource loading **and all result-file IO**: `results_path`/`save_result`/`load_result`/`read_results` — streamlit pages and tests import from here, not from `main`; page 3's track creation is exempt/unfinished).
-- `simulate.py` — physics core; hot loops are numba `@njit(cache=True)`. First run compiles (~seconds), afterwards the numba cache in `__pycache__` makes runs fast. `tests/test_benchmark.py` reports ms/iteration (`uv run pytest tests/test_benchmark.py -s`); `tests/test_car_parity.py` guards `Car.get_acceleration`/`get_deceleration` against drifting from the physics inline in `calc_speed`.
-- `optimizer.py` — batch candidate evaluation: `run_batch()` builds, clips, interpolates and simulates chunks of random candidate lines inside a `nogil` numba kernel on a thread pool (`N_THREADS`); `raceline.try_random_lines()` samples candidates and keeps the best.
+- `src/laptime_sim/cli.py` — CLI entrypoint (`uv run laptime-sim`): simulated-annealing brute-force raceline optimization over every car × track via `optimizer.optimize()`. Saves one parquet per combo to `resources/simulated/` (gitignored); an existing file's line is **loaded and optimization resumes from it**, so deleting it restarts optimization from scratch.
+- `src/laptime_sim/` — core library:
+  - `Track` (geopandas parquet; reprojects to UTM on init; needs a `track_name` column and borders tagged via a `geom_type` column with values `left`/`right`).
+  - `Car` (dataclass, loaded from TOML in `resources/cars/`, power given in hp).
+  - `Raceline` (pure state: stores the line as a normalized 0–1 position across track width per point — not coordinates; use `coordinates_from_position` to convert — plus heatmap/progress bookkeeping).
+  - `registry` (single place for resource loading **and all result/track-file IO**: `results_path`/`save_result`/`load_result`/`read_results`/`save_track` — streamlit pages and tests import from here).
+- `simulate.py` — physics core; hot loops are numba `@njit(cache=True)`.
+- `optimizer.py` — candidate evaluation **and strategy**: `run_batch()` builds, clips, interpolates and simulates chunks of random candidate lines inside a `nogil` numba kernel on a thread pool (`N_THREADS` = cpu count); `anneal_step()` samples candidates, accepts improvements and anneals the heatmap; `optimize()` is the shared convergence loop (generator yielding status dicts + autosave callbacks) consumed by both the CLI and streamlit page 4. `Raceline.try_random_lines()` delegates to `anneal_step`.
 - `Track.initial_line()`/`centerline()` are reserved for the upcoming track-creation flow (page 3) — not dead code, even though they currently have no callers.
+- Streamlit pages load car/track lists via `@st.cache_resource` loaders, never at module level; page 2 builds a `dataclasses.replace()` copy per selection instead of mutating the shared `Car` objects.
 - `src/temp/` — untracked scratch code (gitignored); ignore it.
+
+## Track creation (streamlit page 3) — unfinished
+
+- Saves via `registry.save_track()` directly into `resources/tracks/`.
+- Input is an uploaded **zipped shapefile** (polygon); the saved parquet gets the `track_name` + `geom_type` (`left`/`right`) columns `Track` requires.
 
 ## Conventions
 
-- New car = new TOML file in `resources/cars/` (dataclass `Car` fields). New track = parquet created via streamlit page 3 in `resources/tracks/`.
-- Result filenames are built by `registry.results_path(car, track)` from `Car.file_name` (name with spaces → underscores) + track name; changing `Car.name` orphans old result files.
+- New car = new TOML file in `resources/cars/` using the `Car` dataclass fields as keys. Values are validated in `Car.__post_init__`, and `trail_braking` must be one of `DriverExperience` (30/50/70/100), `corner_acc` one of `CornerAcceleration` (50/60/80/90) — other 0–100 values raise `ValueError`.
+- Result filenames are built by `registry.results_path(car, track)` from `Car.file_name` (name with spaces → underscores) + track name; changing `Car.name` orphans old result files (`read_results` filters them out).

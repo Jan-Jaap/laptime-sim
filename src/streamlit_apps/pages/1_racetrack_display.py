@@ -10,8 +10,16 @@ from streamlit_folium import st_folium
 import laptime_sim
 from laptime_sim.registry import cars, load_result, read_results, tracks
 
-CAR_LIST = cars()
-TRACK_LIST = tracks()
+
+@st.cache_resource
+def get_cars() -> list[laptime_sim.Car]:
+    return cars()
+
+
+@st.cache_resource
+def get_tracks() -> list[laptime_sim.Track]:
+    return tracks()
+
 
 style_divisions = dict(color="grey")
 style_track_border = dict(color="black")
@@ -55,12 +63,12 @@ def add_base_layers(my_map: folium.Map) -> None:
 
 def main() -> None:
     with st.sidebar:
-        track = st.radio("select track", options=TRACK_LIST, format_func=lambda x: x.name)
-        race_car = st.radio("select car", options=CAR_LIST, format_func=lambda x: x.name)
+        track = st.radio("select track", options=get_tracks(), format_func=lambda x: x.name)
+        race_car = st.radio("select car", options=get_cars(), format_func=lambda x: x.name)
 
     st.header(f"Racetrack - {track.name}")
 
-    all_racelines = read_results(track, [car.name for car in CAR_LIST])
+    all_racelines = read_results(track, [car.name for car in get_cars()])
 
     raceline, found = load_result(track, race_car)
     if not found:
@@ -77,7 +85,6 @@ def main() -> None:
     selected_point = raceline.get_point(point_index)
 
     with expander_track_map:
-        # track_map = folium_track_map(track, all_racelines)
         my_map = create_track_map(track)
         add_divisions(my_map, track)
         add_start_finish(my_map, track)
@@ -91,7 +98,6 @@ def main() -> None:
         raceline_datapoint = sim_results.get_dataframe().iloc[point_index]
         raceline_datapoint["slope"] = track.slope[point_index] * 100
         st.write(raceline_datapoint)
-        # st.write(
 
     with st.expander("Raceline speed", expanded=True):
         fig, ax = plt.subplots(figsize=(10, 5))

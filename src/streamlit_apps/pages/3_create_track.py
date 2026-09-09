@@ -10,14 +10,13 @@ import geopandas as gpd
 import shapely
 import streamlit as st
 import xyzservices.providers as xyz
-
-# from folium.plugins import Draw
-from scipy.signal import savgol_filter  # ,find_peaks
+from scipy.signal import savgol_filter
 from streamlit_folium import folium_static
+
+from laptime_sim.registry import PATH_TRACKS, save_track
 
 POINT_COUNT = 500
 TRANSECT_LENGTH = 12
-PATH_TRACKS = "./tracks/"
 
 
 def main() -> None:
@@ -58,9 +57,7 @@ def main() -> None:
     my_map = track.explore(name="track", style_kwds={"color": "grey"})
     gpd.GeoSeries(center_line, crs=track.crs).explore(m=my_map, name="center_line1", style_kwds={"color": "grey"})
 
-    # ic(center_line)
     center_line = smooth_line(center_line, smooth_factor=smooth_factor_centerline)
-    # ic(center_line)
     gpd.GeoSeries(center_line, crs=track.crs).explore(m=my_map, name="center_line2", style_kwds={"color": "red"})
 
     transect_lines = transect(center_line, transect_length)
@@ -77,7 +74,6 @@ def main() -> None:
     new_track.explore(m=my_map, name="track", style_kwds={"color": "black"})
     new_track.extract_unique_points().explore(m=my_map, name="track_points")
 
-    # gpd.GeoSeries(center_line, crs=track.crs).explore(m=my_map, name="center_line", style_kwds={"color": "blue"})
     gpd.GeoSeries(transect_lines, crs=track.crs).explore(m=my_map, name="transect_lines", style_kwds={"color": "blue"})
     gpd.GeoSeries(transect_lines.geoms[0], crs=track.crs).explore(
         m=my_map,
@@ -94,9 +90,9 @@ def main() -> None:
 
     folium_static(my_map)
 
-    file_name = Path(PATH_TRACKS, track_name + ".parquet")
+    file_name = PATH_TRACKS / f"{track_name}.parquet"
     if st.button(f"save track: ({file_name})"):
-        new_track.to_parquet(file_name)
+        save_track(new_track, track_name)
 
     with st.expander("Track layout"):
         st.write(new_track)
@@ -149,9 +145,6 @@ def prev_next_iter(my_list: list[Any]) -> Iterable[tuple[Any, Any, Any]]:
 
 
 def create_centerline(track, nr_points=600, start_finish=None) -> shapely.LinearRing:
-    # inner, outer = track
-    # inner, outer = hacky_offset_curve(track)
-
     inner, outer = track.geometry
     offset_distance = inner.distance(outer) / 2  # border offsets will touch in the middle
     inner = inner.offset_curve(offset_distance)
@@ -240,7 +233,6 @@ def redistribute_vertices(geom, num_vert: int, offset: float = 0.0):
         parts = [redistribute_vertices(part, num_vert) for part in geom]
         return type(geom)([p for p in parts if not p.is_empty])
 
-    # num_vert = int(round(geom.length / distance)) or 1
     offset /= geom.length
     coordinates = [geom.interpolate((float(n) / num_vert + offset) % 1, normalized=True) for n in range(num_vert + 1)]
 

@@ -23,7 +23,11 @@ docker compose up --build -d
 This will run the app on [http://localhost:8501](http://localhost:8501)
 
 ## Usage
-The main.py will run an optimization of all cars on all tracks.
+Run the CLI optimizer to optimize all cars on all tracks:
+
+```bash
+uv run laptime-sim
+```
 
 ## Examples of usage
 

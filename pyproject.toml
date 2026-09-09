@@ -17,6 +17,9 @@ dependencies = [
     "scipy>=1.15.2",
 ]
 
+[project.scripts]
+laptime-sim = "laptime_sim.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest",

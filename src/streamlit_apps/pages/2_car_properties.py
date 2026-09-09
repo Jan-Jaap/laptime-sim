@@ -1,5 +1,7 @@
 """This module creates a streamlit app"""
 
+import dataclasses
+
 import numpy as np
 import streamlit as st
 from matplotlib import pyplot as plt
@@ -8,7 +10,11 @@ import laptime_sim
 from laptime_sim.car import CornerAcceleration, DriverExperience
 from laptime_sim.registry import cars
 
-CAR_LIST = cars()
+
+@st.cache_resource
+def get_cars() -> list[laptime_sim.Car]:
+    return cars()
+
 
 G = 9.81  # m/s²
 
@@ -44,21 +50,22 @@ def main() -> None:
     st.set_page_config(page_title="HSR Webracing", layout="wide")
     st.header("Display car properties")
 
-    race_car = st.radio(label="select file", options=CAR_LIST, format_func=lambda x: x.name)
+    race_car = st.radio(label="select file", options=get_cars(), format_func=lambda x: x.name)
 
-    race_car.trail_braking = st.selectbox(
+    trail_braking = st.selectbox(
         label="Trailbraking driver experience",
         options=DriverExperience,
         index=list(DriverExperience).index(race_car.trail_braking),
         format_func=lambda x: DriverExperience(x).name,
     )
 
-    race_car.corner_acc = st.selectbox(
+    corner_acc = st.selectbox(
         label="Select corner acceleration",
         options=CornerAcceleration,
         index=list(CornerAcceleration).index(race_car.corner_acc),
         format_func=lambda x: CornerAcceleration(x).name,
     )
+    race_car = dataclasses.replace(race_car, trail_braking=trail_braking, corner_acc=corner_acc)
 
     v1 = st.slider("Velocity in km/h", min_value=0, max_value=300)
 

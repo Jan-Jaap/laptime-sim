@@ -1,24 +1,22 @@
 """This module creates a streamlit app"""
 
-import itertools
-
 import streamlit as st
 from matplotlib import pyplot as plt
 
 import laptime_sim
-from laptime_sim import Car, Raceline, Track, format_laptime
+from laptime_sim import Car, Raceline, Track
+from laptime_sim.optimizer import optimize
 from laptime_sim.registry import cars, load_result, results_path, save_result, tracks
 
-CAR_LIST = cars()
-TRACK_LIST = tracks()
-BATCH_SIZE = 100
+
+@st.cache_resource
+def get_cars() -> list[Car]:
+    return cars()
 
 
-def format_results(data):
-    car = list(data.keys())[0]
-    if best_time := data[car]:
-        return f"{car} ({format_laptime(best_time)})"
-    return car
+@st.cache_resource
+def get_tracks() -> list[Track]:
+    return tracks()
 
 
 def optimize_raceline(track: Track, car: Car, raceline: Raceline):
@@ -34,28 +32,23 @@ def optimize_raceline(track: Track, car: Car, raceline: Raceline):
                 status.update(state="running")
                 placeholder_saved.write("optimization is started")
 
-                timer1 = laptime_sim.Timer(1)
-                timer2 = laptime_sim.Timer(30)
-
-                placeholder_laptime.write(f"Laptime = {format_laptime(raceline.best_time)}")
-
-                timer3 = laptime_sim.Timer()
-                for itereration in itertools.count():
-                    raceline.try_random_lines(car, BATCH_SIZE)
-                    if timer1.triggered:
-                        placeholder_laptime.write(
-                            f"Laptime = {raceline.best_time_str()}. "
-                            f"candidates:{itereration * BATCH_SIZE}, "
-                            f"candidate_rate:{itereration * BATCH_SIZE / timer3.elapsed_time.total_seconds():.0f}"
-                        )
-                        timer1.reset()
-
-                    if timer2.triggered:
-                        save_result(raceline, car)
-                        placeholder_saved.write(f"Results: {raceline.best_time_str()} saved. iteration:{itereration}")
-                        timer2.reset()
-
-                    # st.write(f"Results: {raceline.best_time_str()} saved. iteration:{itereration}")
+                placeholder_laptime.write(f"Laptime = {raceline.best_time_str()}")
+                timer = laptime_sim.Timer()
+                for update in optimize(
+                    raceline,
+                    car,
+                    save_every=30.0,
+                    on_save=lambda: save_result(raceline, car),
+                ):
+                    placeholder_laptime.write(
+                        f"Laptime = {update['best_time_str']}. "
+                        f"candidates:{update['candidates']}, "
+                        f"candidate_rate:{update['candidates'] / timer.elapsed_time.total_seconds():.0f}"
+                    )
+                    if update["finished"]:
+                        status.update(state="complete")
+                        placeholder_saved.write(f"Raceline optimization converged: {update['best_time_str']}")
+                        break
 
             if st.session_state.optimization_running:  # if running stop te optimization
                 st.session_state.optimization_running = False
@@ -66,8 +59,8 @@ def optimize_raceline(track: Track, car: Car, raceline: Raceline):
 
 def main() -> None:
     with st.sidebar:
-        track = st.radio("select track", options=TRACK_LIST, format_func=lambda x: x.name)
-        race_car = st.radio("select car", options=CAR_LIST, format_func=lambda x: x.name)
+        track = st.radio("select track", options=get_tracks(), format_func=lambda x: x.name)
+        race_car = st.radio("select car", options=get_cars(), format_func=lambda x: x.name)
 
     st.header(f"Racetrack - {track.name}")
 
