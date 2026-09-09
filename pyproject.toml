@@ -11,6 +11,7 @@ dependencies = [
     "streamlit-folium>=0.24.0",
     "streamlit>=1.44.1",
     "geopandas>=1.0.1",
+    "mapclassify>=2.11.0",
     "matplotlib>=3.10.1",
     "numba>=0.61.0",
     "tqdm>=4.67.1",
