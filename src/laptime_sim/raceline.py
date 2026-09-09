@@ -42,6 +42,11 @@ class Raceline:
     def set_coordinates(self, coordinates: NDArray) -> None:
         self._position = self.track.position_from_coordinates(coordinates)
 
+    @property
+    def position(self) -> NDArray:
+        """The normalized 0-1 position across track width per point."""
+        return self._position
+
     def get_coordinates(self) -> NDArray:
         """Returns the coordinates of the raceline."""
         return self.track.coordinates_from_position(self._position)

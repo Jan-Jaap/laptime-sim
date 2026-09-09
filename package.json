@@ -1,0 +1,15 @@
+{
+  "name": "laptime-sim-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/streamlit_apps/components/raceline_optimizer/src/worker.ts --bundle --format=iife --outfile=src/streamlit_apps/components/raceline_optimizer/worker.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node tests/js/optimizer.test.mjs && node tests/js/component_host.test.mjs && node tests/js/worker.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.0"
+  }
+}

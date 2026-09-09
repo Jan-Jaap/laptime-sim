@@ -15,6 +15,7 @@ from laptime_sim.track import interpolate_positions
 
 if TYPE_CHECKING:
     from laptime_sim.raceline import Raceline
+    from laptime_sim.track import Track
 
 N_THREADS = os.cpu_count() or 4
 
@@ -230,7 +231,16 @@ def anneal_step(raceline: Raceline, car: Car, batch_size: int, rng: np.random.Ge
     laptimes, positions, perturbations = run_batch(
         raceline._geometry, raceline._position, locations, lengths, deviations, car
     )
+    _apply_outcome(raceline, laptimes, positions, perturbations)
 
+
+def _apply_outcome(raceline: Raceline, laptimes: NDArray, positions: NDArray, perturbations: NDArray) -> bool:
+    """
+    Accepts the best candidate if it improves on the current best line; decays the
+    heatmap and progress rate otherwise. Returns True when a candidate was accepted.
+
+    Mirrored by the browser-side TypeScript port (optimizer.ts) — change both together.
+    """
     try:
         winner = int(np.nanargmin(laptimes))
     except ValueError:
@@ -242,12 +252,13 @@ def anneal_step(raceline: Raceline, car: Car, batch_size: int, rng: np.random.Ge
 
         raceline._heatmap += perturbations[winner] * improvement * 1e3
         raceline.progress_rate += improvement
-        return
+        return True
 
     # If the new line is not better, slowly decay the heatmap and progress rate
     raceline._heatmap += 0.00015
     raceline._heatmap /= 1.00015
     raceline.progress_rate *= F_ANNEAL
+    return False
 
 
 def _status(raceline: Raceline, candidates: int, pending: int, baseline: float, finished: bool) -> dict:
@@ -305,3 +316,39 @@ def optimize(
             last_update = now
         if finished:
             return
+
+
+def accept_result(track: Track, car: Car, position: NDArray) -> tuple[Raceline, bool]:
+    """
+    Validates a client-posted raceline, re-simulates it server-side and saves it
+    if it beats the stored best line for this car and track.
+
+    The client's claimed laptime is never trusted: the authoritative laptime
+    comes from simulate() run here. Returns (raceline, improved).
+    """
+    from laptime_sim.raceline import Raceline  # lazy: registry imports raceline, raceline imports this module
+    from laptime_sim.registry import load_result, save_result
+
+    expected_len = track.len - 1 if track.is_circular else track.len
+    position = np.asarray(position, dtype=np.float64)
+    if position.shape != (expected_len,):
+        raise ValueError(f"position has shape {position.shape}, expected ({expected_len},)")
+    if not np.all(np.isfinite(position)):
+        raise ValueError("position contains non-finite values")
+
+    raceline = Raceline(track)
+    eps = 1e-9
+    if np.any(position < raceline._geometry.pos_min - eps) or np.any(position > raceline._geometry.pos_max + eps):
+        raise ValueError("position violates the track border clearance")
+
+    raceline._position = position.copy()
+    raceline.simulate(car)
+
+    stored, found = load_result(track, car)
+    if found:
+        stored.simulate(car)  # load_result restores the line, not best_time — re-simulate to compare
+        if stored.best_time <= raceline.best_time:
+            return raceline, False
+
+    save_result(raceline, car)
+    return raceline, True

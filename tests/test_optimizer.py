@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
 
-from laptime_sim import Raceline
-from laptime_sim.optimizer import anneal_step, optimize
+from laptime_sim import Raceline, Track
+from laptime_sim.optimizer import accept_result, anneal_step, optimize
+from laptime_sim.raceline import BORDER_CLEARANCE_M
 
 
 def test_anneal_step_is_deterministic_with_seed(race_car, track):
@@ -90,3 +91,62 @@ def test_optimize_rejects_unsimulated_raceline(race_car, track, monkeypatch):
     )
     with pytest.raises(ValueError, match="simulate"):
         list(optimize(Raceline(track), race_car, batch_size=1, update_every=0.0, save_every=0.0))
+
+
+def _synthetic_env(monkeypatch, tmp_path):
+    from test_registry import synthetic_car, synthetic_track
+
+    from laptime_sim import registry
+
+    monkeypatch.setattr(registry, "PATH_RESULTS", tmp_path)
+    track = Track(synthetic_track())
+    return track, synthetic_car()
+
+
+def test_accept_result_saves_when_nothing_stored(monkeypatch, tmp_path):
+    from laptime_sim import registry
+
+    track, car = _synthetic_env(monkeypatch, tmp_path)
+    center = np.full(track.len - 1, 0.5)  # circular track: one position per border pair
+
+    accepted, improved = accept_result(track, car, center)
+
+    assert improved is True
+    assert np.isfinite(accepted.best_time)
+    stored, found = registry.load_result(track, car)
+    assert found
+    stored.simulate(car)  # load_result restores the line, not best_time
+    assert stored.best_time == pytest.approx(accepted.best_time, rel=1e-9)
+
+
+def test_accept_result_keeps_the_faster_line(monkeypatch, tmp_path):
+    from laptime_sim import registry
+
+    track, car = _synthetic_env(monkeypatch, tmp_path)
+    idx_len = track.len - 1
+    center = np.full(idx_len, 0.5)
+    inner = BORDER_CLEARANCE_M / Raceline(track).width + 0.01
+
+    first, _ = accept_result(track, car, center)
+    second, _ = accept_result(track, car, inner)
+    (fast_time, fast_pos), (slow_time, slow_pos) = sorted([(first.best_time, center), (second.best_time, inner)])
+    assert slow_time > fast_time
+
+    _, improved = accept_result(track, car, slow_pos)
+
+    assert improved is False
+    stored, _ = registry.load_result(track, car)
+    stored.simulate(car)
+    assert stored.best_time == pytest.approx(fast_time, rel=1e-9)
+
+
+def test_accept_result_rejects_invalid_positions(monkeypatch, tmp_path):
+    track, car = _synthetic_env(monkeypatch, tmp_path)
+    idx_len = track.len - 1
+
+    with pytest.raises(ValueError, match="shape"):
+        accept_result(track, car, np.full(idx_len + 1, 0.5))
+    with pytest.raises(ValueError, match="non-finite"):
+        accept_result(track, car, np.where(np.arange(idx_len) == 0, np.nan, 0.5))
+    with pytest.raises(ValueError, match="clearance"):
+        accept_result(track, car, np.full(idx_len, 1.5))

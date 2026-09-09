@@ -15,8 +15,12 @@ def synthetic_track(name: str = "Test Track") -> gpd.GeoDataFrame:
     nx, ny = np.sin(t), -np.cos(t)
     offset = 0.0003
     z = 2.0 * np.sin(t)
-    left = shapely.LineString(np.column_stack([lon + nx * offset, lat + ny * offset, z]))
-    right = shapely.LineString(np.column_stack([lon - nx * offset, lat - ny * offset, z]))
+    left_pts = np.column_stack([lon + nx * offset, lat + ny * offset, z])
+    right_pts = np.column_stack([lon - nx * offset, lat - ny * offset, z])
+    left_pts[-1] = left_pts[0]  # exact closure: float noise on cos(2*pi) breaks is_ring
+    right_pts[-1] = right_pts[0]
+    left = shapely.LineString(left_pts)
+    right = shapely.LineString(right_pts)
     return gpd.GeoDataFrame.from_dict(
         data=[
             {"track_name": name, "geom_type": "left", "geometry": left},
