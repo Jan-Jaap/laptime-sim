@@ -6,32 +6,38 @@
   var MAX_DEVIATION_LENGTH = 60;
   var F_ANNEAL = Math.pow(0.01, 1 / 1e4);
   var HEATMAP_DECAY = 15e-5;
-  function simulateLaptime(lineCoordinates, slope, car) {
+  var vCross = (a, b) => [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0]
+  ];
+  var vDot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  var vNorm = (a) => Math.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
+  var vNormalize = (a) => {
+    const m = vNorm(a);
+    return [a[0] / m, a[1] / m, a[2] / m];
+  };
+  var vScale = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+  function gradient(src) {
+    const n = src.length / 3;
+    const out = new Float64Array(src.length);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < 3; j++) {
+        if (i === 0) {
+          out[i * 3 + j] = src[3 + j] - src[j];
+        } else if (i === n - 1) {
+          out[i * 3 + j] = src[(n - 1) * 3 + j] - src[(n - 2) * 3 + j];
+        } else {
+          out[i * 3 + j] = 0.5 * (src[(i + 1) * 3 + j] - src[(i - 1) * 3 + j]);
+        }
+      }
+    }
+    return out;
+  }
+  function trackFrame(lineCoordinates, slope, latLimit) {
     const n = lineCoordinates.length / 3;
-    const dX = new Float64Array(n * 3);
-    const ddX = new Float64Array(n * 3);
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < 3; j++) {
-        if (i === 0) {
-          dX[i * 3 + j] = lineCoordinates[3 + j] - lineCoordinates[j];
-        } else if (i === n - 1) {
-          dX[i * 3 + j] = lineCoordinates[(n - 1) * 3 + j] - lineCoordinates[(n - 2) * 3 + j];
-        } else {
-          dX[i * 3 + j] = 0.5 * (lineCoordinates[(i + 1) * 3 + j] - lineCoordinates[(i - 1) * 3 + j]);
-        }
-      }
-    }
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < 3; j++) {
-        if (i === 0) {
-          ddX[i * 3 + j] = dX[3 + j] - dX[j];
-        } else if (i === n - 1) {
-          ddX[i * 3 + j] = dX[(n - 1) * 3 + j] - dX[(n - 2) * 3 + j];
-        } else {
-          ddX[i * 3 + j] = 0.5 * (dX[(i + 1) * 3 + j] - dX[(i - 1) * 3 + j]);
-        }
-      }
-    }
+    const dX = gradient(lineCoordinates);
+    const ddX = gradient(dX);
     const ds = new Float64Array(n);
     const kLat = new Float64Array(n);
     const gLon = new Float64Array(n);
@@ -39,42 +45,31 @@
     const vMax = new Float64Array(n);
     for (let i = 0; i < n; i++) {
       const i3 = i * 3;
-      const m = Math.sqrt(dX[i3] * dX[i3] + dX[i3 + 1] * dX[i3 + 1] + dX[i3 + 2] * dX[i3 + 2]);
+      const dXi = [dX[i3], dX[i3 + 1], dX[i3 + 2]];
+      const ddXi = [ddX[i3], ddX[i3 + 1], ddX[i3 + 2]];
+      const tangent = vNormalize(dXi);
+      const m = vNorm(dXi);
       ds[i] = m;
-      const tx = dX[i3] / m;
-      const ty = dX[i3 + 1] / m;
-      const tz = dX[i3 + 2] / m;
-      let bx = dX[i3 + 1] * ddX[i3 + 2] - dX[i3 + 2] * ddX[i3 + 1];
-      let by = dX[i3 + 2] * ddX[i3] - dX[i3] * ddX[i3 + 2];
-      let bz = dX[i3] * ddX[i3 + 1] - dX[i3 + 1] * ddX[i3];
-      const bm = Math.sqrt(bx * bx + by * by + bz * bz);
-      const k = bm / (m * m * m);
-      bx /= bm;
-      by /= bm;
-      bz /= bm;
-      const nx = by * tz - bz * ty;
-      const ny = bz * tx - bx * tz;
-      const nz = bx * ty - by * tx;
-      const Nkx = nx * k;
-      const Nky = ny * k;
-      const Nkz = nz * k;
-      let btx = ty;
-      let bty = -tx;
-      let btz = slope[i];
-      const btm = Math.sqrt(btx * btx + bty * bty + btz * btz);
-      btx /= btm;
-      bty /= btm;
-      btz /= btm;
-      gLon[i] = G * tz;
-      gLat[i] = G * btz;
-      kLat[i] = Nkx * btx + Nky * bty + Nkz * btz;
+      const curvature = vCross(dXi, ddXi);
+      const k = vNorm(curvature) / (m * m * m);
+      const normal = vCross(vNormalize(curvature), tangent);
+      const nk = vScale(normal, k);
+      const lateral = vNormalize([tangent[1], -tangent[0], slope[i]]);
+      gLon[i] = G * tangent[2];
+      gLat[i] = G * lateral[2];
+      kLat[i] = vDot(nk, lateral);
       const sgn = kLat[i] > 0 ? 1 : kLat[i] < 0 ? -1 : 0;
       let kk = Math.abs(kLat[i]);
       if (kk < 1e-3) kk = 1e-3;
-      let num = car.lat_limit - gLat[i] * sgn;
-      if (num < 0) num = 0;
-      vMax[i] = Math.sqrt(num / kk);
+      let budget = latLimit - gLat[i] * sgn;
+      if (budget < 0) budget = 0;
+      vMax[i] = Math.sqrt(budget / kk);
     }
+    return { ds, kLat, gLon, gLat, vMax };
+  }
+  function simulateLaptime(lineCoordinates, slope, car) {
+    const { ds, kLat, gLon, gLat, vMax } = trackFrame(lineCoordinates, slope, car.lat_limit);
+    const n = ds.length;
     const vA = new Float64Array(n);
     calcSpeed(vA, ds, kLat, gLon, gLat, vMax, car.mass, car.acc_limit, car.lat_limit, car.c_drag, car.c_roll, car.corner_acc, car.P_engine_in_watt);
     const rev = (a) => {
@@ -109,8 +104,7 @@
     let laptime = 0;
     for (let i = 0; i < n; i++) {
       const im = i > 0 ? i - 1 : n - 1;
-      const dt = 2 * ds[i] / (speed[i] + speed[im]);
-      laptime += dt;
+      laptime += 2 * ds[i] / (speed[i] + speed[im]);
     }
     return laptime;
   }
@@ -128,8 +122,8 @@
       const v = speed[ii];
       const accLat = v * v * kLat[ii] + gLat[ii];
       const maxAccGrip = limit * Math.pow(1 - Math.pow(Math.abs(accLat) / latLimit, nf), 1 / nf);
-      const forceEngine = v !== 0 ? pEngineInWatt / v : 0;
-      let accLon = forceEngine !== 0 ? maxAccGrip < forceEngine / mass ? maxAccGrip : forceEngine / mass : maxAccGrip;
+      const forceEngine = v > 0 ? pEngineInWatt / v : 0;
+      let accLon = forceEngine > 0 ? maxAccGrip < forceEngine / mass ? maxAccGrip : forceEngine / mass : maxAccGrip;
       const aeroDrag = v * v * cDrag / 2 / mass;
       const rollingDrag = cRoll * G;
       accLon -= aeroDrag + rollingDrag + gLon[ii];

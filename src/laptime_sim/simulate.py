@@ -1,3 +1,5 @@
+"""Race simulator for determining the laptime when racing optimal speed."""
+
 import numba as nb
 import numpy as np
 from numpy.typing import NDArray
@@ -5,7 +7,7 @@ from numpy.typing import NDArray
 from laptime_sim.car import Car
 from laptime_sim.simresults import SimResults
 
-"""Race simulator for determining the laptime when racing optimal speed"""
+GRAVITY = 9.81
 
 
 def simulate(car: Car, line_coordinates: NDArray, slope: NDArray) -> SimResults:
@@ -38,7 +40,7 @@ def simulate(car: Car, line_coordinates: NDArray, slope: NDArray) -> SimResults:
 
 
 @nb.njit(cache=True, nogil=True)
-def simulate_kernel(  # noqa: PLR0913, PLR0914
+def simulate_kernel(
     line_coordinates,
     slope,
     lat_limit,
@@ -52,94 +54,16 @@ def simulate_kernel(  # noqa: PLR0913, PLR0914
     P_engine_in_watt,
 ):
     """
-    Compiled equivalent of the original numpy precompute (gradient, curvature,
-    gravity projection) followed by the forward acceleration and reverse
-    braking passes. Bit-for-bit equivalent to the original formula's semantics.
+    Determine the speed profile along the line with a forward acceleration pass
+    and a reverse braking pass, taking the minimum of the two at every point.
 
     Returns: (dt, speed, Nk, ds)
     """
     n = line_coordinates.shape[0]
+    ds, Nk, k_car_lat, g_car_lon, g_car_lat, v_max = _track_frame(line_coordinates, slope, lat_limit)
 
-    dX = np.empty((n, 3))
-    ddX = np.empty((n, 3))
-    for i in range(n):
-        for j in range(3):
-            if i == 0:
-                dX[i, j] = line_coordinates[1, j] - line_coordinates[0, j]
-            elif i == n - 1:
-                dX[i, j] = line_coordinates[n - 1, j] - line_coordinates[n - 2, j]
-            else:
-                dX[i, j] = 0.5 * (line_coordinates[i + 1, j] - line_coordinates[i - 1, j])
-    for i in range(n):
-        for j in range(3):
-            if i == 0:
-                ddX[i, j] = dX[1, j] - dX[0, j]
-            elif i == n - 1:
-                ddX[i, j] = dX[n - 1, j] - dX[n - 2, j]
-            else:
-                ddX[i, j] = 0.5 * (dX[i + 1, j] - dX[i - 1, j])
-
-    ds = np.empty(n)
-    Nk = np.empty((n, 3))
-    g_car_lon = np.empty(n)
-    g_car_lat = np.empty(n)
-    k_car_lat = np.empty(n)
-    v_max = np.empty(n)
-
-    for i in range(n):
-        m = np.sqrt(dX[i, 0] ** 2 + dX[i, 1] ** 2 + dX[i, 2] ** 2)
-        ds[i] = m
-        tx = dX[i, 0] / m
-        ty = dX[i, 1] / m
-        tz = dX[i, 2] / m
-
-        bx = dX[i, 1] * ddX[i, 2] - dX[i, 2] * ddX[i, 1]
-        by = dX[i, 2] * ddX[i, 0] - dX[i, 0] * ddX[i, 2]
-        bz = dX[i, 0] * ddX[i, 1] - dX[i, 1] * ddX[i, 0]
-        bm = np.sqrt(bx * bx + by * by + bz * bz)
-        k = bm / (m * m * m)
-        bx /= bm
-        by /= bm
-        bz /= bm
-
-        nx = by * tz - bz * ty
-        ny = bz * tx - bx * tz
-        nz = bx * ty - by * tx
-        Nk[i, 0] = nx * k
-        Nk[i, 1] = ny * k
-        Nk[i, 2] = nz * k
-
-        # Rotate T 90deg CW in the xy-plane and align with the track slope
-        btx = ty
-        bty = -tx
-        btz = slope[i]
-        btm = np.sqrt(btx * btx + bty * bty + btz * btz)
-        btx /= btm
-        bty /= btm
-        btz /= btm
-
-        g_car_lon[i] = 9.81 * tz
-        g_car_lat[i] = 9.81 * btz
-        k_car_lat[i] = Nk[i, 0] * btx + Nk[i, 1] * bty + Nk[i, 2] * btz
-
-        if k_car_lat[i] > 0:
-            sgn = 1.0
-        elif k_car_lat[i] < 0:
-            sgn = -1.0
-        else:
-            sgn = 0.0
-        kk = abs(k_car_lat[i])
-        if kk < 1e-3:
-            kk = 1e-3
-        num = lat_limit - g_car_lat[i] * sgn
-        if num < 0:
-            num = 0.0
-        v_max[i] = np.sqrt(num / kk)
-
-    v_a = np.zeros(n)  # simulated speed maximum acceleration
-    v_b = np.zeros(n)  # simulated speed maximum braking
-
-    # run the simulation in forward direction for acceleration
+    # acceleration pass along the line
+    v_a = np.zeros(n)
     calc_speed(
         v_a,
         ds,
@@ -155,7 +79,10 @@ def simulate_kernel(  # noqa: PLR0913, PLR0914
         corner_acc,
         P_engine_in_watt,
     )
-    # run the simulation in reverse direction for braking
+
+    # braking pass over the reversed line: deceleration limit instead of engine power,
+    # gravity/drag/roll resistance push the car forward (hence the flipped signs)
+    v_b = np.zeros(n)
     calc_speed(
         v_b[::-1],
         ds[::-1],
@@ -172,12 +99,7 @@ def simulate_kernel(  # noqa: PLR0913, PLR0914
         0.0,
     )
 
-    speed = np.empty(n)
-    for i in range(n):
-        if v_a[i] < v_b[i]:
-            speed[i] = v_a[i]
-        else:
-            speed[i] = v_b[i]
+    speed = np.minimum(v_a, v_b)
 
     dt = np.empty(n)
     for i in range(n):
@@ -241,12 +163,13 @@ def calc_speed(
         n = corner_acc / 50
         max_acc_grip = (acc_limit) * (1 - (np.abs(acc_lat) / lat_limit) ** n) ** (1 / n)
 
-        # calc longitudinal acceleration. It's not the most readable code, but it's really fast
-        force_engine = speed[i] and P_engine_in_watt / speed[i] or 0
-        acc_lon = force_engine and min(max_acc_grip, force_engine / mass) or max_acc_grip
+        # engine force, capped by the remaining grip; at standstill (or zero power)
+        # the grip limit itself is the ceiling
+        force_engine = P_engine_in_watt / speed[i] if speed[i] > 0.0 else 0.0
+        acc_lon = min(max_acc_grip, force_engine / mass) if force_engine > 0.0 else max_acc_grip
 
         aero_drag = speed[i] ** 2 * c_drag / 2 / mass  # F=ma -> a=F/m
-        rolling_drag = c_roll * 9.81
+        rolling_drag = c_roll * GRAVITY
         acc_lon -= aero_drag + rolling_drag + g_car_lon[i]
 
         speed[j] = min(
@@ -255,3 +178,118 @@ def calc_speed(
         )
 
     return speed
+
+
+@nb.njit(cache=True)
+def _track_frame(line_coordinates, slope, lat_limit):
+    """
+    Precompute the per-point track frame that drives the physics passes.
+
+    From the line geometry (first and second central-difference gradients) it
+    derives, for every point:
+    - ds:      distance step along the line
+    - Nk:      curvature vector (unit normal, pointing to the turn center, scaled by curvature)
+    - k_lat:   curvature projected on the car's lateral axis (signed)
+    - g_lon:   gravity component along the car's forward axis
+    - g_lat:   gravity component along the car's lateral axis (from the track slope)
+    - v_max:   cornering speed limit from the lateral grip budget
+    """
+    n = line_coordinates.shape[0]
+    dX = _gradient(line_coordinates)
+    ddX = _gradient(dX)
+
+    ds = np.empty(n)
+    Nk = np.empty((n, 3))
+    k_car_lat = np.empty(n)
+    g_car_lon = np.empty(n)
+    g_car_lat = np.empty(n)
+    v_max = np.empty(n)
+
+    for i in range(n):
+        dxi = (dX[i, 0], dX[i, 1], dX[i, 2])
+        ddxi = (ddX[i, 0], ddX[i, 1], ddX[i, 2])
+
+        tangent = v_normalize(dxi)  # car's forward axis, global frame
+        ds[i] = v_norm(dxi)
+
+        curvature = v_cross(dxi, ddxi)
+        k = v_norm(curvature) / (ds[i] * ds[i] * ds[i])
+        normal = v_cross(v_normalize(curvature), tangent)  # points to the turn center
+        nk = v_scale(normal, k)
+        Nk[i, 0] = nk[0]
+        Nk[i, 1] = nk[1]
+        Nk[i, 2] = nk[2]
+
+        # car's lateral axis: tangent rotated 90 deg CW in the xy-plane, aligned with the track slope
+        lateral = v_normalize((tangent[1], -tangent[0], slope[i]))
+
+        g_lon = GRAVITY * tangent[2]
+        g_lat = GRAVITY * lateral[2]
+        k_lat = v_dot(nk, lateral)
+        g_car_lon[i] = g_lon
+        g_car_lat[i] = g_lat
+        k_car_lat[i] = k_lat
+
+        # lateral grip budget -> cornering speed limit (clamps written explicitly
+        # so a 0/0 NaN curvature propagates instead of being clamped away)
+        sgn = 1.0 if k_lat > 0 else -1.0 if k_lat < 0 else 0.0
+        kk = abs(k_lat)
+        if kk < 1e-3:
+            kk = 1e-3
+        budget = lat_limit - g_lat * sgn
+        if budget < 0.0:
+            budget = 0.0
+        v_max[i] = np.sqrt(budget / kk)
+
+    return ds, Nk, k_car_lat, g_car_lon, g_car_lat, v_max
+
+
+@nb.njit(cache=True)
+def _gradient(src):
+    """Central differences along axis 0 with one-sided differences at the ends (np.gradient semantics)."""
+    n = src.shape[0]
+    out = np.empty_like(src)
+    for i in range(n):
+        for j in range(src.shape[1]):
+            if i == 0:
+                out[i, j] = src[1, j] - src[0, j]
+            elif i == n - 1:
+                out[i, j] = src[n - 1, j] - src[n - 2, j]
+            else:
+                out[i, j] = 0.5 * (src[i + 1, j] - src[i - 1, j])
+    return out
+
+
+@nb.njit(cache=True, inline="always")
+def v_normalize(a):
+    """Scale a 3-vector (x, y, z) tuple to unit length."""
+    m = v_norm(a)
+    return (a[0] / m, a[1] / m, a[2] / m)
+
+
+@nb.njit(cache=True, inline="always")
+def v_norm(a):
+    """Length of a 3-vector (x, y, z) tuple."""
+    return np.sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2])
+
+
+@nb.njit(cache=True, inline="always")
+def v_cross(a, b):
+    """Cross product of two 3-vectors given as (x, y, z) tuples."""
+    return (
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    )
+
+
+@nb.njit(cache=True, inline="always")
+def v_dot(a, b):
+    """Dot product of two 3-vectors given as (x, y, z) tuples."""
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+@nb.njit(cache=True, inline="always")
+def v_scale(a, s):
+    """Multiply a 3-vector (x, y, z) tuple by a scalar."""
+    return (a[0] * s, a[1] * s, a[2] * s)
