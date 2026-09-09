@@ -30,16 +30,18 @@ def test_raceline_optimizer_component_declares_headlessly():
     assert component.name.endswith("raceline_optimizer")
 
 
-def test_page4_optimization_flow_headless():
-    """The optimization page must run without a streamlit server and the
-    start/stop button must toggle the session flag."""
+def test_page4_headless_flow_and_track_switch():
+    """Single AppTest instance covering the page lifecycle — AppTest page runs
+    are expensive (real track loads + simulates), so everything shares one run.
+
+    The optimization itself never runs in tests: the browser component has no
+    worker under AppTest, so only the page's session-state handling is exercised."""
     from streamlit.testing.v1 import AppTest
 
     page = Path(__file__).resolve().parents[1] / "src" / "streamlit_apps" / "pages" / "4_racetrack_optimization.py"
     at = AppTest.from_file(page, default_timeout=120)
     at.run()
     assert not at.exception
-
     assert at.session_state["optimization_running"] is False
 
     at.button[0].click().run()
@@ -53,22 +55,11 @@ def test_page4_optimization_flow_headless():
     # run_id identifies a run: stopping must not invalidate the in-flight result
     assert at.session_state["run_id"] == 2
 
-
-def test_page4_track_switch_resets_stale_result():
-    """Regression: the component keeps its last value across reruns — switching
-    tracks must stop the optimization, bump run_id and clear the processed
-    marker, or the previous track's result is accepted against the new track
-    (border-clearance ValueError crashed the page)."""
-    from streamlit.testing.v1 import AppTest
-
-    page = Path(__file__).resolve().parents[1] / "src" / "streamlit_apps" / "pages" / "4_racetrack_optimization.py"
-    at = AppTest.from_file(page, default_timeout=120)
-    at.run()
+    # regression: the component keeps its last value across reruns — switching
+    # tracks must stop the optimization, bump run_id and clear the processed
+    # marker, or the previous track's result is accepted against the new track
+    # (border-clearance ValueError crashed the page)
     first_name = at.radio[0].value.name
-    at.button[0].click().run()
-    assert at.session_state["optimization_running"] is True
-
-    # AppTest radio options are the format_func'd labels (track names)
     other_label = next(o for o in at.radio[0].options if o != first_name)
     at.radio[0].set_value(other_label).run()
     assert not at.exception

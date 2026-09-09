@@ -22,6 +22,7 @@ CI (`.github/workflows/ci.yml`) runs a python job (ruff check + ruff format --ch
 - `registry.cars()`/`registry.tracks()` return `list[Car]`/`list[Track]` objects. Pytest collects only `tests/` (`testpaths` in pyproject); `src/temp/` scratch files are not tests. `tests/conftest.py` and some test modules still call `cars()`/`tracks()` at import time.
 - `tests/test_streamlit_apps.py` imports every streamlit page module: pages must stay importable without a running streamlit server (page bodies load resources only inside `main()`/cached loaders).
 - `tests/test_car_parity.py` guards `Car.get_acceleration`/`get_deceleration` (used by the UI) against drifting from the physics inline in `simulate.calc_speed` (used by the optimizer) — change both together.
+- **No test may run a full optimization** (it can take minutes): `optimize()` is only ever tested with a monkeypatched `anneal_step`, `run_batch` runs a single small batch, and `runAnnealing` in `tests/js/worker.test.mjs` stops after 2 updates. Keep new tests bounded the same way; AppTest page runs are also expensive (real track loads + simulates), so share one instance per test.
 
 ## Architecture
 
